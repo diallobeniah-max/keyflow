@@ -3,6 +3,7 @@ import { useStore } from "../store/useStore";
 import { AppPage } from "../types";
 import { Icon } from "./Icon";
 import { IconButton } from "./ui";
+import { AppSelect } from "./ui/AppSelect";
 
 const NAV: { page: AppPage; label: string; icon: string }[] = [
   { page: "dashboard", label: "Dashboard", icon: "dashboard" },
@@ -37,7 +38,7 @@ export function Sidebar() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") { setDrawerOpen(false); return; }
       if (e.key === "Tab" && asideRef.current) {
-        const focusable = asideRef.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        const focusable = asideRef.current.querySelectorAll<HTMLElement>('button, [href], input, textarea, [role="combobox"], [tabindex]:not([tabindex="-1"])');
         if (!focusable.length) return;
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
@@ -64,7 +65,7 @@ export function Sidebar() {
     <nav className="nav-list">{NAV.map((n)=><button key={n.page} type="button" onClick={()=>navigate(n.page)} title={n.label} className={"nav-item" + (current===n.page ? " active" : "")}>{<Icon name={n.icon} size={20}/>} {!collapsed && <span>{n.label}</span>}</button>)}</nav>
     <div className="sidebar-foot">
       {!collapsed && <div className="tiny muted">ACTIVE PROFILE</div>}
-      {collapsed ? <IconButton name="profiles" title="Profiles" onClick={()=>navigate("profiles")}/> : <select className="select" value={activeId} onChange={(e)=>setActive(e.target.value)}>{profiles.map((p)=><option key={p.id} value={p.id}>{p.name}</option>)}</select>}
+      {collapsed ? <IconButton name="profiles" title="Profiles" onClick={()=>navigate("profiles")}/> : <AppSelect label="Active profile" value={activeId} onChange={setActive} options={profiles.map((p)=>({value:p.id,label:p.name}))}/>}
       <button type="button" className="btn pause-btn" onClick={togglePaused} data-paused={paused}>{<Icon name={paused ? "play" : "pause"} size={18}/>} {!collapsed && (paused ? "Resume" : "Pause")}</button>
     </div>
   </aside>;

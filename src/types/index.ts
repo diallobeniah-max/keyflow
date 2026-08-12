@@ -59,6 +59,8 @@ export interface ActionPayload {
   script?: string;
   notificationTitle?: string;
   notificationBody?: string;
+  screenshotMode?: "snipOverlay" | "fullscreenClip" | "windowClip" | "fullscreenSave";
+  title?: string;
 }
 
 export interface Action {
@@ -88,6 +90,7 @@ export interface ShortcutTiming {
   holdDuration: number;
   delay: number;
   cooldown: number;
+  timingMode?: "auto" | "custom";
 }
 
 export interface Shortcut {
@@ -103,6 +106,9 @@ export interface Shortcut {
   conditions?: ShortcutCondition[];
   enabled: boolean;
   suppressKey?: boolean;
+  /** Original key behavior: passThrough (default), suppress, disable, or remap. */
+  keyBehavior?: "passThrough" | "suppress" | "disable" | "remap";
+  remapTo?: string;
   createdAt: number;
   lastUsed?: number;
   useCount?: number;

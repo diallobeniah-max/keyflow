@@ -17,10 +17,10 @@ npm install
 npm run dev
 ```
 
-Open the local URL Vite gives you, usually:
+Open the local URL Vite prints. KeyFlow's configured browser-mode URL is:
 
 ```text
-http://localhost:3000
+http://127.0.0.1:1420
 ```
 
 Use **Test shortcuts** on the dashboard to simulate tap, double-tap, triple-tap, and hold triggers.

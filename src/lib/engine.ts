@@ -23,7 +23,7 @@ function tokenFromKey(e: KeyboardEvent): string {
 }
 
 function mouseToken(button: number): string {
-  return ["MB1", "MB3", "MB2", "MB4", "MB5"][button] ?? "MB1";
+  return (["MB1", "MB3", "MB2", "MB4", "MB5"] as const)[button] ?? "MB1";
 }
 
 function sameMods(a: ModifierKey[], b: ModifierKey[]): boolean {
@@ -68,6 +68,13 @@ class Engine {
   setCapture(enabled: boolean) { this.capture = enabled; }
   isCapturing() { return this.capture; }
   captureNext(cb: CaptureCb) { this.nextCapture = cb; }
+
+  /** In the desktop app with the native backend, the main process owns
+   *  keyboard matching; the renderer engine must not fire shortcuts from real
+   *  key events (keyboard capture for the simulator stays intact). */
+  private desktopNative = false;
+  setDesktopNative(v: boolean) { this.desktopNative = v; }
+  isDesktopNative() { return this.desktopNative; }
 
   private blocked(): boolean {
     const store = useStore.getState();
@@ -181,9 +188,9 @@ class Engine {
       cb(tokenFromKey(e), modsFromEvent(e));
       return;
     }
-    if (this.capture && !e.repeat && !isEditableTarget(e.target)) this.press(tokenFromKey(e), modsFromEvent(e), e);
+    if (this.capture && !this.desktopNative && !e.repeat && !isEditableTarget(e.target)) this.press(tokenFromKey(e), modsFromEvent(e), e);
   };
-  private onKeyUp = (e: KeyboardEvent) => { if (this.capture) this.release(tokenFromKey(e), modsFromEvent(e)); };
+  private onKeyUp = (e: KeyboardEvent) => { if (this.capture && !this.desktopNative) this.release(tokenFromKey(e), modsFromEvent(e)); };
   private onMouseDown = (e: MouseEvent) => {
     if (this.nextCapture) {
       const cb = this.nextCapture;
@@ -192,9 +199,9 @@ class Engine {
       cb(mouseToken(e.button), []);
       return;
     }
-    if (this.capture) this.press(mouseToken(e.button), []);
+    if (this.capture && !this.desktopNative) this.press(mouseToken(e.button), []);
   };
-  private onMouseUp = (e: MouseEvent) => { if (this.capture) this.release(mouseToken(e.button), []); };
+  private onMouseUp = (e: MouseEvent) => { if (this.capture && !this.desktopNative) this.release(mouseToken(e.button), []); };
   private onMouseMove = (e: MouseEvent) => { this.lastMouse.x = e.clientX; this.lastMouse.y = e.clientY; };
 }
 

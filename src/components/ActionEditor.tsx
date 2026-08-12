@@ -31,7 +31,7 @@ function ActionRow({ a, index, total, onChange, onRemove, onMove, depth }: { a:A
     {a.type==="switchProfile"&&<Field label="Profile"><Select value={a.payload.profileId??profiles[0]?.id??""} onChange={(v)=>setPayload({profileId:v})} options={profiles.map((p)=>({value:p.id,label:p.name}))}/></Field>}
     {a.type==="showNotification"&&<><Field label="Title"><Input value={a.payload.notificationTitle??""} onChange={(e)=>setPayload({notificationTitle:e.target.value})}/></Field><Field label="Body"><Input value={a.payload.notificationBody??""} onChange={(e)=>setPayload({notificationBody:e.target.value})}/></Field></>}
     {a.type==="delay"&&<Field label="Wait milliseconds"><Input type="number" value={a.payload.delayMs??500} onChange={(e)=>setPayload({delayMs:Number(e.target.value)})}/></Field>}
-    {a.type==="multiAction"&&<Field label="Actions in sequence"><ActionListEditor actions={a.payload.actions??[]} onChange={(list)=>setPayload({actions:list})} depth={depth+1}/></Field>}
+    {a.type==="multiAction"&&<Field label="Actions in sequence" group><ActionListEditor actions={a.payload.actions??[]} onChange={(list)=>setPayload({actions:list})} depth={depth+1}/></Field>}
     {a.type==="showPopup"&&<PopupItemsEditor items={a.payload.popupItems??[]} onChange={(items)=>setPayload({popupItems:items})}/>} 
     {a.type==="moveWindow"&&<Field label="Direction"><Select value={a.payload.direction??"left"} onChange={(v)=>setPayload({direction:v as any})} options={[{value:"left",label:"Left"},{value:"right",label:"Right"}]}/></Field>}
   </div></div>;

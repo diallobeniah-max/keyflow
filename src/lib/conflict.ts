@@ -28,7 +28,13 @@ export function detectConflicts(candidate: Shortcut, all: Shortcut[], settings: 
       out.push({ level: "error", existingId: s.id, message: `Already used by "${s.name}" in this profile.` });
     }
     if (s.profileId === candidate.profileId && s.trigger !== candidate.trigger) {
-      out.push({ level: "warning", existingId: s.id, message: `Same key is also used by "${s.name}" with ${s.trigger}. Timing may overlap.` });
+      const tap = candidate.trigger === "single" || s.trigger === "single";
+      const hold = candidate.trigger === "longPress" || candidate.trigger === "hold" || s.trigger === "longPress" || s.trigger === "hold";
+      if (tap && hold) {
+        out.push({ level: "warning", existingId: s.id, message: `${candidate.key} is assigned to "${candidate.name}" on ${candidate.trigger} and "${s.name}" on ${s.trigger}. KeyFlow runs only one action based on how long you hold the key.` });
+      } else {
+        out.push({ level: "warning", existingId: s.id, message: `Same key is also used by "${s.name}" with ${s.trigger}. Timing may overlap.` });
+      }
     }
     if (s.profileId !== candidate.profileId && s.trigger === candidate.trigger) {
       out.push({ level: "info", existingId: s.id, message: `Same key/trigger exists in another profile. Active profile wins.` });
@@ -38,8 +44,8 @@ export function detectConflicts(candidate: Shortcut, all: Shortcut[], settings: 
   if (RISKY_KEYS.includes(candidate.key) && !settings.shortcuts.allowRisky) {
     out.push({ level: "warning", message: `${candidate.key} is a risky/system key. Enable allow risky keys if you really want this.` });
   }
-  if (!candidate.modifiers.length && /^[A-Z0-9]$/.test(candidate.key) && candidate.trigger === "single") {
-    out.push({ level: "warning", message: `Single ${candidate.key} can interfere with normal typing. Double tap or combo is safer.` });
+  if (!candidate.modifiers.length && /^[A-Z0-9]$/.test(candidate.key)) {
+    out.push({ level: "warning", message: "Fast repeated typing of this key may activate the shortcut. Consider adding a modifier or limiting it to specific applications." });
   }
   const full = label(candidate.key, candidate.modifiers);
   if (SYSTEM_SHORTCUTS.some((sys) => full === sys || (sys.endsWith("+") && full.startsWith(sys)))) {

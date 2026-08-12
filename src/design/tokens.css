@@ -1,0 +1,372 @@
+/*
+ * KeyFlow design tokens
+ *
+ * This file is the runtime source of truth for visual values. Renderer CSS
+ * consumes these custom properties; TypeScript design files only reference
+ * their names. Keep approved values here rather than recreating them in
+ * component CSS or inline styles.
+ */
+
+:root {
+  /* Colour palette — dark theme */
+  --color-bg-app: #0b0f17;
+  --color-bg-sidebar: #0e131d;
+  --color-bg-surface: #121925;
+  --color-bg-surface-elevated: #17202e;
+  --color-bg-hover: #1b2636;
+  --color-bg-selected: #1e2e48;
+
+  --color-border-subtle: #202b3b;
+  --color-border-default: #2b384b;
+  --color-border-strong: #3a4a61;
+
+  --color-text-primary: #f5f7fa;
+  --color-text-secondary: #b2bdcc;
+  --color-text-muted: #778397;
+  --color-text-disabled: #566174;
+  --color-text-on-accent: #ffffff;
+
+  --color-accent: #4f7cff;
+  --color-accent-hover: #6a91ff;
+  --color-accent-pressed: #3f68df;
+  --color-accent-soft: rgba(79, 124, 255, 0.14);
+  --color-accent-border: rgba(79, 124, 255, 0.45);
+
+  --color-success: #34c78a;
+  --color-warning: #e7a63a;
+  --color-danger: #e65b65;
+  --color-info: #4f7cff;
+  --color-success-soft: rgba(52, 199, 138, 0.14);
+  --color-warning-soft: rgba(231, 166, 58, 0.14);
+  --color-danger-soft: rgba(230, 91, 101, 0.14);
+  --color-overlay: rgba(0, 0, 0, 0.45);
+  --color-overlay-strong: rgba(0, 0, 0, 0.58);
+  --color-scrim-light: rgba(255, 255, 255, 0.04);
+
+  /* Typography */
+  --font-family: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --type-display-size: 32px;
+  --type-display-line: 40px;
+  --type-display-weight: 700;
+  --type-page-size: 26px;
+  --type-page-line: 34px;
+  --type-page-weight: 700;
+  --type-section-size: 19px;
+  --type-section-line: 26px;
+  --type-section-weight: 600;
+  --type-card-size: 16px;
+  --type-card-line: 22px;
+  --type-card-weight: 600;
+  --type-body-large-size: 16px;
+  --type-body-large-line: 24px;
+  --type-body-large-weight: 400;
+  --type-body-size: 14px;
+  --type-body-line: 21px;
+  --type-body-weight: 400;
+  --type-body-strong-size: 14px;
+  --type-body-strong-line: 21px;
+  --type-body-strong-weight: 600;
+  --type-small-size: 13px;
+  --type-small-line: 18px;
+  --type-small-weight: 400;
+  --type-caption-size: 12px;
+  --type-caption-line: 16px;
+  --type-caption-weight: 500;
+  --type-button-size: 14px;
+  --type-button-line: 20px;
+  --type-button-weight: 600;
+
+  --type-titlebar: var(--type-caption-size);
+  --type-titlebar-line: var(--type-caption-line);
+
+  /* Approved spacing scale */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Approved radius scale */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+  --radius-control: var(--radius-md);
+  --radius-menu: var(--radius-md);
+  --radius-card: var(--radius-lg);
+  --radius-dialog: var(--radius-xl);
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.16);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.22);
+  --shadow-popup: 0 18px 48px rgba(0, 0, 0, 0.34);
+  --shadow-focus: 0 0 0 3px var(--color-accent-soft);
+
+  /* Controls */
+  --control-h-sm: 32px;
+  --control-h-md: 40px;
+  --control-h-lg: 44px;
+  --control-padding-x: 12px;
+  --control-padding-x-wide: 16px;
+  --control-radius: var(--radius-md);
+  --control-border-width: 1px;
+  --icon-btn-sm: 32px;
+  --icon-btn-md: 40px;
+  --icon-btn-lg: 44px;
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+
+  /* Select/dropdown contract */
+  --select-h-default: 40px;
+  --select-h-large: 44px;
+  --select-padding-x: 12px;
+  --select-arrow-size: 16px;
+  --select-arrow-inset: 12px;
+  --select-menu-padding: 8px;
+  --select-menu-gap: 8px;
+  --select-menu-max-height: 320px;
+  --select-option-h: 36px;
+  --select-option-padding-x: 12px;
+  --select-option-radius: var(--radius-sm);
+
+  /* Layout */
+  --layout-sidebar-width: 248px;
+  --layout-sidebar-collapsed-width: 72px;
+  --layout-sidebar-nav-height: 40px;
+  --layout-sidebar-nav-radius: var(--radius-md);
+  --layout-topbar-height: 60px;
+  --layout-titlebar-height: 52px;
+  --layout-page-padding-x: 24px;
+  --layout-page-padding-y: 24px;
+  --layout-readable-width: 920px;
+  --layout-content-max-width: 1200px;
+  --layout-settings-control-width: 280px;
+  --layout-min-window-width: 760px;
+  --layout-min-window-height: 640px;
+
+  /* Cards, rows, keys, popups */
+  --card-padding: 20px;
+  --card-padding-dense: 16px;
+  --card-radius: var(--radius-lg);
+  --settings-row-min-height: 64px;
+  --settings-row-padding-x: 16px;
+  --settings-row-padding-y: 12px;
+  --key-height: 44px;
+  --key-min-width: 48px;
+  --key-gap: 8px;
+  --key-radius: var(--radius-sm);
+  --key-badge-size: 18px;
+  --popup-width: 460px;
+  --popup-item-height: 60px;
+  --popup-item-gap: var(--space-1);
+  --popup-radius: var(--radius-xl);
+  --popup-min-width: 420px;
+  --popup-max-width: 500px;
+  --popup-min-height: 180px;
+  --popup-max-height: 560px;
+  --popup-list-max-height: calc(var(--popup-item-height) * 6 + var(--space-4));
+  --popup-list-max-width: var(--popup-max-width);
+  --popup-close-btn: 32px;
+  --popup-inset-safety: 6px;
+  --popup-open-duration: 150ms;
+  --popup-close-duration: 120ms;
+  --popup-motion-open: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --popup-motion-close: ease-in;
+  --popup-backdrop-blur: 28px;
+  --popup-backdrop-saturate: 1.25;
+  --popup-surface-opacity: 0.9;
+  --popup-surface: color-mix(in srgb, var(--color-bg-surface-elevated) 90%, transparent);
+  --popup-surface-border: color-mix(in srgb, var(--color-border-strong) 72%, var(--color-bg-surface-elevated));
+  --popup-shadow-fallback: 0 12px 28px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.16);
+  --toggle-width: 44px;
+  --toggle-height: 26px;
+  --toggle-knob-size: 20px;
+
+  /* Focus, layering, motion */
+  --focus-ring-width: 3px;
+  --focus-ring-color: var(--color-accent-soft);
+  --opacity-disabled: 0.48;
+  --z-titlebar: 50;
+  --z-sidebar-drawer: 90;
+  --z-dropdown: 200;
+  --z-dialog: 300;
+  --z-toast: 400;
+  --z-popup-shortcut: 500;
+  --z-onboarding: 600;
+  --motion-fast: 120ms ease-out;
+  --motion-default: 160ms ease-out;
+  --motion-slow: 240ms ease-out;
+
+  /*
+   * Temporary compatibility names. These are aliases only; new code must use
+   * the names above. None of these aliases refer to themselves.
+   */
+  --font: var(--font-family);
+  --bg: var(--color-bg-app);
+  --bg-elevated: var(--color-bg-surface-elevated);
+  --card: var(--color-bg-surface);
+  --card-hover: var(--color-bg-hover);
+  --border: var(--color-border-default);
+  --text: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --accent: var(--color-accent);
+  --accent-2: var(--color-accent-hover);
+  --accent-soft: var(--color-accent-soft);
+  --accent-border: var(--color-accent-border);
+  --accent-gradient: var(--accent);
+  --success: var(--color-success);
+  --warning: var(--color-warning);
+  --danger: var(--color-danger);
+  --info: var(--color-info);
+  --glass: var(--color-bg-surface-elevated);
+  --r-xs: var(--radius-xs);
+  --r-sm: var(--radius-sm);
+  --r-md: var(--radius-md);
+  --r-lg: var(--radius-lg);
+  --r-xl: var(--radius-xl);
+  --r-pill: var(--radius-pill);
+  --sp-0: var(--space-0);
+  --sp-1: var(--space-1);
+  --sp-2: var(--space-2);
+  --sp-3: var(--space-3);
+  --sp-4: var(--space-4);
+  --sp-5: var(--space-5);
+  --sp-6: var(--space-6);
+  --sp-8: var(--space-8);
+  --sp-10: var(--space-10);
+  --sp-12: var(--space-12);
+  --sp-16: var(--space-16);
+  --shadow-lg: var(--shadow-popup);
+  --shadow-accent: var(--shadow-md);
+  --sidebar-w: var(--layout-sidebar-width);
+  --sidebar-collapsed-w: var(--layout-sidebar-collapsed-width);
+  --sidebar-nav-h: var(--layout-sidebar-nav-height);
+  --sidebar-nav-radius: var(--layout-sidebar-nav-radius);
+  --topbar-h: var(--layout-topbar-height);
+  --titlebar-h: var(--layout-titlebar-height);
+  --page-padding-x: var(--layout-page-padding-x);
+  --page-padding-y: var(--layout-page-padding-y);
+  --content-max-readable: var(--layout-readable-width);
+  --settings-control-w: var(--layout-settings-control-width);
+  --fs-display: var(--type-display-size);
+  --lh-display: var(--type-display-line);
+  --fw-display: var(--type-display-weight);
+  --fs-page-title: var(--type-page-size);
+  --lh-page-title: var(--type-page-line);
+  --fw-page-title: var(--type-page-weight);
+  --fs-page: var(--type-page-size);
+  --fs-section-title: var(--type-section-size);
+  --lh-section-title: var(--type-section-line);
+  --fw-section-title: var(--type-section-weight);
+  --fs-section: var(--type-section-size);
+  --fs-card-title: var(--type-card-size);
+  --lh-card-title: var(--type-card-line);
+  --fw-card-title: var(--type-card-weight);
+  --fs-body-large: var(--type-body-large-size);
+  --lh-body-large: var(--type-body-large-line);
+  --fw-body-large: var(--type-body-large-weight);
+  --fs-body: var(--type-body-size);
+  --lh-body: var(--type-body-line);
+  --fw-body: var(--type-body-weight);
+  --fs-body-strong: var(--type-body-strong-size);
+  --lh-body-strong: var(--type-body-strong-line);
+  --fw-body-strong: var(--type-body-strong-weight);
+  --fs-small: var(--type-small-size);
+  --lh-small: var(--type-small-line);
+  --fw-small: var(--type-small-weight);
+  --fs-tiny: var(--type-caption-size);
+  --fs-caption: var(--type-caption-size);
+  --lh-caption: var(--type-caption-line);
+  --fw-caption: var(--type-caption-weight);
+  --fs-button: var(--type-button-size);
+  --lh-button: var(--type-button-line);
+  --fw-button: var(--type-button-weight);
+  --control-h: var(--control-h-md);
+  --input-h: var(--control-h-md);
+  --input-h-lg: var(--control-h-lg);
+  --input-padding-x: var(--control-padding-x);
+  --input-radius: var(--control-radius);
+  --key-h: var(--key-height);
+  --key-min-w: var(--key-min-width);
+  --popup-w: var(--popup-width);
+  --popup-item-h: var(--popup-item-height);
+  --focus-ring-width: 3px;
+  --t-fast: var(--motion-fast);
+  --t-default: var(--motion-default);
+  --t-slow: var(--motion-slow);
+}
+
+[data-theme="light"] {
+  --color-bg-app: #f4f7fb;
+  --color-bg-sidebar: #ffffff;
+  --color-bg-surface: #ffffff;
+  --color-bg-surface-elevated: #f8fafd;
+  --color-bg-hover: #eef3f9;
+  --color-bg-selected: #e7eeff;
+
+  --color-border-subtle: #e5eaf1;
+  --color-border-default: #d7dee8;
+  --color-border-strong: #c2cbd8;
+
+  --color-text-primary: #18202c;
+  --color-text-secondary: #4f5c6d;
+  --color-text-muted: #7b8797;
+  --color-text-disabled: #a0a8b3;
+  --color-text-on-accent: #ffffff;
+
+  --color-accent: #416fe8;
+  --color-accent-hover: #315fd6;
+  --color-accent-pressed: #294fb8;
+  --color-accent-soft: rgba(65, 111, 232, 0.12);
+  --color-accent-border: rgba(65, 111, 232, 0.38);
+
+  --color-info: #416fe8;
+  --color-success-soft: rgba(52, 199, 138, 0.12);
+  --color-warning-soft: rgba(231, 166, 58, 0.12);
+  --color-danger-soft: rgba(230, 91, 101, 0.12);
+  --color-overlay: rgba(24, 32, 44, 0.32);
+  --color-overlay-strong: rgba(24, 32, 44, 0.48);
+  --color-scrim-light: rgba(24, 32, 44, 0.04);
+  --popup-surface: color-mix(in srgb, #ffffff 92%, transparent);
+  --popup-surface-border: color-mix(in srgb, var(--color-border-default) 80%, #ffffff);
+
+  --shadow-sm: 0 1px 2px rgba(24, 32, 44, 0.08);
+  --shadow-md: 0 8px 24px rgba(24, 32, 44, 0.10);
+  --shadow-popup: 0 18px 48px rgba(24, 32, 44, 0.16);
+}
+
+/* Radius preferences map to approved values only. */
+[data-radius="compact"] {
+  --r-sm: var(--radius-xs);
+  --r-md: var(--radius-sm);
+  --r-lg: var(--radius-md);
+  --r-xl: var(--radius-lg);
+}
+
+[data-radius="relaxed"] {
+  --r-sm: var(--radius-sm);
+  --r-md: var(--radius-md);
+  --r-lg: var(--radius-lg);
+  --r-xl: var(--radius-xl);
+}
+
+/* Font-size preferences map to approved typography roles only. */
+[data-font-size="small"] {
+  --fs-body: var(--type-small-size);
+  --lh-body: var(--type-small-line);
+}
+
+[data-font-size="large"] {
+  --fs-body: var(--type-body-large-size);
+  --lh-body: var(--type-body-large-line);
+}

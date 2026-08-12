@@ -25,6 +25,7 @@ interface StoreState {
   popup: PopupRequest | null;
   toasts: Toast[];
   globalSearch: string;
+  suppression: { available: boolean; status: string; backend: string } | null;
 
   load: () => Promise<void>;
   persist: () => void;
@@ -68,6 +69,7 @@ interface StoreState {
   clearRecent: () => void;
   requestPopup: (req: PopupRequest) => void;
   closePopup: () => void;
+  setSuppression: (s: { available: boolean; status: string; backend: string } | null) => void;
   toast: (message: string, kind?: Toast["kind"]) => void;
   removeToast: (id: string) => void;
   finishOnboarding: () => void;
@@ -105,6 +107,7 @@ export const useStore = create<StoreState>((set, get) => ({
   popup: null,
   toasts: [],
   globalSearch: "",
+  suppression: null,
 
   load: async () => {
     const raw = await tauriLoad();
@@ -124,16 +127,11 @@ export const useStore = create<StoreState>((set, get) => ({
     const root = document.documentElement;
     const theme = a.theme === "system" ? (window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark") : a.theme;
     root.setAttribute("data-theme", theme);
-    root.style.setProperty("--accent", a.accent);
-    root.style.setProperty("--accent-gradient", `linear-gradient(135deg, ${a.accent}, var(--accent-2))`);
+    root.setAttribute("data-font-size", a.fontSize);
+    root.setAttribute("data-radius", a.radiusIntensity < 0.85 ? "compact" : "relaxed");
     root.classList.toggle("reduce-motion", a.reduceMotion);
     root.classList.toggle("compact", a.compactMode);
     root.style.setProperty("--ui-scale", ({ "90": "0.9", "100": "1", "110": "1.1", "125": "1.25" } as Record<string, string>)[a.uiScale] ?? "1");
-    root.style.setProperty("--fs-body", ({ small: "13px", normal: "15px", large: "17px" } as Record<string, string>)[a.fontSize] ?? "15px");
-    root.style.setProperty("--r-sm", `${8 * a.radiusIntensity}px`);
-    root.style.setProperty("--r-md", `${12 * a.radiusIntensity}px`);
-    root.style.setProperty("--r-lg", `${18 * a.radiusIntensity}px`);
-    root.style.setProperty("--r-xl", `${24 * a.radiusIntensity}px`);
   },
   resetAll: () => {
     const state = createSampleState();
@@ -211,6 +209,7 @@ export const useStore = create<StoreState>((set, get) => ({
   clearRecent: () => { set((s) => ({ data: { ...s.data, recent: [] } })); get().persist(); },
   requestPopup: (req) => set({ popup: req }),
   closePopup: () => set({ popup: null }),
+  setSuppression: (s) => set({ suppression: s }),
   toast: (message, kind = "info") => {
     const id = uid("toast");
     set((s) => ({ toasts: [...s.toasts, { id, message, kind }] }));

@@ -1,4 +1,4 @@
-import { Action, Settings } from "../types";
+﻿import { Action, Settings } from "../types";
 import { useStore } from "../store/useStore";
 import { invoke, isTauri } from "./tauri";
 
@@ -15,8 +15,27 @@ function popupPosition(settings: Settings): { x: number; y: number } {
   return { x: window.innerWidth / 2 - w / 2, y: 120 };
 }
 
+const ELECTRON_ACTION_TYPES = new Set<Action["type"]>([
+  "openApp", "openFile", "openFolder", "openWebsite", "runCommand", "runPowershell", "runBatch",
+  "pasteText", "typeText", "pressShortcut", "volumeControl", "mediaControl", "toggleMute",
+  "brightnessControl", "screenshot", "lockScreen", "openSettings", "showNotification", "copySelected",
+  "clipboardHistory", "minimizeWindow", "maximizeWindow", "closeWindow", "moveWindow", "alwaysOnTop",
+]);
 export async function runAction(action: Action): Promise<void> {
   const store = useStore.getState();
+  const electronAPI = (window as any).electronAPI;
+  if (electronAPI?.actions?.run && ELECTRON_ACTION_TYPES.has(action.type)) {
+    try {
+      const result = await electronAPI.actions.run(action);
+      if (result && result.ok === false) {
+        store.toast(`Action failed: ${result.error ?? "Unknown error"}`, "danger");
+      }
+      return;
+    } catch (error) {
+      store.toast("Desktop action failed: " + String(error), "danger");
+      return;
+    }
+  }
   const settings = store.data.settings;
   const { type, payload } = action;
 
@@ -80,7 +99,15 @@ export async function runAction(action: Action): Promise<void> {
       break;
     }
     case "showPopup":
-      store.requestPopup({ items: payload.popupItems ?? [], ...popupPosition(settings), title: "KeyFlow" });
+      if (electronAPI?.popup?.show) {
+        try {
+          await electronAPI.popup.show({ items: payload.popupItems ?? [], title: payload.title ?? "KeyFlow" });
+        } catch (error) {
+          store.toast("Popup failed: " + String(error), "danger");
+        }
+      } else {
+        store.requestPopup({ items: payload.popupItems ?? [], ...popupPosition(settings), title: "KeyFlow" });
+      }
       break;
     case "showNotification":
       if (settings.general.showNotifications && "Notification" in window) {

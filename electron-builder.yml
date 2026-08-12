@@ -1,0 +1,29 @@
+appId: com.keyflow.app
+productName: KeyFlow
+copyright: Copyright © 2026 KeyFlow
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - package.json
+  - "!node_modules/**/*"
+extraResources:
+  - from: native/keyflow-input/target/release/keyflow-input.exe
+    to: keyflow-input/keyflow-input.exe
+asar: true
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  artifactName: "${productName}-Setup-${version}.${ext}"
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

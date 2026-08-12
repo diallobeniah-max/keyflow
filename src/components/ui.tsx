@@ -1,25 +1,68 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React from "react";
 import { Icon } from "./Icon";
 import { useStore } from "../store/useStore";
+import { AppSelect, AppSelectOption } from "./ui/AppSelect";
 
 export function Button({ variant = "secondary", size, icon, children, onClick, disabled, title, style, type = "button" }: { variant?: "primary" | "secondary" | "ghost" | "danger"; size?: "sm"; icon?: string; children?: React.ReactNode; onClick?: () => void; disabled?: boolean; title?: string; style?: React.CSSProperties; type?: "button" | "submit" | "reset" }) {
   return <button type={type} className={["btn", `btn-${variant}`, size === "sm" ? "btn-sm" : ""].join(" ").trim()} onClick={onClick} disabled={disabled} title={title} style={style}>{icon && <Icon name={icon} size={18}/>} {children}</button>;
 }
 
-export function IconButton({ name, onClick, active, title, size = 20, style, disabled }: { name: string; onClick?: () => void; active?: boolean; title?: string; size?: number; style?: React.CSSProperties; disabled?: boolean }) {
-  return <button type="button" className={"icon-btn" + (active ? " active" : "")} onClick={onClick} title={title} style={style} disabled={disabled}><Icon name={name} size={size}/></button>;
+const ICON_LABELS: Record<string, string> = {
+  chevronDown: "Open menu",
+  chevronLeft: "Collapse sidebar",
+  chevronRight: "Expand sidebar",
+  chevronUp: "Move action up",
+  close: "Close",
+  copy: "Duplicate",
+  edit: "Edit",
+  play: "Test shortcut",
+  profiles: "Open profiles",
+  star: "Toggle favorite",
+  trash: "Delete",
+};
+
+export function IconButton({ name, onClick, active, title, size = 20, style, disabled, describedBy, id, ariaLabel, "aria-label": ariaLabelProp, "aria-describedby": ariaDescribedBy, "aria-labelledby": ariaLabelledBy }: { name: string; onClick?: () => void; active?: boolean; title?: string; size?: number; style?: React.CSSProperties; disabled?: boolean; describedBy?: string; id?: string; ariaLabel?: string; "aria-label"?: string; "aria-describedby"?: string; "aria-labelledby"?: string }) {
+  return <button id={id} type="button" className={"icon-btn" + (active ? " active" : "")} onClick={onClick} title={title} aria-label={ariaLabel ?? ariaLabelProp ?? title ?? ICON_LABELS[name] ?? name} aria-labelledby={ariaLabelledBy} aria-describedby={[describedBy, ariaDescribedBy].filter(Boolean).join(" ") || undefined} style={style} disabled={disabled}><Icon name={name} size={size}/></button>;
 }
 
 export function Card({ children, hover, onClick, style, className }: { children: React.ReactNode; hover?: boolean; onClick?: () => void; style?: React.CSSProperties; className?: string }) {
   return <div className={"card" + (hover ? " hover" : "") + (className ? " " + className : "")} onClick={onClick} style={style}>{children}</div>;
 }
 
-export function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
-  return <button type="button" className={"toggle" + (checked ? " on" : "")} onClick={() => !disabled && onChange(!checked)} disabled={disabled} aria-pressed={checked} aria-label="toggle"><span className="knob"/></button>;
+export function Toggle({ checked, onChange, disabled, label = "Toggle", describedBy, id, ariaLabel, "aria-label": ariaLabelProp, "aria-describedby": ariaDescribedBy, "aria-labelledby": ariaLabelledBy }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; label?: string; describedBy?: string; id?: string; ariaLabel?: string; "aria-label"?: string; "aria-describedby"?: string; "aria-labelledby"?: string }) {
+  return <button id={id} type="button" className={"toggle" + (checked ? " on" : "")} onClick={() => !disabled && onChange(!checked)} disabled={disabled} aria-pressed={checked} aria-label={ariaLabel ?? ariaLabelProp ?? label} aria-labelledby={ariaLabelledBy} aria-describedby={[describedBy, ariaDescribedBy].filter(Boolean).join(" ") || undefined}><span className="knob"/></button>;
 }
 
-export function Field({ label, hint, children }: { label?: string; hint?: string; children: React.ReactNode }) {
-  return <div className="field">{label && <label className="field-label">{label}</label>}{children}{hint && <div className="hint">{hint}</div>}</div>;
+type FieldControlProps = {
+  id?: string;
+  role?: React.AriaRole;
+  "aria-describedby"?: string;
+  "aria-labelledby"?: string;
+  "aria-label"?: string;
+  "aria-valuemin"?: number;
+  "aria-valuemax"?: number;
+  "aria-valuenow"?: number;
+  "aria-checked"?: boolean;
+};
+
+export function Field({ label, hint, group = false, children }: { label?: string; hint?: string; group?: boolean; children: React.ReactNode }) {
+  const fieldId = React.useId();
+  const labelId = label ? `${fieldId}-label` : undefined;
+  const hintId = hint ? `${fieldId}-hint` : undefined;
+  const child = React.isValidElement(children) ? children as React.ReactElement<FieldControlProps> : undefined;
+  const childProps = child?.props ?? {};
+  const controlId = childProps.id ?? fieldId;
+  const hasIntrinsicName = Boolean(childProps["aria-label"] || childProps["aria-labelledby"]);
+  const describedBy = [childProps["aria-describedby"], hintId].filter(Boolean).join(" ") || undefined;
+  const labelledBy = childProps["aria-labelledby"] || (!hasIntrinsicName ? labelId : undefined);
+  const controlProps: FieldControlProps = { id: controlId };
+  if (describedBy) controlProps["aria-describedby"] = describedBy;
+  if (labelledBy) controlProps["aria-labelledby"] = labelledBy;
+  if (group) controlProps.role = childProps.role ?? "group";
+  const control = child ? React.cloneElement(child, controlProps) : children;
+  const labelTarget = group ? undefined : controlId;
+
+  return <div className="field">{label && (group ? <div className="field-label" id={labelId}>{label}</div> : <label className="field-label" id={labelId} htmlFor={labelTarget}>{label}</label>)}{control}{hint && <div className="hint" id={hintId}>{hint}</div>}</div>;
 }
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
@@ -32,57 +75,13 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   return <textarea className={["input", className ?? ""].join(" ").trim()} {...rest} onKeyDown={(e)=>{ onKeyDown?.(e); e.stopPropagation(); }} onMouseDown={(e)=>{ onMouseDown?.(e); e.stopPropagation(); }}/>;
 }
 
-export function Select({ value, onChange, options, placeholder = "Select" }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; placeholder?: string }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const selected = useMemo(() => options.find((o) => o.value === value), [options, value]);
-
-  useEffect(() => {
-    const close = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    window.addEventListener("mousedown", close);
-    return () => window.removeEventListener("mousedown", close);
-  }, []);
-
-  const choose = (v: string) => {
-    onChange(v);
-    setOpen(false);
-  };
-
-  return (
-    <div className="select-wrap" ref={ref}>
-      <button
-        type="button"
-        className={"select-trigger" + (open ? " open" : "")}
-        onClick={() => setOpen((v) => !v)}
-        onKeyDown={(e) => {
-          e.stopPropagation();
-          if (e.key === "Escape") setOpen(false);
-          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((v) => !v); }
-          if (e.key === "ArrowDown") { e.preventDefault(); setOpen(true); }
-        }}
-      >
-        <span>{selected?.label ?? placeholder}</span>
-        <span className="select-chevron"><Icon name="chevronDown" size={16}/></span>
-      </button>
-      {open && (
-        <div className="select-menu" role="listbox">
-          {options.map((o) => (
-            <button key={o.value} type="button" className={"select-option" + (o.value === value ? " selected" : "")} onClick={() => choose(o.value)}>
-              <span>{o.label}</span>
-              {o.value === value && <Icon name="check" size={15}/>} 
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+export function Select({ value, onChange, options, placeholder = "Select", id, describedBy, ariaLabel, "aria-label": ariaLabelProp, "aria-describedby": ariaDescribedBy, "aria-labelledby": ariaLabelledBy, disabled }: { value: string; onChange: (v: string) => void; options: AppSelectOption[]; placeholder?: string; id?: string; describedBy?: string; ariaLabel?: string; "aria-label"?: string; "aria-describedby"?: string; "aria-labelledby"?: string; disabled?: boolean }) {
+  return <AppSelect id={id} describedBy={[describedBy, ariaDescribedBy].filter(Boolean).join(" ") || undefined} ariaLabel={ariaLabel ?? ariaLabelProp} aria-labelledby={ariaLabelledBy} disabled={disabled} value={value} onChange={onChange} options={options} placeholder={placeholder} />;
 }
 
-export function Slider({ value, min, max, step = 1, onChange }: { value: number; min: number; max: number; step?: number; onChange: (v: number) => void }) {
+export function Slider({ value, min, max, step = 1, onChange, id, describedBy, ariaLabel, "aria-describedby": ariaDescribedBy, "aria-label": ariaLabelProp, "aria-labelledby": ariaLabelledBy, disabled }: { value: number; min: number; max: number; step?: number; onChange: (v: number) => void; id?: string; describedBy?: string; ariaLabel?: string; "aria-describedby"?: string; "aria-label"?: string; "aria-labelledby"?: string; disabled?: boolean }) {
   const progress = ((value - min) / (max - min)) * 100;
-  return <input className="range" type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} style={{ ["--range-progress" as string]: `${progress}%` } as React.CSSProperties}/>;
+  return <input id={id} aria-describedby={[describedBy, ariaDescribedBy].filter(Boolean).join(" ") || undefined} aria-label={ariaLabel ?? ariaLabelProp} aria-labelledby={ariaLabelledBy} disabled={disabled} className="range" type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} style={{ ["--range-progress" as string]: `${progress}%` } as React.CSSProperties}/>;
 }
 
 export function Segmented({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
@@ -96,7 +95,7 @@ export function PageIntro({ eyebrow, title, description, children }: { eyebrow: 
 
 export function Modal({ open, onClose, title, children, footer, width }: { open: boolean; onClose: () => void; title?: string; children: React.ReactNode; footer?: React.ReactNode; width?: number }) {
   if (!open) return null;
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="modal" style={width ? { width } : undefined} onMouseDown={(e) => e.stopPropagation()}>{title && <div className="spread" style={{ marginBottom: 16 }}><h3 className="section-title">{title}</h3><IconButton name="close" onClick={onClose}/></div>}{children}{footer && <div className="row" style={{ justifyContent: "flex-end", marginTop: 20 }}>{footer}</div>}</div></div>;
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="modal" style={width ? { width } : undefined} onMouseDown={(e) => e.stopPropagation()}>{title && <div className="modal-header spread"><h3 className="section-title">{title}</h3><IconButton name="close" onClick={onClose}/></div>}{children}{footer && <div className="modal-footer row">{footer}</div>}</div></div>;
 }
 
 export function StatCard({ title, value, icon, accent, subtitle }: { title: string; value: React.ReactNode; icon: string; accent?: string; subtitle?: string }) {
