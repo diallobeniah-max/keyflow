@@ -5,13 +5,22 @@ import { Icon } from "./Icon";
 import { IconButton } from "./ui";
 import { AppSelect } from "./ui/AppSelect";
 
-const NAV: { page: AppPage; label: string; icon: string }[] = [
-  { page: "dashboard", label: "Dashboard", icon: "dashboard" },
+interface NavItem {
+  page: AppPage;
+  label: string;
+  icon: string;
+}
+
+const NAV_MAIN: NavItem[] = [
+  { page: "dashboard", label: "Overview", icon: "dashboard" },
   { page: "shortcuts", label: "Shortcuts", icon: "shortcuts" },
   { page: "create", label: "Create", icon: "create" },
-  { page: "visual", label: "Keyboard", icon: "visual" },
-  { page: "library", label: "Library", icon: "library" },
+  { page: "visual", label: "Keyboard Map", icon: "visual" },
+];
+
+const NAV_MANAGE: NavItem[] = [
   { page: "profiles", label: "Profiles", icon: "profiles" },
+  { page: "library", label: "Action Library", icon: "library" },
   { page: "settings", label: "Settings", icon: "settings" },
 ];
 
@@ -26,24 +35,31 @@ export function Sidebar() {
   const activeId = useStore((s) => s.activeProfileId);
   const setActive = useStore((s) => s.setActiveProfile);
   const paused = useStore((s) => s.paused);
+  const safeMode = useStore((s) => s.safeMode);
   const togglePaused = useStore((s) => s.togglePaused);
   const asideRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (!drawerOpen) {
-      const h = document.querySelector<HTMLElement>(".hamburger");
-      h?.focus();
-      return;
-    }
+    if (!drawerOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setDrawerOpen(false); return; }
+      if (e.key === "Escape") {
+        setDrawerOpen(false);
+        return;
+      }
       if (e.key === "Tab" && asideRef.current) {
-        const focusable = asideRef.current.querySelectorAll<HTMLElement>('button, [href], input, textarea, [role="combobox"], [tabindex]:not([tabindex="-1"])');
+        const focusable = asideRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, textarea, [role="combobox"], [tabindex]:not([tabindex="-1"])'
+        );
         if (!focusable.length) return;
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
-        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     window.addEventListener("keydown", onKey, true);
@@ -57,16 +73,98 @@ export function Sidebar() {
   };
 
   const isDrawer = drawerOpen ? " open" : "";
-  return <aside ref={asideRef} tabIndex={-1} className={"sidebar" + (collapsed ? " collapsed" : "") + isDrawer}>
-    <div className="sidebar-brand">
-      {!collapsed && <div className="row"><span className="brand-logo"><Icon name="logo" size={20}/></span><span className="brand-title">KeyFlow</span></div>}
-      <IconButton name={collapsed ? "chevronRight" : "chevronLeft"} onClick={toggle} title="Toggle sidebar"/>
-    </div>
-    <nav className="nav-list">{NAV.map((n)=><button key={n.page} type="button" onClick={()=>navigate(n.page)} title={n.label} className={"nav-item" + (current===n.page ? " active" : "")}>{<Icon name={n.icon} size={20}/>} {!collapsed && <span>{n.label}</span>}</button>)}</nav>
-    <div className="sidebar-foot">
-      {!collapsed && <div className="tiny muted">ACTIVE PROFILE</div>}
-      {collapsed ? <IconButton name="profiles" title="Profiles" onClick={()=>navigate("profiles")}/> : <AppSelect label="Active profile" value={activeId} onChange={setActive} options={profiles.map((p)=>({value:p.id,label:p.name}))}/>}
-      <button type="button" className="btn pause-btn" onClick={togglePaused} data-paused={paused}>{<Icon name={paused ? "play" : "pause"} size={18}/>} {!collapsed && (paused ? "Resume" : "Pause")}</button>
-    </div>
-  </aside>;
+
+  return (
+    <aside
+      ref={asideRef}
+      tabIndex={-1}
+      className={"sidebar" + (collapsed ? " collapsed" : "") + isDrawer}
+      aria-label="Application navigation"
+    >
+      <div className="sidebar-top">
+        <div className="sidebar-brand">
+          {!collapsed && (
+            <div className="sidebar-brand-title">
+              <span className="brand-logo-dot" />
+              <span>KeyFlow</span>
+            </div>
+          )}
+          <IconButton
+            name={collapsed ? "chevronRight" : "chevronLeft"}
+            onClick={toggle}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            size={16}
+          />
+        </div>
+
+        <nav className="nav-group">
+          {!collapsed && <div className="nav-group-label">SHORTCUTS</div>}
+          <div className="nav-list">
+            {NAV_MAIN.map((n) => {
+              const isActive = current === n.page;
+              return (
+                <button
+                  key={n.page}
+                  type="button"
+                  onClick={() => navigate(n.page)}
+                  title={n.label}
+                  className={"nav-item" + (isActive ? " active" : "")}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <Icon name={n.icon} size={17} />
+                  {!collapsed && <span className="nav-item-label">{n.label}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+
+        <nav className="nav-group">
+          {!collapsed && <div className="nav-group-label">WORKSPACE</div>}
+          <div className="nav-list">
+            {NAV_MANAGE.map((n) => {
+              const isActive = current === n.page;
+              return (
+                <button
+                  key={n.page}
+                  type="button"
+                  onClick={() => navigate(n.page)}
+                  title={n.label}
+                  className={"nav-item" + (isActive ? " active" : "")}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <Icon name={n.icon} size={17} />
+                  {!collapsed && <span className="nav-item-label">{n.label}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      </div>
+
+      <div className="sidebar-foot">
+        {!collapsed && (
+          <div className="sidebar-profile-box">
+            <div className="sidebar-profile-label">ACTIVE PROFILE</div>
+            <AppSelect
+              label="Active profile"
+              value={activeId}
+              onChange={setActive}
+              options={profiles.map((p) => ({ value: p.id, label: p.name }))}
+            />
+          </div>
+        )}
+
+        <button
+          type="button"
+          className={"btn sidebar-pause-btn" + (paused || safeMode ? " is-paused" : "")}
+          onClick={togglePaused}
+          title={paused ? "Resume KeyFlow input hook" : "Pause KeyFlow input hook"}
+        >
+          <Icon name={paused ? "play" : "pause"} size={16} />
+          {!collapsed && <span>{safeMode ? "Safe Mode" : paused ? "Resume Engine" : "Pause Engine"}</span>}
+        </button>
+      </div>
+    </aside>
+  );
 }

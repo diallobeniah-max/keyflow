@@ -1,14 +1,404 @@
-import { ChangeEvent, ReactNode } from "react";
+import { ChangeEvent, useState } from "react";
 import { useStore } from "../store/useStore";
 import { ACCENT_COLORS, HIGHLIGHT_PRESETS } from "../lib/constants";
-import { Button, Card, Field, Input, PageIntro, Select, Slider, Toggle } from "../components/ui";
+import { Button, Field, Input, PageIntro, SettingsGroup, SettingsRow, Toggle } from "../components/ui";
 import { AppSelect } from "../components/ui/AppSelect";
 import { Icon } from "../components/Icon";
 
-function Row({ title, desc, children }: { title:string; desc?:string; children:ReactNode }) { return <div className="settings-row"><div><b>{title}</b>{desc&&<p className="muted tiny">{desc}</p>}</div>{children}</div>; }
-function Section({ title, icon, children }: { title:string; icon:string; children:ReactNode }) { return <Card className="settings-section"><h3 className="section-title"><Icon name={icon} size={18}/> {title}</h3>{children}</Card>; }
-function Bool({ section, field, title, desc }: { section:any; field:string; title:string; desc?:string }) { const value=useStore((s)=>(s.data.settings as any)[section]?.[field] as boolean); const patch=useStore((s)=>s.patchSettings); return <Row title={title} desc={desc}><Toggle label={title} checked={value ?? false} onChange={(v)=>patch(section,{[field]:v} as any)}/></Row>; }
+type SettingsSection =
+  | "general"
+  | "shortcuts"
+  | "alwaysOnTop"
+  | "popup"
+  | "appearance"
+  | "privacy"
+  | "data"
+  | "advanced"
+  | "about";
 
-export function Settings(){ const data=useStore((s)=>s.data); const settings=data.settings; const suppression=useStore((s)=>s.suppression); const patch=useStore((s)=>s.patchSettings); const setSafe=useStore((s)=>s.setSafeMode); const reset=useStore((s)=>s.resetAll); const clearRecent=useStore((s)=>s.clearRecent); const importState=useStore((s)=>s.importState); const exportJson=()=>{ const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}); const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download="keyflow-backup.json"; a.click(); URL.revokeObjectURL(url); }; const importJson=(e:ChangeEvent<HTMLInputElement>)=>{ const file=e.target.files?.[0]; if(!file)return; file.text().then((txt)=>importState(JSON.parse(txt))); };
- return <div className="content"><PageIntro eyebrow="control center" title="Settings" description="Tune how KeyFlow behaves, looks, stores data, and protects your typing. Every setting is local: browser mode uses localStorage; desktop mode uses JSON under AppData."/><div className="settings-grid"><Section title="General" icon="settings"><Bool section="general" field="launchOnStartup" title="Launch on Windows startup"/><Bool section="general" field="startMinimized" title="Start minimized"/><Bool section="general" field="minimizeToTray" title="Minimize to tray"/><Bool section="general" field="showNotifications" title="Show desktop notifications"/><Bool section="general" field="soundFeedback" title="Enable sound feedback"/><Bool section="general" field="showRecentOnDashboard" title="Show recent actions on dashboard"/><Field label="Default profile"><Select value={settings.general.defaultProfileId} onChange={(v)=>patch("general",{defaultProfileId:v})} options={data.profiles.map((p)=>({value:p.id,label:p.name}))}/></Field></Section><Section title="Appearance" icon="monitor"><Field label="Theme"><AppSelect value={settings.appearance.theme} onChange={(v)=>patch("appearance",{theme:v as any})} options={[{value:"dark",label:"Dark"},{value:"light",label:"Light"},{value:"system",label:"System"}]}/></Field><Field label="Premium blue accent" group><div className="row wrap">{ACCENT_COLORS.map((c)=><button key={c} type="button" className="color-dot" aria-label={"Blue accent "+c} aria-pressed={settings.appearance.accent===c} title={c} style={{background:c, outline: settings.appearance.accent===c?"3px solid var(--text)":"none"}} onClick={()=>patch("appearance",{accent:c})}/>)}</div></Field><Bool section="appearance" field="compactMode" title="Compact mode"/><Bool section="appearance" field="reduceMotion" title="Reduce motion"/><Bool section="appearance" field="popupBlur" title="Popup blur"/><Field label={`Rounded corners: ${settings.appearance.radiusIntensity.toFixed(1)}`}><Slider value={settings.appearance.radiusIntensity} min={0.5} max={1.5} step={0.1} onChange={(v)=>patch("appearance",{radiusIntensity:v})}/></Field><Field label="UI scale"><Select value={settings.appearance.uiScale} onChange={(v)=>patch("appearance",{uiScale:v as any})} options={["90","100","110","125"].map((x)=>({value:x,label:x+"%"}))}/></Field><Field label="Font size"><Select value={settings.appearance.fontSize} onChange={(v)=>patch("appearance",{fontSize:v as any})} options={[{value:"small",label:"Small"},{value:"normal",label:"Normal"},{value:"large",label:"Large"}]}/></Field></Section><Section title="Always on Top & Windows" icon="pinTop"><Row title="Sound feedback" desc="Play a subtle confirmation sound when a window is pinned or unpinned."><Toggle label="Sound feedback" checked={settings.windowControl?.soundFeedback ?? true} onChange={(v)=>patch("windowControl" as any, { soundFeedback: v } as any)}/></Row><Row title="Highlight pinned windows" desc="Display a colored border on windows pinned as Always on Top."><Toggle label="Highlight pinned windows" checked={settings.windowControl?.highlightPinned ?? true} onChange={(v)=>patch("windowControl" as any, { highlightPinned: v } as any)}/></Row><Field label="Highlight border color" group><div className="row wrap gap-sm">{HIGHLIGHT_PRESETS.map((p)=><button key={p.value} type="button" className={"chip clickable" + ((settings.windowControl?.highlightColor ?? "#4F7CFF") === p.value ? " active" : "")} aria-pressed={(settings.windowControl?.highlightColor ?? "#4F7CFF") === p.value} onClick={()=>patch("windowControl" as any, { highlightColor: p.value } as any)}><span className="color-dot-sm" style={{ background: p.value }}/>{p.label}</button>)}</div></Field><Field label="Border thickness"><AppSelect value={settings.windowControl?.borderThickness ?? "medium"} onChange={(v)=>patch("windowControl" as any, { borderThickness: v } as any)} options={[{value:"thin",label:"Thin (2px)"},{value:"medium",label:"Medium (4px)"},{value:"thick",label:"Thick (6px)"}]}/></Field><Row title="Show floating window pin" desc="Show a compact floating pin icon near active windows (experimental)."><Toggle label="Show floating window pin" checked={settings.windowControl?.showFloatingPin ?? false} onChange={(v)=>patch("windowControl" as any, { showFloatingPin: v } as any)}/></Row></Section><Section title="Hyper Key" icon="command"><div className="notice info">A Hyper key turns one physical key, such as CapsLock, into Ctrl + Alt + Shift + Win. That gives you thousands of clean shortcuts without fighting normal typing.</div><Bool section="shortcuts" field="hyperKeyEnabled" title="Enable Hyper key" desc="Desktop mode will convert the chosen key into the Hyper modifier stack."/><Field label="Hyper key"><Select value={settings.shortcuts.hyperKey} onChange={(v)=>patch("shortcuts",{hyperKey:v})} options={["CapsLock","F13","F14","F15","RightAlt","RightCtrl"].map((x)=>({value:x,label:x}))}/></Field><Field label="Hyper output"><Input value={settings.shortcuts.hyperKeyOutput} onChange={(e)=>patch("shortcuts",{hyperKeyOutput:e.target.value})}/></Field><p className="muted tiny">Examples included: Hyper + P for play/pause, Hyper + Up for brightness up, Hyper + Down for brightness down.</p></Section><Section title="Shortcuts" icon="shortcuts"><Field label="Global pause shortcut"><Input value={settings.shortcuts.globalPause} onChange={(e)=>patch("shortcuts",{globalPause:e.target.value})}/></Field><Field label="Emergency safe mode shortcut"><Input value={settings.shortcuts.emergencySafe} onChange={(e)=>patch("shortcuts",{emergencySafe:e.target.value})}/></Field><Field label="Default double tap interval"><Input type="number" value={settings.shortcuts.defaultDoubleTap} onChange={(e)=>patch("shortcuts",{defaultDoubleTap:Number(e.target.value)})}/></Field><Field label="Default triple tap interval"><Input type="number" value={settings.shortcuts.defaultTripleTap} onChange={(e)=>patch("shortcuts",{defaultTripleTap:Number(e.target.value)})}/></Field><Field label="Default hold duration"><Input type="number" value={settings.shortcuts.defaultHold} onChange={(e)=>patch("shortcuts",{defaultHold:Number(e.target.value)})}/></Field><Bool section="shortcuts" field="keyRepeatProtection" title="Key repeat protection"/><Bool section="shortcuts" field="preventAccidental" title="Prevent accidental triggers"/><Bool section="shortcuts" field="allowRisky" title="Allow risky keys"/></Section><Section title="Popup Menu" icon="popup"><Field label="Position"><Select value={settings.popup.position} onChange={(v)=>patch("popup",{position:v as any})} options={[{value:"cursor",label:"Near cursor"},{value:"center",label:"Center screen"},{value:"last",label:"Last position"}]}/></Field><Field label="Size"><Select value={settings.popup.size} onChange={(v)=>patch("popup",{size:v as any})} options={[{value:"compact",label:"Compact"},{value:"comfortable",label:"Comfortable"},{value:"large",label:"Large"}]}/></Field><Bool section="popup" field="showIcons" title="Show icons"/><Bool section="popup" field="showNumbers" title="Show numbers"/><Bool section="popup" field="search" title="Enable search"/><Bool section="popup" field="closeAfterAction" title="Close after action"/><Field label={`Animation speed: ${settings.popup.animationSpeed}ms`}><Slider value={settings.popup.animationSpeed} min={80} max={320} step={10} onChange={(v)=>patch("popup",{animationSpeed:v})}/></Field><Field label={`Opacity: ${Math.round(settings.popup.opacity*100)}%`}><Slider value={settings.popup.opacity} min={0.6} max={1} step={0.01} onChange={(v)=>patch("popup",{opacity:v})}/></Field><Field label="Maximum visible items"><Input type="number" value={settings.popup.maxItems} onChange={(e)=>patch("popup",{maxItems:Number(e.target.value)})}/></Field></Section><Section title="Profiles" icon="profiles"><Bool section="profiles" field="enableAppProfiles" title="Enable app-specific profiles"/><Bool section="profiles" field="autoSwitchByApp" title="Auto-switch by active app"/></Section><Section title="Privacy & Safety" icon="shield"><div className="notice info">KeyFlow does not save typed words. It only evaluates configured shortcuts. Desktop mode should only forward configured keys from the Windows hook.</div><Bool section="privacy" field="pauseInPassword" title="Pause inside password fields when possible"/>{suppression && !suppression.available && <div className="notice warning">Key suppression (for example suppressing the Caps Lock toggle) requires AutoHotkey v2. Install AutoHotkey v2 from autohotkey.com and restart KeyFlow; keys currently pass through normally.</div>}<Row title="Safe mode" desc="Disables all shortcuts immediately."><Toggle label="Safe mode" checked={settings.privacy.safeMode} onChange={setSafe}/></Row><Field label="Blacklisted apps"><Input value={settings.privacy.blacklistedApps.join(", ")} onChange={(e)=>patch("privacy",{blacklistedApps:e.target.value.split(",").map((x)=>x.trim()).filter(Boolean)})}/></Field><Button variant="secondary" onClick={clearRecent}>Clear recent action history</Button></Section><Section title="Data & Backup" icon="folder"><Field label="Local data location"><Input value={settings.data.dataLocation} onChange={(e)=>patch("data",{dataLocation:e.target.value})}/></Field><div className="row wrap"><Button icon="file" onClick={exportJson}>Export settings</Button><label className="btn btn-secondary"><Icon name="folder" size={18}/> Import settings <input type="file" accept="application/json" hidden onChange={importJson}/></label><Button variant="danger" icon="trash" onClick={reset}>Reset app data</Button></div></Section><Section title="Advanced" icon="terminal"><Row title="Extended shortcut access" desc="Allows KeyFlow shortcuts to work while administrator/elevated applications (such as Task Manager and elevated Terminal) are focused. Requests a single Windows UAC prompt for the background input helper. Secure desktop screens remain protected."><Toggle label="Extended shortcut access" checked={settings.advanced?.extendedAccess ?? false} onChange={(v)=>patch("advanced" as any, { extendedAccess: v } as any)}/></Row><Bool section="advanced" field="debugLogs" title="Enable debug logs"/><Bool section="advanced" field="performanceMode" title="Performance mode"/><Bool section="advanced" field="portableMode" title="Portable mode"/><Field label="Hook mode"><Input value={settings.advanced.hookMode} onChange={(e)=>patch("advanced",{hookMode:e.target.value})}/></Field></Section><Section title="About" icon="logo"><p><b>KeyFlow</b> v0.3.0 design refresh</p><p className="muted">Premium cloud-style React UI + Tauri/Rust desktop backend scaffold.</p></Section></div></div>;
+interface SectionTab {
+  id: SettingsSection;
+  label: string;
+  icon: string;
+}
+
+const SECTIONS: SectionTab[] = [
+  { id: "general", label: "General", icon: "settings" },
+  { id: "shortcuts", label: "Shortcuts & Gestures", icon: "shortcuts" },
+  { id: "alwaysOnTop", label: "Always on Top", icon: "pinTop" },
+  { id: "popup", label: "Popup Menu", icon: "popup" },
+  { id: "appearance", label: "Appearance", icon: "monitor" },
+  { id: "privacy", label: "Privacy & Safety", icon: "shield" },
+  { id: "data", label: "Data & Backup", icon: "folder" },
+  { id: "advanced", label: "Advanced", icon: "terminal" },
+  { id: "about", label: "About", icon: "logo" },
+];
+
+export function Settings() {
+  const data = useStore((s) => s.data);
+  const settings = data.settings;
+  const patch = useStore((s) => s.patchSettings);
+  const setSafe = useStore((s) => s.setSafeMode);
+  const reset = useStore((s) => s.resetAll);
+  const clearRecent = useStore((s) => s.clearRecent);
+  const importState = useStore((s) => s.importState);
+
+  const [activeSection, setActiveSection] = useState<SettingsSection>("general");
+
+  const exportJson = () => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "keyflow-backup.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importJson = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    file.text().then((txt) => importState(JSON.parse(txt)));
+  };
+
+  return (
+    <div className="content">
+      <PageIntro
+        eyebrow="PREFERENCES"
+        title="Settings"
+        description="Configure desktop behaviors, visual appearance, gesture timings, and privacy settings."
+      />
+
+      <div className="settings-layout">
+        {/* Left Category Navigation */}
+        <nav className="settings-nav">
+          {SECTIONS.map((sec) => (
+            <button
+              key={sec.id}
+              type="button"
+              className={"settings-nav-btn" + (activeSection === sec.id ? " active" : "")}
+              onClick={() => setActiveSection(sec.id)}
+            >
+              <Icon name={sec.icon} size={16} />
+              <span>{sec.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* Right Settings Content */}
+        <div className="settings-content">
+          {activeSection === "general" && (
+            <SettingsGroup title="General Settings" icon="settings" desc="Core startup and background options">
+              <SettingsRow title="Launch on Windows startup" desc="Start KeyFlow automatically when you log in to Windows">
+                <Toggle
+                  label="Launch on startup"
+                  checked={settings.general.launchOnStartup}
+                  onChange={(v) => patch("general", { launchOnStartup: v })}
+                />
+              </SettingsRow>
+              <SettingsRow title="Start minimized" desc="Open KeyFlow hidden in the background on launch">
+                <Toggle
+                  label="Start minimized"
+                  checked={settings.general.startMinimized}
+                  onChange={(v) => patch("general", { startMinimized: v })}
+                />
+              </SettingsRow>
+              <SettingsRow title="Minimize to system tray" desc="Keep running in the notification area when the window is closed">
+                <Toggle
+                  label="Minimize to tray"
+                  checked={settings.general.minimizeToTray}
+                  onChange={(v) => patch("general", { minimizeToTray: v })}
+                />
+              </SettingsRow>
+              <SettingsRow title="Desktop notifications" desc="Show Windows toast alerts when shortcuts execute">
+                <Toggle
+                  label="Show notifications"
+                  checked={settings.general.showNotifications}
+                  onChange={(v) => patch("general", { showNotifications: v })}
+                />
+              </SettingsRow>
+              <SettingsRow title="Default workspace profile" desc="Profile activated when no specific application rule matches">
+                <div className="w-180">
+                  <AppSelect
+                    value={settings.general.defaultProfileId}
+                    onChange={(v) => patch("general", { defaultProfileId: v })}
+                    options={data.profiles.map((p) => ({ value: p.id, label: p.name }))}
+                  />
+                </div>
+              </SettingsRow>
+            </SettingsGroup>
+          )}
+
+          {activeSection === "shortcuts" && (
+            <>
+              <SettingsGroup title="Global Emergency Shortcuts" icon="shortcuts" desc="System-wide safety combinations">
+                <SettingsRow title="Global pause shortcut" desc="Instantly pause all shortcut matching">
+                  <div className="w-160">
+                    <Input
+                      value={settings.shortcuts.globalPause}
+                      onChange={(e) => patch("shortcuts", { globalPause: e.target.value })}
+                    />
+                  </div>
+                </SettingsRow>
+                <SettingsRow title="Emergency Safe Mode shortcut" desc="Instantly disconnect low-level hooks">
+                  <div className="w-160">
+                    <Input
+                      value={settings.shortcuts.emergencySafe}
+                      onChange={(e) => patch("shortcuts", { emergencySafe: e.target.value })}
+                    />
+                  </div>
+                </SettingsRow>
+              </SettingsGroup>
+
+              <SettingsGroup title="Default Gesture Timings" icon="shortcuts" desc="Default thresholds for automatic timing mode">
+                <SettingsRow title="Double tap threshold" desc="Maximum time between two presses in milliseconds">
+                  <div className="w-100">
+                    <Input
+                      type="number"
+                      value={settings.shortcuts.defaultDoubleTap}
+                      onChange={(e) => patch("shortcuts", { defaultDoubleTap: Number(e.target.value) })}
+                    />
+                  </div>
+                </SettingsRow>
+                <SettingsRow title="Hold press threshold" desc="Duration to hold a key before hold trigger fires">
+                  <div className="w-100">
+                    <Input
+                      type="number"
+                      value={settings.shortcuts.defaultHold}
+                      onChange={(e) => patch("shortcuts", { defaultHold: Number(e.target.value) })}
+                    />
+                  </div>
+                </SettingsRow>
+                <SettingsRow title="Key repeat protection" desc="Ignore repeated OS key-down events while holding a physical key">
+                  <Toggle
+                    label="Key repeat protection"
+                    checked={settings.shortcuts.keyRepeatProtection}
+                    onChange={(v) => patch("shortcuts", { keyRepeatProtection: v })}
+                  />
+                </SettingsRow>
+              </SettingsGroup>
+            </>
+          )}
+
+          {activeSection === "alwaysOnTop" && (
+            <SettingsGroup title="Always on Top & Windows" icon="pinTop" desc="Keep active windows floating above all others">
+              <SettingsRow title="Sound feedback" desc="Play subtle Win32 confirmation chime when pinning or unpinning windows">
+                <Toggle
+                  label="Sound feedback"
+                  checked={settings.windowControl?.soundFeedback ?? true}
+                  onChange={(v) => patch("windowControl" as any, { soundFeedback: v } as any)}
+                />
+              </SettingsRow>
+              <SettingsRow title="Highlight pinned windows" desc="Display a colored border on windows pinned as Always on Top">
+                <Toggle
+                  label="Highlight pinned windows"
+                  checked={settings.windowControl?.highlightPinned ?? true}
+                  onChange={(v) => patch("windowControl" as any, { highlightPinned: v } as any)}
+                />
+              </SettingsRow>
+              <SettingsRow title="Highlight border color" desc="DWM border highlight accent color">
+                <div className="row wrap gap-xs">
+                  {HIGHLIGHT_PRESETS.map((p) => {
+                    const currentHighlight = settings.windowControl?.highlightColor ?? HIGHLIGHT_PRESETS[0].value;
+                    const isSelected = currentHighlight === p.value;
+                    return (
+                      <button
+                        key={p.value}
+                        type="button"
+                        className={"chip clickable" + (isSelected ? " chip-accent" : " chip-subtle")}
+                        onClick={() => patch("windowControl" as any, { highlightColor: p.value } as any)}
+                      >
+                        <span className="brand-logo-dot" />
+                        <span>{p.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </SettingsRow>
+              <SettingsRow title="Border thickness" desc="Visual border width scale (note: DWM 1px limitation on Windows 11)">
+                <div className="w-160">
+                  <AppSelect
+                    value={settings.windowControl?.borderThickness ?? "medium"}
+                    onChange={(v) => patch("windowControl" as any, { borderThickness: v } as any)}
+                    options={[
+                      { value: "thin", label: "Thin (2px)" },
+                      { value: "medium", label: "Medium (4px)" },
+                      { value: "thick", label: "Thick (6px)" },
+                    ]}
+                  />
+                </div>
+              </SettingsRow>
+            </SettingsGroup>
+          )}
+
+          {activeSection === "popup" && (
+            <SettingsGroup title="Global Popup Menu" icon="popup" desc="Quick action command palette opened via double-tap FF">
+              <SettingsRow title="Position" desc="Where the popup menu appears on screen">
+                <div className="w-160">
+                  <AppSelect
+                    value={settings.popup.position}
+                    onChange={(v) => patch("popup", { position: v as any })}
+                    options={[
+                      { value: "cursor", label: "Near cursor" },
+                      { value: "center", label: "Screen center" },
+                      { value: "last", label: "Last dragged position" },
+                    ]}
+                  />
+                </div>
+              </SettingsRow>
+              <SettingsRow title="Show icons" desc="Display action type icons in the menu list">
+                <Toggle
+                  label="Show icons"
+                  checked={settings.popup.showIcons}
+                  onChange={(v) => patch("popup", { showIcons: v })}
+                />
+              </SettingsRow>
+              <SettingsRow title="Enable search" desc="Include instant search filter in the popup header">
+                <Toggle
+                  label="Enable search"
+                  checked={settings.popup.search}
+                  onChange={(v) => patch("popup", { search: v })}
+                />
+              </SettingsRow>
+              <SettingsRow title="Close after action" desc="Automatically dismiss the popup menu once an item is triggered">
+                <Toggle
+                  label="Close after action"
+                  checked={settings.popup.closeAfterAction}
+                  onChange={(v) => patch("popup", { closeAfterAction: v })}
+                />
+              </SettingsRow>
+            </SettingsGroup>
+          )}
+
+          {activeSection === "appearance" && (
+            <SettingsGroup title="Appearance & Themes" icon="monitor" desc="Visual styling, themes, and scaling">
+              <SettingsRow title="Theme mode" desc="Switch between dark and light desktop palettes">
+                <div className="w-160">
+                  <AppSelect
+                    value={settings.appearance.theme}
+                    onChange={(v) => patch("appearance", { theme: v as any })}
+                    options={[
+                      { value: "dark", label: "Dark" },
+                      { value: "light", label: "Light" },
+                      { value: "system", label: "System match" },
+                    ]}
+                  />
+                </div>
+              </SettingsRow>
+              <SettingsRow title="Accent color presets" desc="Signature highlight color">
+                <div className="row gap-xs">
+                  {ACCENT_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={"chip clickable" + (settings.appearance.accent === c ? " chip-accent" : " chip-subtle")}
+                      onClick={() => patch("appearance", { accent: c })}
+                    >
+                      <span>{c}</span>
+                    </button>
+                  ))}
+                </div>
+              </SettingsRow>
+              <SettingsRow title="Reduce motion" desc="Minimize transitions and animations across the app">
+                <Toggle
+                  label="Reduce motion"
+                  checked={settings.appearance.reduceMotion}
+                  onChange={(v) => patch("appearance", { reduceMotion: v })}
+                />
+              </SettingsRow>
+            </SettingsGroup>
+          )}
+
+          {activeSection === "privacy" && (
+            <SettingsGroup title="Privacy & Safety" icon="shield" desc="Safety modes and app restrictions">
+              <SettingsRow title="Safe mode" desc="Immediately disable all shortcut hooks system-wide">
+                <Toggle
+                  label="Safe mode"
+                  checked={settings.privacy.safeMode}
+                  onChange={setSafe}
+                />
+              </SettingsRow>
+              <SettingsRow title="Pause in password fields" desc="Attempt to suspend hooks when entering sensitive credentials">
+                <Toggle
+                  label="Pause in password"
+                  checked={settings.privacy.pauseInPassword}
+                  onChange={(v) => patch("privacy", { pauseInPassword: v })}
+                />
+              </SettingsRow>
+              <SettingsRow title="Action history" desc="Clear recorded list of executed actions">
+                <Button variant="secondary" size="sm" onClick={clearRecent}>
+                  Clear history
+                </Button>
+              </SettingsRow>
+            </SettingsGroup>
+          )}
+
+          {activeSection === "data" && (
+            <SettingsGroup title="Data & Backup" icon="folder" desc="Local JSON storage and configuration export">
+              <SettingsRow title="Export backup" desc="Save all shortcuts and settings to a JSON file">
+                <Button variant="secondary" size="sm" icon="file" onClick={exportJson}>
+                  Export JSON
+                </Button>
+              </SettingsRow>
+              <SettingsRow title="Import backup" desc="Restore shortcuts and profiles from a previous backup file">
+                <label className="btn btn-secondary btn-sm">
+                  <Icon name="folder" size={15} />
+                  <span>Import JSON</span>
+                  <input type="file" accept="application/json" hidden onChange={importJson} />
+                </label>
+              </SettingsRow>
+              <SettingsRow title="Reset application data" desc="Delete all shortcuts, profiles, and reset settings to default">
+                <Button variant="danger" size="sm" icon="trash" onClick={reset}>
+                  Reset all data
+                </Button>
+              </SettingsRow>
+            </SettingsGroup>
+          )}
+
+          {activeSection === "advanced" && (
+            <SettingsGroup title="Advanced System Settings" icon="terminal" desc="Elevated hooks, logging, and engine configuration">
+              <SettingsRow
+                title="Extended shortcut access"
+                desc="Allows shortcuts (e.g. Screenshot, Always on Top) to work while elevated apps (Task Manager / elevated Terminal) have focus. Runs the input helper at High integrity via a single Windows UAC prompt. Secure desktop screens remain protected."
+              >
+                <Toggle
+                  label="Extended shortcut access"
+                  checked={settings.advanced?.extendedAccess ?? false}
+                  onChange={(v) => patch("advanced" as any, { extendedAccess: v } as any)}
+                />
+              </SettingsRow>
+              <SettingsRow title="Enable debug logs" desc="Output verbose diagnostic logs to console and DevTools">
+                <Toggle
+                  label="Debug logs"
+                  checked={settings.advanced.debugLogs}
+                  onChange={(v) => patch("advanced", { debugLogs: v })}
+                />
+              </SettingsRow>
+              <SettingsRow title="Performance mode" desc="Optimize input dispatcher for minimum CPU latency">
+                <Toggle
+                  label="Performance mode"
+                  checked={settings.advanced.performanceMode}
+                  onChange={(v) => patch("advanced", { performanceMode: v })}
+                />
+              </SettingsRow>
+            </SettingsGroup>
+          )}
+
+          {activeSection === "about" && (
+            <SettingsGroup title="About KeyFlow" icon="logo" desc="Version and platform information">
+              <SettingsRow title="Version" desc="Current installed build">
+                <span className="chip chip-subtle">v0.3.0 Desktop</span>
+              </SettingsRow>
+              <SettingsRow title="Native input engine" desc="Low-level Windows keyboard hook">
+                <span className="chip chip-accent">Rust WH_KEYBOARD_LL</span>
+              </SettingsRow>
+              <SettingsRow title="Architecture" desc="Process separation model">
+                <span className="muted tiny">Electron + Rust IPC named pipe</span>
+              </SettingsRow>
+            </SettingsGroup>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }

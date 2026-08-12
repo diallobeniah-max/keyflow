@@ -53,7 +53,7 @@ const RECOMMENDED_PRESETS: RecommendedPreset[] = [
   {
     id: "rec-open-app",
     title: "Open App",
-    desc: "Launch an app instantly.",
+    desc: "Launch an application instantly.",
     icon: "app",
     defaultKey: "O",
     defaultTrigger: "single",
@@ -69,7 +69,7 @@ function defaultBlankShortcut(profileId: string, pending?: { key: string; mouse?
     key: pending?.key ?? "F",
     mouse: !!pending?.mouse,
     modifiers: [],
-    trigger: pending?.mouse ? "single" : "single",
+    trigger: "single",
     timing: { tapInterval: 300, holdDuration: 500, delay: 0, cooldown: 350, timingMode: "auto" },
     actions: [{ id: uid("act"), type: "screenshot", payload: { screenshotMode: "snipOverlay" } }],
     enabled: true,
@@ -148,7 +148,6 @@ export function CreateShortcut() {
   const setTiming = (k: keyof Shortcut["timing"], v: number) =>
     setDraft((d) => ({ ...d, timing: { ...d.timing, [k]: v } }));
 
-  // Update primary action
   const updatePrimaryAction = (action: Action) => {
     setDraft((d) => {
       const rest = (d.actions ?? []).slice(1);
@@ -156,7 +155,6 @@ export function CreateShortcut() {
     });
   };
 
-  // Apply a recommendation preset
   const applyRecommendation = (preset: RecommendedPreset) => {
     setActiveRecommendation(preset.id);
     setDraft((d) => ({
@@ -192,9 +190,9 @@ export function CreateShortcut() {
   return (
     <div className="content">
       <PageIntro
-        eyebrow="builder"
-        title={existing ? "Edit shortcut" : "Create shortcut"}
-        description="Choose a recommended preset or set a custom shortcut in seconds."
+        eyebrow={existing ? "EDITOR" : "BUILDER"}
+        title={existing ? "Edit Shortcut" : "Create Shortcut"}
+        description="Pick a recommended shortcut or assign any custom key and trigger in seconds."
       >
         <Button variant="secondary" icon="play" onClick={() => simulateShortcut(draft)}>
           Test
@@ -205,33 +203,42 @@ export function CreateShortcut() {
       </PageIntro>
 
       <div className="col gap-md max-readable">
-        {/* Recommended Presets (Shown on creation) */}
+        {/* Recommended Presets */}
         {!existing && (
           <Card>
-            <h3 className="section-title">
-              <Icon name="sparkles" size={18} /> Recommended
-            </h3>
-            <p className="muted tiny">
-              Popular shortcuts ready in one click.
-            </p>
-            <div className="grid cols-2 gap-sm">
+            <div className="spread mb-sm">
+              <div>
+                <h3 className="section-title no-margin">
+                  <Icon name="sparkles" size={17} />
+                  <span>Recommended Presets</span>
+                </h3>
+                <p className="muted tiny no-margin">
+                  One-click shortcuts ready to use immediately.
+                </p>
+              </div>
+            </div>
+
+            <div className="preset-grid">
               {RECOMMENDED_PRESETS.map((preset) => {
-                const isSelected = activeRecommendation === preset.id || primaryAction.type === preset.action.type;
+                const isSelected =
+                  activeRecommendation === preset.id || primaryAction.type === preset.action.type;
                 return (
                   <button
                     key={preset.id}
                     type="button"
-                    className={"trigger-card clickable" + (isSelected ? " active" : "")}
+                    className={"preset-tile" + (isSelected ? " is-selected" : "")}
                     onClick={() => applyRecommendation(preset)}
                   >
-                    <div className="row spread">
-                      <div className="row gap-sm">
-                        <Icon name={preset.icon} size={20} />
-                        <b>{preset.title}</b>
+                    <div className="preset-tile-header">
+                      <div className="preset-tile-title">
+                        <Icon name={preset.icon} size={18} />
+                        <span>{preset.title}</span>
                       </div>
-                      <span className="badge badge-subtle">{TRIGGER_META[preset.defaultTrigger]?.label ?? "Tap"}</span>
+                      <span className="chip chip-subtle">
+                        {TRIGGER_META[preset.defaultTrigger]?.label ?? "Tap"}
+                      </span>
                     </div>
-                    <small>{preset.desc}</small>
+                    <p className="preset-tile-desc">{preset.desc}</p>
                   </button>
                 );
               })}
@@ -242,10 +249,11 @@ export function CreateShortcut() {
         {/* Step 1: Shortcut & Trigger */}
         <Card>
           <h3 className="section-title">
-            <span className="badge badge-accent">1</span> Shortcut
+            <span className="chip chip-accent">1</span>
+            <span>Shortcut & Trigger</span>
           </h3>
 
-          <div className="grid cols-2">
+          <div className="grid cols-2 gap-md">
             <Field label="Key or combination" group>
               {draft.mouse ? (
                 <Select
@@ -263,7 +271,7 @@ export function CreateShortcut() {
               )}
             </Field>
 
-            <Field label="Trigger" hint="How to press the key">
+            <Field label="Trigger mode" hint="Gesture used to activate">
               <Select
                 value={draft.trigger}
                 onChange={(v) => set({ trigger: v as TriggerType })}
@@ -280,38 +288,41 @@ export function CreateShortcut() {
         {/* Step 2: Action */}
         <Card>
           <h3 className="section-title">
-            <span className="badge badge-accent">2</span> Action
+            <span className="chip chip-accent">2</span>
+            <span>Action</span>
           </h3>
           <SimpleActionPicker action={primaryAction} onChange={updatePrimaryAction} />
         </Card>
 
-        {/* Step 3: Save & Collapsed Advanced */}
+        {/* Step 3: Collapsed Advanced Section */}
         <Card>
           <div className="spread">
-            <h3 className="section-title">
-              <span className="badge badge-accent">3</span> Create shortcut
+            <h3 className="section-title no-margin">
+              <span className="chip chip-accent">3</span>
+              <span>Advanced & Options</span>
             </h3>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={advancedOpen ? "chevronUp" : "chevronDown"}
               onClick={() => setAdvancedOpen(!advancedOpen)}
             >
-              <Icon name={advancedOpen ? "chevronUp" : "chevronDown"} size={16} />
               {advancedOpen ? "Hide advanced" : "Advanced settings ▾"}
-            </button>
+            </Button>
           </div>
 
           {advancedOpen && (
-            <div className="col gap-sm advanced-section">
-              <div className="grid cols-2">
-                <Field label="Shortcut name (optional)" hint="Leave blank to auto-generate">
+            <div className="col gap-md advanced-drawer mt-sm">
+              <div className="grid cols-2 gap-md">
+                <Field label="Shortcut name" hint="Leave blank to auto-generate from action">
                   <Input
                     value={draft.name}
                     placeholder={deriveFriendlyName(draft)}
                     onChange={(e) => set({ name: e.target.value })}
                   />
                 </Field>
-                <Field label="Profile">
+
+                <Field label="Profile assignment">
                   <Select
                     value={draft.profileId}
                     onChange={(v) => set({ profileId: v })}
@@ -320,7 +331,7 @@ export function CreateShortcut() {
                 </Field>
               </div>
 
-              <Field label="All trigger types (expert)">
+              <Field label="All gesture trigger types (expert)">
                 <Select
                   value={draft.trigger}
                   onChange={(v) => set({ trigger: v as TriggerType })}
@@ -331,19 +342,36 @@ export function CreateShortcut() {
                 />
               </Field>
 
-              <Field label="Timing configuration">
-                <Select
-                  value={timingMode}
-                  onChange={setTimingMode}
-                  options={[
-                    { value: "auto", label: "Automatic (recommended)" },
-                    { value: "custom", label: "Custom timing sliders" },
-                  ]}
-                />
-              </Field>
+              <div className="grid cols-2 gap-md">
+                <Field label="Timing mode">
+                  <Select
+                    value={timingMode}
+                    onChange={setTimingMode}
+                    options={[
+                      { value: "auto", label: "Automatic (recommended)" },
+                      { value: "custom", label: "Custom timing sliders" },
+                    ]}
+                  />
+                </Field>
+
+                <Field label="Original key behavior">
+                  <Select
+                    value={behavior}
+                    onChange={(v) =>
+                      set({ keyBehavior: v as any, suppressKey: v === "suppress" })
+                    }
+                    options={[
+                      { value: "passThrough", label: "Pass through (for letters/typing)" },
+                      { value: "suppress", label: "Suppress original (for CapsLock)" },
+                      { value: "disable", label: "Disable key completely" },
+                      { value: "remap", label: "Remap to replacement key…" },
+                    ]}
+                  />
+                </Field>
+              </div>
 
               {timingMode === "custom" && (
-                <div className="grid cols-2">
+                <div className="grid cols-2 gap-md">
                   <Field label={`Tap interval: ${draft.timing.tapInterval}ms`}>
                     <Slider
                       value={draft.timing.tapInterval}
@@ -362,40 +390,11 @@ export function CreateShortcut() {
                       onChange={(v) => setTiming("holdDuration", v)}
                     />
                   </Field>
-                  <Field label="Delay before action (ms)">
-                    <Input
-                      type="number"
-                      value={draft.timing.delay}
-                      onChange={(e) => setTiming("delay", Number(e.target.value))}
-                    />
-                  </Field>
-                  <Field label="Cooldown window (ms)">
-                    <Input
-                      type="number"
-                      value={draft.timing.cooldown}
-                      onChange={(e) => setTiming("cooldown", Number(e.target.value))}
-                    />
-                  </Field>
                 </div>
               )}
 
-              <Field label="Original key behavior">
-                <Select
-                  value={behavior}
-                  onChange={(v) =>
-                    set({ keyBehavior: v as any, suppressKey: v === "suppress" })
-                  }
-                  options={[
-                    { value: "passThrough", label: "Pass through (recommended for normal letters)" },
-                    { value: "suppress", label: "Suppress original (recommended for CapsLock)" },
-                    { value: "disable", label: "Disable key completely" },
-                    { value: "remap", label: "Remap to replacement key…" },
-                  ]}
-                />
-              </Field>
-
               {behavior === "remap" && (
-                <Field label="Replacement key">
+                <Field label="Replacement key name">
                   <Input
                     value={draft.remapTo ?? ""}
                     placeholder="e.g. F13, Enter, Right"
@@ -404,30 +403,32 @@ export function CreateShortcut() {
                 </Field>
               )}
 
-              <div className="settings-row">
+              <div className="spread pt-sm">
                 <div>
-                  <b>Shortcut enabled</b>
-                  <p className="muted tiny">Turn this shortcut on or off.</p>
+                  <div className="bold small">Shortcut enabled</div>
+                  <div className="muted tiny">Turn this shortcut on or off.</div>
                 </div>
-                <Toggle label="Enabled" checked={draft.enabled} onChange={(v) => set({ enabled: v })} />
+                <Toggle
+                  label="Enabled"
+                  checked={draft.enabled}
+                  onChange={(v) => set({ enabled: v })}
+                />
               </div>
 
               <div className="col gap-xs">
-                <b>Action sequence ({draft.actions.length})</b>
-                <p className="muted tiny">
-                  Advanced: add multiple actions to run in sequence.
-                </p>
+                <div className="bold small">Action sequence ({draft.actions.length})</div>
+                <div className="muted tiny">Execute multiple actions in sequential order.</div>
                 <ActionListEditor
                   actions={draft.actions}
                   onChange={(actions: Action[]) => set({ actions })}
                 />
               </div>
 
-              {/* Conflict notice */}
+              {/* Conflicts */}
               {conflicts.length > 0 && (
                 <div className="col gap-xs">
                   {conflicts.map((c, i) => (
-                    <div key={i} className={"notice " + c.level}>
+                    <div key={i} className={"chip chip-" + (c.level === "error" ? "danger" : "warning")}>
                       {c.message}
                     </div>
                   ))}
@@ -436,7 +437,10 @@ export function CreateShortcut() {
             </div>
           )}
 
-          <div className="card-actions-right">
+          <div className="spread mt-md pt-sm border-top-subtle">
+            <Button variant="ghost" onClick={() => setPage("shortcuts")}>
+              Cancel
+            </Button>
             <Button variant="primary" icon="check" disabled={hasError} onClick={save}>
               {existing ? "Save changes" : "Create shortcut"}
             </Button>

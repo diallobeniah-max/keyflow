@@ -1,5 +1,38 @@
 # Design Changelog
 
+## 2026-08-12 — Full Application UI Redesign (v2 Modern Native Desktop)
+
+* **Design Tokens (`src/design/tokens.css`)**:
+  - Completely modernized desktop palette with deep calm dark neutrals (`#0d1117`, `#131922`, `#18202c`, `#1e2736`, `#223249`) and crisp light neutrals (`#f8fafc`, `#ffffff`, `#f1f5f9`, `#eef2f6`).
+  - KeyFlow signature calm blue accent (`#3b82f6` dark / `#2563eb` light).
+  - Modern desktop typography tokens with `Segoe UI Variable`, `Segoe UI`, `Inter`, `system-ui`.
+  - Restrained radii scale (`--radius-sm: 6px`, `--radius-md: 8px`, `--radius-lg: 12px`, `--radius-pill: 999px`).
+  - Natural desktop soft shadows without harsh dark boxes.
+* **App Shell**:
+  - Clean native-feeling integrated titlebar (`TitleBar.tsx`) with active profile indicator, window drag region, and Windows 11 style window controls.
+  - Streamlined desktop sidebar (`Sidebar.tsx`) with clear navigation groupings (Shortcuts, Workspace), active profile switcher, and quiet pause/safe mode indicator.
+  - Contextual status topbar (`TopBar.tsx`) with search, active foreground app pill, live engine status dot, and quick theme toggle.
+* **Dashboard (`src/pages/Dashboard.tsx`)**:
+  - Calm status overview banner answering system state and profile.
+  - 3-card desktop metric summary.
+  - Pinned/Favorite shortcuts list with keycaps and instant test/toggle controls.
+  - Recent activity feed with human-readable action names and relative timestamps.
+* **Shortcuts List (`src/pages/Shortcuts.tsx`)**:
+  - Replaced giant nested cards with a clean native desktop table/list row view.
+  - Compact shortcut rows: Keycap badge → Name & Action → Trigger type → Profile → Enable Toggle → Hover actions (Star, Edit, Duplicate, Delete).
+* **Create Shortcut (`src/pages/CreateShortcut.tsx`)**:
+  - 4 1-click Recommended Preset cards (Screenshot, Always on Top, Popup Menu, Open App).
+  - Simplified 3-step creation flow with tactile key capture box.
+  - Collapsed `Advanced ▾` drawer preserving 100% of expert options (timings, key behavior, sequence).
+* **Settings (`src/pages/Settings.tsx`)**:
+  - Transformed into a native desktop preferences layout (Apple System Settings / Windows Settings style).
+  - Left-hand category navigation (General, Shortcuts, Always on Top, Popup Menu, Appearance, Privacy & Safety, Data & Backup, Advanced, About).
+  - Clean preference rows with label & description on left, control on right.
+* **Profiles, Keyboard Map, Library, Onboarding**:
+  - Harmonized with the unified v2 desktop design system.
+* **Popup Menu (`src/components/PopupMenu.tsx` & `src/components/PopupShell.tsx`)**:
+  - Command-palette styling with Acrylic backdrop blur, subtle drag grip, search input, and keyboard navigation hints, while keeping 100% of the working lifecycle and reopen architecture intact.
+
 ## 2026-08-12 — Popup drag handle, reopen reliability, Escape fix
 
 * Added `.popup-drag-region` class (`-webkit-app-region: drag`) applied to the popup header strip. Enables native Electron drag without a custom JS mouse engine.
@@ -11,21 +44,11 @@
 * `popup-window.ts`: listens to `win.on("moved")` to record `lastPosition` after user drag. On next open, `finalizeAndShow()` uses `lastPosition` if on-screen; otherwise clamps it to the nearest work area.
 * `PopupShell.tsx`: Escape keydown listener now guards on `phaseRef.current` — only consumes Escape when phase is `"open"` or `"opening"`. When hidden/closing, Escape passes through to Windows (snipping overlay, etc.).
 
-
-
-* Narrowed the global popup to `--popup-width` 460px (min 420px / max 500px) and added open/close animation tokens (`--popup-open-duration`, `--popup-close-duration`, `--popup-motion-open`, `--popup-motion-close`) plus `--popup-inset-safety` and `--popup-shadow-fallback`.
-* Popup now uses Windows native acrylic (`backgroundMaterial`) with a readable tinted fallback; the window is sized to content, only the inner panel animates, and the close lifecycle freezes the BrowserWindow dimensions.
-* Added automatic shortcut timing (fast defaults) with a Custom/Advanced option; letter-key fast-typing warning added to conflict detection.
-
-New typography, colour, spacing, radius, or component variants must add an entry here before use.
-
 ## 2026-08-05 — Global popup overlay polish and suppression ground-work
 
 * Added approved popup tokens to `src/design/tokens.css`: `--popup-backdrop-blur` (28px), `--popup-backdrop-saturate` (1.25), `--popup-surface-opacity` (0.9), `--popup-surface`, `--popup-surface-border`, `--popup-item-height` (60px), and the sizing bounds `--popup-min-width` / `--popup-max-width` / `--popup-min-height` / `--popup-max-height`.
 * The global popup now uses a strong blurred acrylic-style surface (CSS blur fallback), a header **X** close button, and content-driven dynamic sizing via the safe `popup.reportContentSize` bridge.
 * Documented the popup overlay contract in `docs/DESIGN_SYSTEM.md` and `docs/COMPONENT_RULES.md`.
-
-New typography, colour, spacing, radius, or component variants must add an entry here before use.
 
 ## 2026-08-03 — Permanent design foundation
 
@@ -38,5 +61,3 @@ New typography, colour, spacing, radius, or component variants must add an entry
 * Added responsive, component, and accessibility rules for future page migrations.
 * Added the first shared `PageHeader` component; existing `PageIntro` remains a compatibility export until page-by-page migration.
 * Added the non-rewriting `npm run design:check` validation command.
-
-New typography, colour, spacing, radius, or component variants must add an entry here before use.
