@@ -13,6 +13,7 @@ import { join } from "path";
 import { inputDebug } from "./input/input-debug.js";
 import { keyNameToVk } from "./vk-catalog.js";
 import type { ShortcutEntry } from "./input/trigger-matcher.js";
+import { ElevatedHelperBridge } from "./elevated-helper.js";
 
 /** Must match the Rust OWN_INJECTED_MARKER (native/keyflow-input/src/inject.rs). */
 export const NATIVE_INPUT_MARKER = 0x4b46574b;
@@ -111,6 +112,9 @@ export function buildNativeKeyConfig(entries: ShortcutEntry[], context: NativeKe
 
 export class NativeInputHelper {
   private proc: ChildProcess | null = null;
+  private elevatedBridge: ElevatedHelperBridge | null = null;
+  private isElevated = false;
+  private parentPid = 0;
   private status: NativeHelperStatus = "stopped";
   private onKey: (e: NativeKeyEventMessage) => void;
   private onStatus: (s: NativeHelperStatus) => void;
@@ -142,8 +146,16 @@ export class NativeInputHelper {
     return this.status;
   }
 
+  isElevatedMode(): boolean {
+    return this.isElevated;
+  }
+
   /** Spawn the helper; it hooks the keyboard only after this returns. */
   start(parentPid: number): void {
+    this.parentPid = parentPid;
+    if (this.isElevated && this.elevatedBridge) {
+      return;
+    }
     const path = resolveNativeHelperPath();
     if (!path) {
       console.error("[native-input] helper binary not found (run `npm run native:build`)");
@@ -152,12 +164,13 @@ export class NativeInputHelper {
     }
     this.status = "starting";
     this.onStatus("starting");
-    console.log(`[native-input] spawning helper: ${path}`);
+    console.log(`[native-input] spawning standard helper: ${path}`);
 
     const proc = spawn(path, ["--parent-pid", String(parentPid)], {
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });
+    this.proc = proc;
     this.proc = proc;
 
     proc.on("error", (err) => {
@@ -224,6 +237,56 @@ export class NativeInputHelper {
     this.send({ type: "ping", version: NATIVE_PROTOCOL_VERSION });
   }
 
+  /** Switch between standard medium-integrity helper and elevated helper. */
+  async setElevated(elevated: boolean): Promise<boolean> {
+    if (this.isElevated === elevated && (this.status === "ready" || this.status === "starting")) {
+      return true;
+    }
+    inputDebug(`[input-debug] switching helper elevated mode: ${this.isElevated} -> ${elevated}`);
+
+    if (elevated) {
+      // Cleanly stop standard helper first so only ONE hook exists
+      this.kill();
+      this.isElevated = true;
+      this.elevatedBridge = new ElevatedHelperBridge({
+        parentPid: this.parentPid || process.pid,
+        onLine: (line) => this.handleLine(line),
+        onStatusChange: (s) => {
+          this.status = s;
+          this.onStatus(s);
+          if (s === "ready") {
+            this.flushConfigure();
+          }
+        },
+        onExit: () => {
+          if (this.isElevated) {
+            console.warn("[native-input] elevated helper exited, falling back to standard helper");
+            this.isElevated = false;
+            this.start(this.parentPid || process.pid);
+          }
+        },
+      });
+      const ok = await this.elevatedBridge.start();
+      if (!ok) {
+        console.warn("[native-input] elevated start failed/declined, falling back to standard helper");
+        this.isElevated = false;
+        this.elevatedBridge = null;
+        this.start(this.parentPid || process.pid);
+        return false;
+      }
+      return true;
+    } else {
+      // Disabling elevated mode: stop elevated bridge and return to standard helper
+      if (this.elevatedBridge) {
+        this.elevatedBridge.stop();
+        this.elevatedBridge = null;
+      }
+      this.isElevated = false;
+      this.start(this.parentPid || process.pid);
+      return true;
+    }
+  }
+
   /** Graceful shutdown: ask the helper to unhook and exit. */
   shutdown(): void {
     this.shuttingDown = true;
@@ -253,6 +316,10 @@ export class NativeInputHelper {
   }
 
   private send(msg: unknown): void {
+    if (this.isElevated && this.elevatedBridge) {
+      this.elevatedBridge.writeLine(JSON.stringify(msg));
+      return;
+    }
     if (!this.proc || this.proc.killed || this.proc.exitCode !== null) return;
     try {
       this.proc.stdin?.write(`${JSON.stringify(msg)}\n`);
@@ -341,9 +408,14 @@ export class NativeInputHelper {
   }
 
   private kill(): void {
-    if (this.proc && !this.proc.killed && this.proc.exitCode === null) {
+    if (this.elevatedBridge) {
+      this.elevatedBridge.stop();
+      this.elevatedBridge = null;
+    }
+    if (this.proc && !this.proc.killed && this.proc.exitCode !== null) {
       this.proc.kill();
     }
     this.proc = null;
   }
 }
+

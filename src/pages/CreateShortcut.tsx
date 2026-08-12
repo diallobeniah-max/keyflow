@@ -12,6 +12,55 @@ import { KeyCapture } from "../components/KeyCapture";
 import { Button, Card, Field, Input, PageIntro, Select, Slider, Toggle } from "../components/ui";
 import { Icon } from "../components/Icon";
 
+interface RecommendedPreset {
+  id: string;
+  title: string;
+  desc: string;
+  icon: string;
+  defaultKey: string;
+  defaultTrigger: TriggerType;
+  action: Action;
+}
+
+const RECOMMENDED_PRESETS: RecommendedPreset[] = [
+  {
+    id: "rec-screenshot",
+    title: "Screenshot",
+    desc: "Capture any part of your screen.",
+    icon: "camera",
+    defaultKey: "CapsLock",
+    defaultTrigger: "single",
+    action: { id: "act-snip", type: "screenshot", payload: { screenshotMode: "snipOverlay" } },
+  },
+  {
+    id: "rec-topmost",
+    title: "Always on Top",
+    desc: "Keep the current window above others.",
+    icon: "pinTop",
+    defaultKey: "T",
+    defaultTrigger: "single",
+    action: { id: "act-top", type: "alwaysOnTop", payload: { topmostMode: "toggle", highlight: true, sound: true } },
+  },
+  {
+    id: "rec-popup",
+    title: "Popup Menu",
+    desc: "Open your KeyFlow action menu anywhere.",
+    icon: "popup",
+    defaultKey: "F",
+    defaultTrigger: "double",
+    action: { id: "act-pop", type: "showPopup", payload: {} },
+  },
+  {
+    id: "rec-open-app",
+    title: "Open App",
+    desc: "Launch an app instantly.",
+    icon: "app",
+    defaultKey: "O",
+    defaultTrigger: "single",
+    action: { id: "act-app", type: "openApp", payload: { path: "notepad.exe" } },
+  },
+];
+
 function defaultBlankShortcut(profileId: string, pending?: { key: string; mouse?: boolean } | null): Shortcut {
   return {
     id: uid("sc"),
@@ -73,9 +122,7 @@ export function CreateShortcut() {
     existing ? JSON.parse(JSON.stringify(existing)) : defaultBlankShortcut(active, pending)
   );
 
-  const [showMoreTriggers, setShowMoreTriggers] = useState(() => {
-    return existing ? !["single", "double", "hold"].includes(existing.trigger) : false;
-  });
+  const [activeRecommendation, setActiveRecommendation] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   useEffect(() => {
@@ -109,6 +156,17 @@ export function CreateShortcut() {
     });
   };
 
+  // Apply a recommendation preset
+  const applyRecommendation = (preset: RecommendedPreset) => {
+    setActiveRecommendation(preset.id);
+    setDraft((d) => ({
+      ...d,
+      key: d.key && d.key !== "F" ? d.key : preset.defaultKey,
+      trigger: preset.defaultTrigger,
+      actions: [{ ...preset.action, id: uid("act") }],
+    }));
+  };
+
   const save = () => {
     const finalShortcut: Shortcut = {
       ...draft,
@@ -136,7 +194,7 @@ export function CreateShortcut() {
       <PageIntro
         eyebrow="builder"
         title={existing ? "Edit shortcut" : "Create shortcut"}
-        description="Choose a trigger key, select what it should do, and create your shortcut in seconds."
+        description="Choose a recommended preset or set a custom shortcut in seconds."
       >
         <Button variant="secondary" icon="play" onClick={() => simulateShortcut(draft)}>
           Test
@@ -147,96 +205,87 @@ export function CreateShortcut() {
       </PageIntro>
 
       <div className="col gap-md max-readable">
-        {/* Step 1: Trigger */}
+        {/* Recommended Presets (Shown on creation) */}
+        {!existing && (
+          <Card>
+            <h3 className="section-title">
+              <Icon name="sparkles" size={18} /> Recommended
+            </h3>
+            <p className="muted tiny">
+              Popular shortcuts ready in one click.
+            </p>
+            <div className="grid cols-2 gap-sm">
+              {RECOMMENDED_PRESETS.map((preset) => {
+                const isSelected = activeRecommendation === preset.id || primaryAction.type === preset.action.type;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className={"trigger-card clickable" + (isSelected ? " active" : "")}
+                    onClick={() => applyRecommendation(preset)}
+                  >
+                    <div className="row spread">
+                      <div className="row gap-sm">
+                        <Icon name={preset.icon} size={20} />
+                        <b>{preset.title}</b>
+                      </div>
+                      <span className="badge badge-subtle">{TRIGGER_META[preset.defaultTrigger]?.label ?? "Tap"}</span>
+                    </div>
+                    <small>{preset.desc}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+
+        {/* Step 1: Shortcut & Trigger */}
         <Card>
           <h3 className="section-title">
-            <span className="badge badge-accent">1</span> Trigger
+            <span className="badge badge-accent">1</span> Shortcut
           </h3>
-          <p className="muted tiny">
-            Press a key or combination on your physical keyboard.
-          </p>
 
-          <Field label="Key or combination" group>
-            {draft.mouse ? (
+          <div className="grid cols-2">
+            <Field label="Key or combination" group>
+              {draft.mouse ? (
+                <Select
+                  value={draft.key}
+                  onChange={(v) => set({ key: v, mouse: true, modifiers: [] })}
+                  options={MOUSE_BUTTONS}
+                />
+              ) : (
+                <KeyCapture
+                  value={draft.key}
+                  modifiers={draft.modifiers}
+                  onChangeKey={(key) => set({ key, mouse: key.startsWith("MB") })}
+                  onChangeMods={(mods: ModifierKey[]) => set({ modifiers: mods })}
+                />
+              )}
+            </Field>
+
+            <Field label="Trigger" hint="How to press the key">
               <Select
-                value={draft.key}
-                onChange={(v) => set({ key: v, mouse: true, modifiers: [] })}
-                options={MOUSE_BUTTONS}
+                value={draft.trigger}
+                onChange={(v) => set({ trigger: v as TriggerType })}
+                options={[
+                  { value: "single", label: "Tap (single press)" },
+                  { value: "double", label: "Double tap (two quick presses)" },
+                  { value: "hold", label: "Hold (press and hold)" },
+                ]}
               />
-            ) : (
-              <KeyCapture
-                value={draft.key}
-                modifiers={draft.modifiers}
-                onChangeKey={(key) => set({ key, mouse: key.startsWith("MB") })}
-                onChangeMods={(mods: ModifierKey[]) => set({ modifiers: mods })}
-              />
-            )}
-          </Field>
-
-          <Field label="Trigger type" group>
-            <div className="row wrap gap-sm" role="radiogroup" aria-label="Trigger choices">
-              {/* 3 simple primary choices */}
-              {[
-                { type: "single", label: "Tap", desc: "Single press" },
-                { type: "double", label: "Double tap", desc: "Two quick presses" },
-                { type: "hold", label: "Hold", desc: "Press and hold" },
-              ].map((item) => (
-                <button
-                  type="button"
-                  key={item.type}
-                  role="radio"
-                  aria-checked={draft.trigger === item.type}
-                  className={"trigger-card trigger-option-card" + (draft.trigger === item.type ? " active" : "")}
-                  onClick={() => set({ trigger: item.type as TriggerType })}
-                >
-                  <b>{item.label}</b>
-                  <small>{item.desc}</small>
-                </button>
-              ))}
-            </div>
-
-            {/* More trigger types button/toggle */}
-            <div>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => setShowMoreTriggers(!showMoreTriggers)}
-              >
-                <Icon name={showMoreTriggers ? "chevronUp" : "chevronDown"} size={14} />
-                {showMoreTriggers ? "Hide extra trigger types" : "More trigger types…"}
-              </button>
-            </div>
-
-            {showMoreTriggers && (
-              <div className="trigger-grid">
-                {Object.keys(TRIGGER_META)
-                  .filter((t) => !["single", "double", "hold"].includes(t))
-                  .map((t) => (
-                    <button
-                      type="button"
-                      key={t}
-                      className={"trigger-card" + (draft.trigger === t ? " active" : "")}
-                      onClick={() => set({ trigger: t as TriggerType })}
-                    >
-                      <Icon name={TRIGGER_META[t as TriggerType].icon} size={18} />
-                      <b>{TRIGGER_META[t as TriggerType].label}</b>
-                      <small>{TRIGGER_META[t as TriggerType].desc}</small>
-                    </button>
-                  ))}
-              </div>
-            )}
-          </Field>
+            </Field>
+          </div>
         </Card>
 
         {/* Step 2: Action */}
         <Card>
           <h3 className="section-title">
-            <span className="badge badge-accent">2</span> What should it do?
+            <span className="badge badge-accent">2</span> Action
           </h3>
           <SimpleActionPicker action={primaryAction} onChange={updatePrimaryAction} />
         </Card>
 
-        {/* Step 3: Create & Advanced */}
+        {/* Step 3: Save & Collapsed Advanced */}
         <Card>
           <div className="spread">
             <h3 className="section-title">
@@ -248,14 +297,14 @@ export function CreateShortcut() {
               onClick={() => setAdvancedOpen(!advancedOpen)}
             >
               <Icon name={advancedOpen ? "chevronUp" : "chevronDown"} size={16} />
-              {advancedOpen ? "Hide advanced" : "Advanced settings"}
+              {advancedOpen ? "Hide advanced" : "Advanced settings ▾"}
             </button>
           </div>
 
           {advancedOpen && (
             <div className="col gap-sm advanced-section">
               <div className="grid cols-2">
-                <Field label="Shortcut name (optional)" hint="Leave blank to use auto-generated name">
+                <Field label="Shortcut name (optional)" hint="Leave blank to auto-generate">
                   <Input
                     value={draft.name}
                     placeholder={deriveFriendlyName(draft)}
@@ -271,20 +320,14 @@ export function CreateShortcut() {
                 </Field>
               </div>
 
-              <Field label="Input source">
+              <Field label="All trigger types (expert)">
                 <Select
-                  value={draft.mouse ? "mouse" : "keyboard"}
-                  onChange={(v) =>
-                    set({
-                      mouse: v === "mouse",
-                      key: v === "mouse" ? "MB4" : "F",
-                      modifiers: [],
-                    })
-                  }
-                  options={[
-                    { value: "keyboard", label: "Keyboard key" },
-                    { value: "mouse", label: "Mouse button" },
-                  ]}
+                  value={draft.trigger}
+                  onChange={(v) => set({ trigger: v as TriggerType })}
+                  options={Object.keys(TRIGGER_META).map((t) => ({
+                    value: t,
+                    label: `${TRIGGER_META[t as TriggerType]?.label ?? t} — ${TRIGGER_META[t as TriggerType]?.desc ?? ""}`,
+                  }))}
                 />
               </Field>
 

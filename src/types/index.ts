@@ -64,6 +64,8 @@ export interface ActionPayload {
   topmostMode?: "toggle" | "pin" | "unpin";
   highlight?: boolean;
   highlightColor?: string;
+  borderThickness?: "thin" | "medium" | "thick" | "custom";
+  sound?: boolean;
 }
 
 export interface Action {
@@ -212,12 +214,16 @@ export interface AdvancedSettings {
   hookMode: string;
   performanceMode: boolean;
   portableMode: boolean;
+  extendedAccess?: boolean;
 }
 
 export interface WindowControlSettings {
   defaultTopmostMode: "toggle" | "pin" | "unpin";
   highlightPinned: boolean;
   highlightColor: string;
+  borderThickness: "thin" | "medium" | "thick" | "custom";
+  customThickness?: number;
+  soundFeedback: boolean;
   showFloatingPin: boolean;
 }
 

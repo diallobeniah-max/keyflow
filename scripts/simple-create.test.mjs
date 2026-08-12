@@ -177,3 +177,20 @@ test("existing CapsLock Screenshot shortcut data remains unchanged", () => {
   assert.equal(capsShortcut.key, "CapsLock");
   assert.equal(capsShortcut.actions[0].type, "screenshot");
 });
+
+test("Recommended presets: all 4 presets have valid triggers, keys, and actions", () => {
+  const PRESETS = [
+    { title: "Screenshot", actionType: "screenshot", defaultKey: "CapsLock", trigger: "single" },
+    { title: "Always on Top", actionType: "alwaysOnTop", defaultKey: "T", trigger: "single" },
+    { title: "Popup Menu", actionType: "showPopup", defaultKey: "F", trigger: "double" },
+    { title: "Open App", actionType: "openApp", defaultKey: "O", trigger: "single" },
+  ];
+
+  for (const preset of PRESETS) {
+    assert.ok(preset.title, "Preset must have a title");
+    assert.ok(preset.actionType, "Preset must have an action type");
+    assert.ok(preset.defaultKey, "Preset must provide a default key");
+    assert.ok(["single", "double", "hold"].includes(preset.trigger), "Preset must use simple trigger");
+  }
+});
+

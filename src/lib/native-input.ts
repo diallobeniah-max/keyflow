@@ -47,11 +47,13 @@ export function initNativeInput(): void {
         remapTo: s.remapTo,
       }));
     const settings = state.data.settings.shortcuts;
+    const advanced = state.data.settings.advanced;
     void eapi.input.updateShortcuts(list, {
       emergencySafe: settings.emergencySafe,
       hyperKey: settings.hyperKey,
       paused: state.paused,
       safeMode: state.safeMode,
+      extendedAccess: !!advanced.extendedAccess,
     });
   };
 
@@ -89,6 +91,7 @@ export function initNativeInput(): void {
       state.data.shortcuts !== previous.data.shortcuts ||
       state.activeProfileId !== previous.activeProfileId ||
       state.data.settings.shortcuts !== previous.data.settings.shortcuts ||
+      state.data.settings.advanced.extendedAccess !== previous.data.settings.advanced.extendedAccess ||
       state.paused !== previous.paused ||
       state.safeMode !== previous.safeMode
     ) {

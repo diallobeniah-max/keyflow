@@ -210,15 +210,18 @@ function registerIPC(): void {
   ipcMain.handle("app:get-version", () => app.getVersion());
   ipcMain.handle("app:get-platform", () => process.platform);
 
-  ipcMain.handle("input:update-shortcuts", (_event, entries: any[], context: any) => {
+  ipcMain.handle("input:update-shortcuts", async (_event, entries: any[], context: any) => {
     if (inputService) inputService.updateShortcuts(entries);
     suppressionContext = context ?? {};
     lastShortcutEntries = entries ?? [];
     if (inputBackend === "native") {
+      if (context?.extendedAccess !== undefined && nativeHelper) {
+        await nativeHelper.setElevated(!!context.extendedAccess);
+      }
       const specs = buildNativeShortcutConfig(entries ?? [], suppressionContext);
       nativeHelper?.setShortcuts(specs);
-      inputDebug(`[input-debug] update-shortcuts (native): ${specs.length} native specs, context.paused=${suppressionContext.paused} safeMode=${suppressionContext.safeMode}`);
-      console.log(`[native-input] owner=native-rust gesture-engine=native-rust shortcuts=${specs.length} paused=${!!suppressionContext.paused}`);
+      inputDebug(`[input-debug] update-shortcuts (native): ${specs.length} native specs, context.paused=${suppressionContext.paused} safeMode=${suppressionContext.safeMode} elevated=${nativeHelper?.isElevatedMode()}`);
+      console.log(`[native-input] owner=native-rust gesture-engine=native-rust shortcuts=${specs.length} paused=${!!suppressionContext.paused} elevated=${nativeHelper?.isElevatedMode()}`);
       return;
     }
     const config = buildSuppressionConfig(entries ?? [], suppressionContext);

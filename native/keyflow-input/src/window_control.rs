@@ -126,7 +126,22 @@ pub struct WindowTopmostResult {
 }
 
 /// Execute Always-on-Top action on the current foreground window.
-pub fn execute_topmost(mode: &str, color_str: &str, highlight: bool) -> WindowTopmostResult {
+type MessageBeepFn = unsafe extern "system" fn(u32) -> i32;
+
+fn play_system_beep(beep_type: u32) {
+    unsafe {
+        let user32 = LoadLibraryA(b"user32.dll\0".as_ptr());
+        if !user32.is_null() {
+            let proc = GetProcAddress(user32, b"MessageBeep\0".as_ptr());
+            if let Some(f) = proc {
+                let beep_fn: MessageBeepFn = std::mem::transmute(f);
+                beep_fn(beep_type);
+            }
+        }
+    }
+}
+
+pub fn execute_topmost(mode: &str, color_str: &str, highlight: bool, sound: bool) -> WindowTopmostResult {
     let mode_lower = mode.to_ascii_lowercase();
     let hwnd = unsafe { GetForegroundWindow() };
 
@@ -198,6 +213,16 @@ pub fn execute_topmost(mode: &str, color_str: &str, highlight: bool) -> WindowTo
         let _ = set_dwm_border_color(hwnd, None);
     }
 
+    if sound {
+        if target_topmost {
+            // MB_ICONASTERISK (0x00000040)
+            play_system_beep(0x00000040);
+        } else {
+            // MB_OK (0x00000000)
+            play_system_beep(0x00000000);
+        }
+    }
+
     WindowTopmostResult {
         ok: true,
         action: "alwaysOnTop".to_string(),
@@ -210,11 +235,12 @@ pub fn execute_topmost(mode: &str, color_str: &str, highlight: bool) -> WindowTo
     }
 }
 
-/// Entry point when invoked via CLI: `keyflow-input --window-topmost [--mode <toggle|pin|unpin>] [--color <hex>] [--no-highlight]`
+/// Entry point when invoked via CLI: `keyflow-input --window-topmost [--mode <toggle|pin|unpin>] [--color <hex>] [--no-highlight] [--sound|--no-sound]`
 pub fn run_window_topmost_cli(args: &[String]) -> std::process::ExitCode {
     let mut mode = "toggle";
     let mut color = "#4F7CFF";
     let mut highlight = true;
+    let mut sound = true;
 
     let mut i = 0;
     while i < args.len() {
@@ -231,13 +257,21 @@ pub fn run_window_topmost_cli(args: &[String]) -> std::process::ExitCode {
                 highlight = false;
                 i += 1;
             }
+            "--sound" => {
+                sound = true;
+                i += 1;
+            }
+            "--no-sound" => {
+                sound = false;
+                i += 1;
+            }
             _ => {
                 i += 1;
             }
         }
     }
 
-    let result = execute_topmost(mode, color, highlight);
+    let result = execute_topmost(mode, color, highlight, sound);
     let json = serde_json::to_string(&result).unwrap_or_else(|_| r#"{"ok":false}"#.to_string());
     println!("{json}");
 

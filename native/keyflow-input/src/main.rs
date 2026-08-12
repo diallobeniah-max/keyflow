@@ -37,15 +37,44 @@ fn main() -> ExitCode {
         .find(|w| w[0] == "--parent-pid")
         .and_then(|w| w[1].parse::<u32>().ok());
 
-    // Writer thread: hook/worker threads push lines, the writer owns stdout.
+    let pipe_name = args
+        .windows(2)
+        .find(|w| w[0] == "--pipe")
+        .map(|w| w[1].clone());
+
+    let token = args
+        .windows(2)
+        .find(|w| w[0] == "--token")
+        .map(|w| w[1].clone());
+
+    let (reader, writer): (Box<dyn BufRead + Send>, Box<dyn Write + Send>) = if let Some(ref pipe) = pipe_name {
+        let file = match std::fs::OpenOptions::new().read(true).write(true).open(pipe) {
+            Ok(f) => f,
+            Err(e) => {
+                eprintln!("[keyflow-input] failed to open pipe {pipe}: {e}");
+                return ExitCode::from(3);
+            }
+        };
+        let write_file = match file.try_clone() {
+            Ok(f) => f,
+            Err(e) => {
+                eprintln!("[keyflow-input] failed to clone pipe: {e}");
+                return ExitCode::from(3);
+            }
+        };
+        (Box::new(BufReader::new(file)), Box::new(write_file))
+    } else {
+        (Box::new(BufReader::new(std::io::stdin())), Box::new(std::io::stdout()))
+    };
+
+    // Writer thread: hook/worker threads push lines, writer owns stdout or pipe.
     let (tx, rx) = sync_channel::<String>(1024);
     *hook::SENDER.lock().unwrap() = Some(tx);
     thread::spawn(move || {
-        let stdout = std::io::stdout();
-        let mut out = stdout.lock();
+        let mut out = writer;
         while let Ok(line) = rx.recv() {
             if writeln!(out, "{line}").is_err() || out.flush().is_err() {
-                break; // Electron closed the pipe
+                break; // Pipe closed
             }
         }
     });
@@ -62,61 +91,68 @@ fn main() -> ExitCode {
         }
     };
 
-    // Stdin thread: protocol commands + EOF -> quit (fail-open).
+    // Reader thread: protocol commands + EOF -> quit (fail-open).
     thread::spawn(move || {
-        let reader = BufReader::new(std::io::stdin());
-        for line in reader.lines() {
-            let line = match line {
-                Ok(l) => l,
-                Err(_) => break,
-            };
-            match protocol::parse_line(&line) {
-                Some(InMessage::Configure { shortcuts, keys, .. }) => {
-                    if let Ok(mut cfg) = config::CONFIG.lock() {
-                        if shortcuts.is_empty() {
-                            cfg.apply(&keys);
-                        } else {
-                            cfg.apply_shortcuts(&shortcuts);
+        let mut reader = reader;
+        let mut line_buf = String::new();
+        loop {
+            line_buf.clear();
+            match reader.read_line(&mut line_buf) {
+                Ok(0) | Err(_) => break,
+                Ok(_) => {
+                    let line = line_buf.trim();
+                    if line.is_empty() {
+                        continue;
+                    }
+                    match protocol::parse_line(line) {
+                        Some(InMessage::Configure { shortcuts, keys, .. }) => {
+                            if let Ok(mut cfg) = config::CONFIG.lock() {
+                                if shortcuts.is_empty() {
+                                    cfg.apply(&keys);
+                                } else {
+                                    cfg.apply_shortcuts(&shortcuts);
+                                }
+                            }
+                            hook::reload_engine();
+                            hook::queue(
+                                OutMessage::Ack {
+                                    version: PROTOCOL_VERSION,
+                                    r#for: "configure".to_string(),
+                                }
+                                .to_json(),
+                            );
                         }
-                    }
-                    hook::reload_engine();
-                    hook::queue(
-                        OutMessage::Ack {
-                            version: PROTOCOL_VERSION,
-                            r#for: "configure".to_string(),
+                        Some(InMessage::Pause { .. }) => {
+                            if let Ok(mut cfg) = config::CONFIG.lock() {
+                                cfg.set_paused(true);
+                            }
+                            hook::set_engine_paused(true);
                         }
-                        .to_json(),
-                    );
-                }
-                Some(InMessage::Pause { .. }) => {
-                    if let Ok(mut cfg) = config::CONFIG.lock() {
-                        cfg.set_paused(true);
+                        Some(InMessage::Resume { .. }) => {
+                            if let Ok(mut cfg) = config::CONFIG.lock() {
+                                cfg.set_paused(false);
+                            }
+                            hook::set_engine_paused(false);
+                        }
+                        Some(InMessage::BeginCapture { .. }) => {
+                            hook::arm_capture();
+                        }
+                        Some(InMessage::SetKeyStream { enabled, .. }) => {
+                            hook::set_key_stream(enabled);
+                        }
+                        Some(InMessage::Ping { .. }) => {
+                            hook::queue(OutMessage::Pong { version: PROTOCOL_VERSION }.to_json());
+                        }
+                        Some(InMessage::Shutdown { .. }) => {
+                            quit();
+                            break;
+                        }
+                        None => eprintln!("[keyflow-input] ignored malformed line"),
                     }
-                    hook::set_engine_paused(true);
                 }
-                Some(InMessage::Resume { .. }) => {
-                    if let Ok(mut cfg) = config::CONFIG.lock() {
-                        cfg.set_paused(false);
-                    }
-                    hook::set_engine_paused(false);
-                }
-                Some(InMessage::BeginCapture { .. }) => {
-                    hook::arm_capture();
-                }
-                Some(InMessage::SetKeyStream { enabled, .. }) => {
-                    hook::set_key_stream(enabled);
-                }
-                Some(InMessage::Ping { .. }) => {
-                    hook::queue(OutMessage::Pong { version: PROTOCOL_VERSION }.to_json());
-                }
-                Some(InMessage::Shutdown { .. }) => {
-                    quit();
-                    break;
-                }
-                None => eprintln!("[keyflow-input] ignored malformed line"),
             }
         }
-        quit(); // stdin closed: exit, fail-open
+        quit(); // stream closed: exit, fail-open
     });
 
     if let Some(pid) = parent_pid {
@@ -133,6 +169,16 @@ fn main() -> ExitCode {
     }
 
     hook::reload_engine();
+
+    if let Some(ref t) = token {
+        hook::queue(
+            OutMessage::Auth {
+                version: PROTOCOL_VERSION,
+                token: t.clone(),
+            }
+            .to_json(),
+        );
+    }
 
     hook::queue(
         OutMessage::Ready {

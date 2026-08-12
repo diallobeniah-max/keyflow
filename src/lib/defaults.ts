@@ -66,11 +66,15 @@ export function createDefaultSettings(): Settings {
       hookMode: "Low-level Windows hooks",
       performanceMode: false,
       portableMode: false,
+      extendedAccess: false,
     },
     windowControl: {
       defaultTopmostMode: "toggle",
       highlightPinned: true,
       highlightColor: "#4F7CFF",
+      borderThickness: "medium",
+      customThickness: 4,
+      soundFeedback: true,
       showFloatingPin: false,
     },
   };

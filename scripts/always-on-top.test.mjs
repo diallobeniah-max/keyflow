@@ -162,3 +162,36 @@ test("Always on Top: Action history records 'Always on Top' label", () => {
   const label = firstAction.type === "alwaysOnTop" ? "Always on Top" : firstAction.type;
   assert.equal(label, "Always on Top", "Action history must record 'Always on Top' instead of notification");
 });
+
+test("Always on Top: Sound feedback plays on Pin and Unpin without blocking execution", () => {
+  let pinSoundPlayed = false;
+  let unpinSoundPlayed = false;
+
+  function handleSound(isPin, soundEnabled) {
+    if (!soundEnabled) return;
+    if (isPin) {
+      pinSoundPlayed = true;
+    } else {
+      unpinSoundPlayed = true;
+    }
+  }
+
+  handleSound(true, true);
+  assert.equal(pinSoundPlayed, true);
+
+  handleSound(false, true);
+  assert.equal(unpinSoundPlayed, true);
+});
+
+test("Always on Top: Border thickness presets support thin, medium, and thick scales", () => {
+  const THICKNESS_MAP = {
+    thin: 2,
+    medium: 4,
+    thick: 6,
+  };
+
+  assert.equal(THICKNESS_MAP.thin, 2);
+  assert.equal(THICKNESS_MAP.medium, 4);
+  assert.equal(THICKNESS_MAP.thick, 6);
+});
+

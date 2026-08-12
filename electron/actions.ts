@@ -204,7 +204,8 @@ export async function runDesktopAction(action: any, mainWindow: BrowserWindow | 
         const mode = payload.topmostMode ?? payload.mode ?? "toggle";
         const highlight = payload.highlight !== false;
         const color = payload.highlightColor ?? "#4F7CFF";
-        const res = await toggleWindowTopmost({ mode, highlight, color });
+        const sound = payload.sound !== false;
+        const res = await toggleWindowTopmost({ mode, highlight, color, sound });
         return {
           ok: res.ok,
           action: actionType,

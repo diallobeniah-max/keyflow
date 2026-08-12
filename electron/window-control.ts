@@ -7,6 +7,7 @@ export interface WindowTopmostOptions {
   mode?: "toggle" | "pin" | "unpin";
   color?: string;
   highlight?: boolean;
+  sound?: boolean;
 }
 
 export interface WindowTopmostResult {
@@ -51,6 +52,7 @@ export function toggleWindowTopmost(options: WindowTopmostOptions = {}): Promise
   const mode = options.mode ?? "toggle";
   const color = options.color ?? "#4F7CFF";
   const highlight = options.highlight !== false;
+  const sound = options.sound !== false;
 
   const binary = findNativeHelperBinary();
   if (!binary) {
@@ -67,6 +69,11 @@ export function toggleWindowTopmost(options: WindowTopmostOptions = {}): Promise
   const args = ["--window-topmost", "--mode", mode, "--color", color];
   if (!highlight) {
     args.push("--no-highlight");
+  }
+  if (!sound) {
+    args.push("--no-sound");
+  } else {
+    args.push("--sound");
   }
 
   return new Promise((resolve) => {

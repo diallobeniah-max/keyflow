@@ -55,6 +55,11 @@ pub enum OutMessage {
         extended: bool,
         name: String,
     },
+    /// Auth handshake message sent when connected via authenticated named pipe.
+    Auth {
+        version: u32,
+        token: String,
+    },
 }
 
 impl OutMessage {
