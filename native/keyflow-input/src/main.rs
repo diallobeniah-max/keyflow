@@ -13,6 +13,7 @@ mod keymap;
 mod parent_watch;
 mod protocol;
 mod trigger;
+mod window_control;
 
 use std::io::{BufRead, BufReader, Write};
 use std::process::ExitCode;
@@ -27,6 +28,9 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|a| a == "--self-test") {
         return run_self_test();
+    }
+    if args.iter().any(|a| a == "--window-topmost") {
+        return window_control::run_window_topmost_cli(&args);
     }
     let parent_pid = args
         .windows(2)

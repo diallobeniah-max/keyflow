@@ -280,8 +280,9 @@ function sendMaximizedChange(maximized: boolean): void {
 function initInputService(): void {
   inputService = new NativeInputService(
     (sc) => {
-      void routeMatchedShortcut(sc, { popupManager, mainWindow });
-      notifyRendererMatched(sc, mainWindow);
+      void routeMatchedShortcut(sc, { popupManager, mainWindow }).then((results) => {
+        notifyRendererMatched(sc, mainWindow, results);
+      });
     },
     {
       keyboardSource: inputBackend === "native" ? "native" : "uiohook",
@@ -305,8 +306,9 @@ function routeNativeTriggered(msg: { shortcutId: string; generation: number }): 
   }
   console.log(`[native-input] route ${msg.shortcutId} gen=${msg.generation} key=${sc.key} trigger=${sc.trigger}`);
   inputDebug(`[input-debug] native route ${msg.shortcutId} gen=${msg.generation} trigger=${sc.trigger}`);
-  void routeMatchedShortcut(sc, { popupManager, mainWindow });
-  notifyRendererMatched(sc, mainWindow);
+  void routeMatchedShortcut(sc, { popupManager, mainWindow }).then((results) => {
+    notifyRendererMatched(sc, mainWindow, results);
+  });
 }
 
 /** Fallback from the native helper to the legacy (uiohook + AHK) pipeline. */

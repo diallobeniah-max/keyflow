@@ -1,4 +1,4 @@
-import { Settings } from "../types";
+import type { Action, ModifierKey, Settings, Shortcut, TriggerType } from "../types/index.js";
 
 export function createDefaultSettings(): Settings {
   return {
@@ -67,5 +67,56 @@ export function createDefaultSettings(): Settings {
       performanceMode: false,
       portableMode: false,
     },
+    windowControl: {
+      defaultTopmostMode: "toggle",
+      highlightPinned: true,
+      highlightColor: "#4F7CFF",
+      showFloatingPin: false,
+    },
   };
+}
+
+/**
+ * Canonical resolver for default key behavior (pass-through vs suppress).
+ * Normal users do not need to configure this manually.
+ *
+ * Rules:
+ * - CapsLock assigned to custom actions (e.g. Screenshot, Hyper Key) defaults to "suppress"
+ *   so the physical Caps Lock toggle is consumed and doesn't switch on.
+ * - Standard alphanumeric keys (A-Z, 0-9) on multi-tap (e.g. Double-tap F) default to "passThrough"
+ *   so ordinary typing is never suppressed.
+ * - Combos and mouse buttons always pass through.
+ * - Other normal shortcuts default to "passThrough".
+ */
+export function resolveDefaultKeyBehavior(
+  key?: string,
+  trigger?: TriggerType,
+  _actions?: Action[],
+  modifiers?: ModifierKey[],
+): "passThrough" | "suppress" | "disable" | "remap" {
+  if (modifiers && modifiers.length > 0) {
+    return "passThrough";
+  }
+  const k = (key ?? "").trim().toLowerCase();
+  if (k === "capslock") {
+    return "suppress";
+  }
+  // Letters/numbers with multi-tap or hold: pass through so typing works
+  return "passThrough";
+}
+
+/**
+ * Resolves the effective behavior of a shortcut, honoring explicit overrides
+ * or falling back to the canonical default resolver.
+ */
+export function resolveShortcutBehavior(
+  shortcut: Partial<Shortcut>,
+): "passThrough" | "suppress" | "disable" | "remap" {
+  if (shortcut.keyBehavior) {
+    return shortcut.keyBehavior;
+  }
+  if (shortcut.suppressKey) {
+    return "suppress";
+  }
+  return resolveDefaultKeyBehavior(shortcut.key, shortcut.trigger, shortcut.actions, shortcut.modifiers);
 }

@@ -1,4 +1,4 @@
-﻿interface WindowControls {
+interface WindowControls {
   minimize: () => Promise<void>;
   toggleMaximize: () => Promise<void>;
   close: () => Promise<void>;
@@ -16,6 +16,9 @@ interface ActionResult {
   action?: string;
   mode?: string;
   path?: string;
+  isTopmost?: boolean;
+  title?: string;
+  highlightApplied?: boolean;
   error?: string;
 }
 
@@ -28,7 +31,7 @@ interface InputAPI {
   setPaused: (paused: boolean) => Promise<void>;
   getStatus: () => Promise<string>;
   getSuppression: () => Promise<{ available: boolean; status: string; backend: string }>;
-  onTriggered: (callback: (shortcut: any) => void) => () => void;
+  onTriggered: (callback: (shortcut: any, results?: any[]) => void) => () => void;
 }
 
 interface PopupData {
@@ -45,7 +48,7 @@ interface PopupAPI {
   show: (data: { items: any[]; title?: string }) => Promise<ActionResult>;
   updateData: (snapshot: any) => Promise<void>;
   executeAction: (actions: any[]) => Promise<ActionResult[]>;
-  hide: () => Promise<void>;
+  hide: (gen?: string) => Promise<void>;
   reportContentSize: (width: number, height: number) => Promise<void>;
   onActivate: (callback: () => void) => () => void;
   onClosing: (callback: () => void) => () => void;

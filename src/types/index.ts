@@ -61,6 +61,9 @@ export interface ActionPayload {
   notificationBody?: string;
   screenshotMode?: "snipOverlay" | "fullscreenClip" | "windowClip" | "fullscreenSave";
   title?: string;
+  topmostMode?: "toggle" | "pin" | "unpin";
+  highlight?: boolean;
+  highlightColor?: string;
 }
 
 export interface Action {
@@ -211,6 +214,13 @@ export interface AdvancedSettings {
   portableMode: boolean;
 }
 
+export interface WindowControlSettings {
+  defaultTopmostMode: "toggle" | "pin" | "unpin";
+  highlightPinned: boolean;
+  highlightColor: string;
+  showFloatingPin: boolean;
+}
+
 export interface Settings {
   general: GeneralSettings;
   appearance: AppearanceSettings;
@@ -220,6 +230,7 @@ export interface Settings {
   privacy: PrivacySettings;
   data: DataSettings;
   advanced: AdvancedSettings;
+  windowControl?: WindowControlSettings;
 }
 
 export interface RecentAction {

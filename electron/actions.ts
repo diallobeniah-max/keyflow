@@ -1,16 +1,20 @@
-﻿import { app, BrowserWindow, clipboard, desktopCapturer, Notification, screen, shell } from "electron";
+import { app, BrowserWindow, clipboard, desktopCapturer, Notification, screen, shell } from "electron";
 import { spawn } from "child_process";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { resolveScreenshotMode } from "./screenshot-modes.js";
 import { screenshotBaseName } from "./screenshot-modes.js";
 import { ELECTRON_DESKTOP_ACTIONS } from "./action-routing.js";
+import { toggleWindowTopmost } from "./window-control.js";
 
 export interface ActionResult {
   ok: boolean;
   action: string;
   mode?: string;
   path?: string;
+  isTopmost?: boolean;
+  title?: string;
+  highlightApplied?: boolean;
   error?: string;
 }
 
@@ -196,9 +200,21 @@ export async function runDesktopAction(action: any, mainWindow: BrowserWindow | 
       case "minimizeWindow": mainWindow?.minimize(); break;
       case "maximizeWindow": mainWindow?.maximize(); break;
       case "closeWindow": mainWindow?.close(); break;
-      case "alwaysOnTop":
-        if (mainWindow) mainWindow.setAlwaysOnTop(!mainWindow.isAlwaysOnTop());
-        break;
+      case "alwaysOnTop": {
+        const mode = payload.topmostMode ?? payload.mode ?? "toggle";
+        const highlight = payload.highlight !== false;
+        const color = payload.highlightColor ?? "#4F7CFF";
+        const res = await toggleWindowTopmost({ mode, highlight, color });
+        return {
+          ok: res.ok,
+          action: actionType,
+          mode: res.mode,
+          isTopmost: res.is_topmost,
+          title: res.title,
+          highlightApplied: res.highlight_applied,
+          error: res.error,
+        };
+      }
       case "moveWindow": {
         if (mainWindow) {
           const [x, y] = mainWindow.getPosition();

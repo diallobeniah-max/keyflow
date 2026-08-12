@@ -33,6 +33,8 @@ function ActionRow({ a, index, total, onChange, onRemove, onMove, depth }: { a:A
     {a.type==="delay"&&<Field label="Wait milliseconds"><Input type="number" value={a.payload.delayMs??500} onChange={(e)=>setPayload({delayMs:Number(e.target.value)})}/></Field>}
     {a.type==="multiAction"&&<Field label="Actions in sequence" group><ActionListEditor actions={a.payload.actions??[]} onChange={(list)=>setPayload({actions:list})} depth={depth+1}/></Field>}
     {a.type==="showPopup"&&<PopupItemsEditor items={a.payload.popupItems??[]} onChange={(items)=>setPayload({popupItems:items})}/>} 
+    {a.type==="screenshot"&&<Field label="Screenshot mode"><Select value={a.payload.screenshotMode??"snipOverlay"} onChange={(v)=>setPayload({screenshotMode:v as any})} options={[{value:"snipOverlay",label:"Snipping overlay (default)"},{value:"fullscreenClip",label:"Copy full screen to clipboard"},{value:"fullscreenSave",label:"Save full screen to Pictures"}]}/></Field>}
+    {a.type==="alwaysOnTop"&&<div className="grid cols-2"><Field label="Mode"><Select value={a.payload.topmostMode??"toggle"} onChange={(v)=>setPayload({topmostMode:v as any})} options={[{value:"toggle",label:"Toggle on/off"},{value:"pin",label:"Pin on top"},{value:"unpin",label:"Remove from top"}]}/></Field><Field label="Highlight"><Select value={a.payload.highlight!==false?"yes":"no"} onChange={(v)=>setPayload({highlight:v==="yes"})} options={[{value:"yes",label:"Colored border"},{value:"no",label:"No highlight"}]}/></Field></div>}
     {a.type==="moveWindow"&&<Field label="Direction"><Select value={a.payload.direction??"left"} onChange={(v)=>setPayload({direction:v as any})} options={[{value:"left",label:"Left"},{value:"right",label:"Right"}]}/></Field>}
   </div></div>;
 }

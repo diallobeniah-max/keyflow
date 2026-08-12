@@ -69,9 +69,13 @@ export async function routeMatchedShortcut(
   return results;
 }
 
-/** Notifies the renderer for informational UI (recent list, debug toast). */
-export function notifyRendererMatched(sc: ShortcutEntry, mainWindow: BrowserWindow | null): void {
+/** Notifies the renderer for informational UI (recent list, debug toast, feedback). */
+export function notifyRendererMatched(
+  sc: ShortcutEntry,
+  mainWindow: BrowserWindow | null,
+  results?: ActionResult[],
+): void {
   if (hasShowPopupAction(sc)) return;
   inputDebug(`[input-debug] notify renderer ${sc.id} (informational only)`);
-  mainWindow?.webContents.send("shortcut:triggered", sc);
+  mainWindow?.webContents.send("shortcut:triggered", sc, results);
 }

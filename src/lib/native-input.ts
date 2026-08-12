@@ -1,4 +1,4 @@
-﻿import { useStore } from "../store/useStore";
+import { useStore } from "../store/useStore";
 import { resolveTiming } from "./timing";
 
 let cleanupFns: (() => void)[] = [];
@@ -55,18 +55,31 @@ export function initNativeInput(): void {
     });
   };
 
-  const unsub1 = eapi.input.onTriggered((sc: any) => {
+  const unsub1 = eapi.input.onTriggered((sc: any, results?: any[]) => {
     // Desktop actions are executed in the main process (ActionRouter); this
-    // event is informational only (recent list, debug toast).
+    // event is informational only (recent list, debug toast, user feedback).
     const state = useStore.getState();
     const firstAction = sc?.actions?.[0];
+    const actionLabel = firstAction?.type === "alwaysOnTop" ? "Always on Top" : (firstAction?.type ?? "trigger");
+
     state.addRecent({
       shortcutId: sc?.id,
       shortcutName: sc?.name ?? sc?.id ?? "native trigger",
-      actionLabel: firstAction?.type ?? "trigger",
+      actionLabel,
       profileId: state.activeProfileId,
     });
-    if (state.data.settings.advanced.debugLogs) {
+
+    const topResult = Array.isArray(results) ? results.find((r) => r?.action === "alwaysOnTop") : undefined;
+    if (topResult) {
+      if (topResult.ok) {
+        const msg = topResult.isTopmost
+          ? (topResult.title ? `Pinned on top: ${topResult.title}` : "Pinned on top")
+          : (topResult.title ? `Always on Top removed: ${topResult.title}` : "Always on Top removed");
+        state.toast(msg, "success");
+      } else {
+        state.toast(topResult.error ?? "Could not change Always on Top", "warning");
+      }
+    } else if (state.data.settings.advanced.debugLogs) {
       state.toast(`Triggered: ${sc?.name ?? sc?.id ?? "shortcut"}`, "success");
     }
   });

@@ -77,3 +77,11 @@ export const WINDOWS_SETTINGS = [
   { value: "ms-settings:windowsupdate", label: "Windows Update" },
 ];
 export const ACCENT_COLORS = ["#4F7CFF", "#3E6BF0", "#638BFF", "#7EA2FF", "#2F57D8"];
+export const HIGHLIGHT_PRESETS = [
+  { value: "#4F7CFF", label: "KeyFlow Accent" },
+  { value: "#00D2FF", label: "Vibrant Cyan" },
+  { value: "#34C78A", label: "Emerald" },
+  { value: "#E7A63A", label: "Amber" },
+  { value: "#E65B65", label: "Rose" },
+  { value: "#A855F7", label: "Purple" },
+];

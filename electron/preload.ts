@@ -1,4 +1,4 @@
-﻿const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
   windowControls: {
@@ -21,13 +21,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   actions: {
     run: (action) => ipcRenderer.invoke("action:run", action),
   },
-input: {
+  input: {
     updateShortcuts: (entries, context) => ipcRenderer.invoke("input:update-shortcuts", entries, context),
     setPaused: (paused) => ipcRenderer.invoke("input:set-paused", paused),
     getStatus: () => ipcRenderer.invoke("input:get-status"),
     getSuppression: () => ipcRenderer.invoke("input:get-suppression"),
     onTriggered: (callback) => {
-      const handler = (_event, shortcut) => callback(shortcut);
+      const handler = (_event, shortcut, results) => callback(shortcut, results);
       ipcRenderer.on("shortcut:triggered", handler);
       return () => {
         ipcRenderer.removeListener("shortcut:triggered", handler);
@@ -63,4 +63,3 @@ input: {
     },
   },
 });
-
