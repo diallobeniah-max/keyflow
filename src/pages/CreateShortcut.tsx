@@ -25,6 +25,16 @@ interface RecommendedPreset {
 
 const RECOMMENDED_PRESETS: RecommendedPreset[] = [
   {
+    id: "rec-popup",
+    title: "Popup Menu",
+    desc: "Open your KeyFlow action menu anywhere.",
+    icon: "popup",
+    defaultKey: "F",
+    defaultModifiers: [],
+    defaultTrigger: "double",
+    action: { id: "act-pop", type: "showPopup", payload: {} },
+  },
+  {
     id: "rec-screenshot",
     title: "Screenshot",
     desc: "Capture any part of your screen.",
@@ -43,16 +53,6 @@ const RECOMMENDED_PRESETS: RecommendedPreset[] = [
     defaultModifiers: ["Ctrl", "Shift"],
     defaultTrigger: "single",
     action: { id: "act-top", type: "alwaysOnTop", payload: { topmostMode: "toggle", highlight: true, sound: true } },
-  },
-  {
-    id: "rec-popup",
-    title: "Popup Menu",
-    desc: "Open your KeyFlow action menu anywhere.",
-    icon: "popup",
-    defaultKey: "F",
-    defaultModifiers: [],
-    defaultTrigger: "double",
-    action: { id: "act-pop", type: "showPopup", payload: {} },
   },
   {
     id: "rec-open-app",
@@ -121,6 +121,9 @@ export function CreateShortcut() {
   const add = useStore((s) => s.addShortcut);
   const update = useStore((s) => s.updateShortcut);
   const setPage = useStore((s) => s.setPage);
+
+  // Hyper key awareness — used for Popup preset card context
+  const hyperEnabled = !!(data.settings.shortcuts.hyperKeyConfig?.enabled);
 
   const existing = editingId ? data.shortcuts.find((s) => s.id === editingId) : undefined;
   const [draft, setDraft] = useState<Shortcut>(() =>
@@ -263,7 +266,16 @@ export function CreateShortcut() {
               {RECOMMENDED_PRESETS.map((preset) => {
                 const isSelected =
                   activeRecommendation === preset.id || primaryAction.type === preset.action.type;
-                const chordLabel = formatShortcutLabel(preset.defaultModifiers, preset.defaultKey);
+
+                // Popup preset: show hyper badge if Hyper is enabled, else FF double-tap label
+                const isPopupPreset = preset.id === "rec-popup";
+                const chordLabel = isPopupPreset && hyperEnabled
+                  ? "Hyper Tap"
+                  : formatShortcutLabel(preset.defaultModifiers, preset.defaultKey);
+                const triggerLabel = isPopupPreset && hyperEnabled
+                  ? "Hyper active"
+                  : (TRIGGER_META[preset.defaultTrigger]?.label ?? "Tap");
+
                 return (
                   <button
                     key={preset.id}
@@ -276,11 +288,18 @@ export function CreateShortcut() {
                         <Icon name={preset.icon} size={18} />
                         <span>{preset.title}</span>
                       </div>
-                      <span className="chip chip-subtle">
-                        {chordLabel} ({TRIGGER_META[preset.defaultTrigger]?.label ?? "Tap"})
+                      <span className={"chip" + (isPopupPreset && hyperEnabled ? " chip-accent" : " chip-subtle")}>
+                        {chordLabel}{isPopupPreset && hyperEnabled ? "" : ` (${triggerLabel})`}
                       </span>
                     </div>
-                    <p className="preset-tile-desc">{preset.desc}</p>
+                    <p className="preset-tile-desc">
+                      {preset.desc}
+                      {isPopupPreset && !hyperEnabled && (
+                        <span className="preset-tile-hint">
+                          {" "}· <button type="button" className="link-btn" onClick={(e) => { e.stopPropagation(); setPage("settings"); }}>Set up Hyper Key</button> for tap-to-open
+                        </span>
+                      )}
+                    </p>
                   </button>
                 );
               })}
@@ -296,6 +315,30 @@ export function CreateShortcut() {
           </h3>
 
           <div className="grid cols-2 gap-md">
+            {/* Explicit keyboard / mouse source switcher */}
+            <Field label="Trigger source">
+              <div className="segmented-control" role="group" aria-label="Trigger source">
+                <button
+                  type="button"
+                  className={"seg-btn" + (!draft.mouse ? " is-active" : "")}
+                  aria-pressed={!draft.mouse}
+                  onClick={() => set({ mouse: false, key: "T", modifiers: ["Ctrl", "Shift"] })}
+                >
+                  <Icon name="shortcuts" size={14} />
+                  Keyboard
+                </button>
+                <button
+                  type="button"
+                  className={"seg-btn" + (draft.mouse ? " is-active" : "")}
+                  aria-pressed={draft.mouse}
+                  onClick={() => set({ mouse: true, key: "MB1", modifiers: [] })}
+                >
+                  <Icon name="mouse" size={14} />
+                  Mouse
+                </button>
+              </div>
+            </Field>
+
             <Field label="Key or combination" group>
               {draft.mouse ? (
                 <Select

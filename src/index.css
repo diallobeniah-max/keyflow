@@ -1441,17 +1441,25 @@ textarea.input {
    ========================================================================== */
 
 .settings-layout {
-  display: grid;
-  grid-template-columns: 180px 1fr;
+  display: flex;
   gap: var(--space-6);
+  /* Use full parent height so nav can be sticky within a flex context */
+  min-height: 0;
+  flex: 1;
 }
 
 .settings-nav {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  width: 180px;
+  flex-shrink: 0;
+  /* Sticky within the settings-layout flex container */
   position: sticky;
   top: 0;
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+  padding-bottom: var(--space-4);
 }
 
 .settings-nav-btn {
@@ -2066,3 +2074,149 @@ textarea.input {
   box-shadow: var(--shadow-md);
 }
 
+/* ==========================================================================
+   Accent Color Swatches (Settings → Appearance)
+   ========================================================================== */
+
+.accent-swatch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.accent-swatch {
+  --swatch-color: var(--color-accent);
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  background-color: var(--swatch-color);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-fast);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.accent-swatch:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 3px var(--color-border-default);
+}
+
+.accent-swatch.is-selected {
+  border-color: var(--color-text-primary);
+  box-shadow: 0 0 0 1px var(--color-text-primary);
+  transform: scale(1.1);
+}
+
+.accent-swatch.is-selected::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: var(--radius-pill);
+  border: 2px solid white;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Native color picker well — styled to match swatch size */
+.accent-swatch-custom {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--color-border-default);
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: border-color var(--motion-fast);
+}
+
+.accent-swatch-custom:hover {
+  border-color: var(--color-border-strong);
+}
+
+.accent-swatch-custom::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.accent-swatch-custom::-webkit-color-swatch {
+  border: none;
+  border-radius: var(--radius-pill);
+}
+
+/* ==========================================================================
+   Segmented Keyboard / Mouse Source Switcher (CreateShortcut)
+   ========================================================================== */
+
+.segmented-control {
+  display: flex;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-input);
+  overflow: hidden;
+  height: 36px;
+}
+
+.seg-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--color-border-default);
+  padding: var(--space-0) var(--space-3);
+  font-size: calc(var(--type-small-size) * var(--font-scale, 1));
+  font-weight: 550;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--motion-fast), color var(--motion-fast);
+}
+
+.seg-btn:last-child {
+  border-right: none;
+}
+
+.seg-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.seg-btn.is-active {
+  background: var(--color-bg-selected);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.seg-btn.is-active:hover {
+  background: var(--color-bg-selected);
+}
+
+/* ==========================================================================
+   Miscellaneous utility additions
+   ========================================================================== */
+
+/* Inline link-style button (for preset nudge) */
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-accent);
+  font: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.link-btn:hover {
+  color: var(--color-accent-hover);
+}
+
+/* Hint text appended to preset-tile-desc */
+.preset-tile-hint {
+  color: var(--color-text-muted);
+  font-size: calc(11.5px * var(--font-scale, 1));
+}

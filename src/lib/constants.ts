@@ -76,7 +76,18 @@ export const WINDOWS_SETTINGS = [
   { value: "ms-settings:sound", label: "Sound" },
   { value: "ms-settings:windowsupdate", label: "Windows Update" },
 ];
-export const ACCENT_COLORS = ["#4F7CFF", "#3E6BF0", "#638BFF", "#7EA2FF", "#2F57D8"];
+export const ACCENT_PRESETS = [
+  { value: "#3b82f6", label: "KeyFlow Blue" },
+  { value: "#6366f1", label: "Indigo" },
+  { value: "#8b5cf6", label: "Violet" },
+  { value: "#10b981", label: "Emerald" },
+  { value: "#f59e0b", label: "Amber" },
+  { value: "#ef4444", label: "Rose" },
+  { value: "#ec4899", label: "Pink" },
+  { value: "#64748b", label: "Slate" },
+] as const;
+// Backward compatibility: array of just the hex values
+export const ACCENT_COLORS = ACCENT_PRESETS.map((p) => p.value);
 export const HIGHLIGHT_PRESETS = [
   { value: "#4F7CFF", label: "KeyFlow Accent" },
   { value: "#00D2FF", label: "Vibrant Cyan" },

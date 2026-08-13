@@ -126,20 +126,8 @@ pub struct WindowTopmostResult {
 }
 
 /// Execute Always-on-Top action on the current foreground window.
-type MessageBeepFn = unsafe extern "system" fn(u32) -> i32;
-
-fn play_system_beep(beep_type: u32) {
-    unsafe {
-        let user32 = LoadLibraryA(b"user32.dll\0".as_ptr());
-        if !user32.is_null() {
-            let proc = GetProcAddress(user32, b"MessageBeep\0".as_ptr());
-            if let Some(f) = proc {
-                let beep_fn: MessageBeepFn = std::mem::transmute(f);
-                beep_fn(beep_type);
-            }
-        }
-    }
-}
+/// NOTE: Sound feedback is handled by the Electron main process (PowerShell SoundPlayer)
+/// so this binary no longer calls MessageBeep or any Windows audio API.
 
 pub fn execute_topmost(mode: &str, color_str: &str, highlight: bool, sound: bool) -> WindowTopmostResult {
     let mode_lower = mode.to_ascii_lowercase();
@@ -213,15 +201,9 @@ pub fn execute_topmost(mode: &str, color_str: &str, highlight: bool, sound: bool
         let _ = set_dwm_border_color(hwnd, None);
     }
 
-    if sound {
-        if target_topmost {
-            // MB_ICONASTERISK (0x00000040)
-            play_system_beep(0x00000040);
-        } else {
-            // MB_OK (0x00000000)
-            play_system_beep(0x00000000);
-        }
-    }
+    // Sound feedback is handled by the Electron main process (electron/sound.ts).
+    // The `sound` parameter is accepted for CLI compatibility but is intentionally unused here.
+    let _ = sound;
 
     WindowTopmostResult {
         ok: true,

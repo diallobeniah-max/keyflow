@@ -2,6 +2,7 @@ import { execFile } from "child_process";
 import { existsSync } from "fs";
 import { join } from "path";
 import { app } from "electron";
+import { playKeyFlowSound } from "./sound.js";
 
 export interface WindowTopmostOptions {
   mode?: "toggle" | "pin" | "unpin";
@@ -91,6 +92,10 @@ export function toggleWindowTopmost(options: WindowTopmostOptions = {}): Promise
 
       try {
         const parsed = JSON.parse(stdout.trim()) as WindowTopmostResult;
+        // Play custom KeyFlow sound on successful toggle (non-blocking)
+        if (parsed.ok && sound) {
+          playKeyFlowSound(parsed.is_topmost ? "topmost-on" : "topmost-off");
+        }
         resolve(parsed);
       } catch (parseErr) {
         resolve({

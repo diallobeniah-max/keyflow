@@ -1,10 +1,13 @@
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, CSSProperties, useState } from "react";
 import { useStore } from "../store/useStore";
-import { ACCENT_COLORS, HIGHLIGHT_PRESETS } from "../lib/constants";
+import { ACCENT_PRESETS, HIGHLIGHT_PRESETS } from "../lib/constants";
 import { Button, Field, Input, PageIntro, SettingsGroup, SettingsRow, Toggle } from "../components/ui";
 import { AppSelect } from "../components/ui/AppSelect";
 import { Icon } from "../components/Icon";
 import { getSafeHyperKeySuggestions } from "../lib/conflict";
+import { createDefaultSettings } from "../lib/defaults";
+
+const DEFAULT_ACCENT = createDefaultSettings().appearance.accent;
 
 type SettingsSection =
   | "general"
@@ -391,18 +394,28 @@ export function Settings() {
                   />
                 </div>
               </SettingsRow>
-              <SettingsRow title="Accent color presets" desc="Signature highlight color">
-                <div className="row gap-xs">
-                  {ACCENT_COLORS.map((c) => (
+              <SettingsRow title="Accent color" desc="Signature highlight color used across buttons, focus rings, and key indicators">
+                <div className="accent-swatch-row">
+                  {ACCENT_PRESETS.map((preset) => (
                     <button
-                      key={c}
+                      key={preset.value}
                       type="button"
-                      className={"chip clickable" + (settings.appearance.accent === c ? " chip-accent" : " chip-subtle")}
-                      onClick={() => patch("appearance", { accent: c })}
-                    >
-                      <span>{c}</span>
-                    </button>
+                      className={"accent-swatch" + (settings.appearance.accent === preset.value ? " is-selected" : "")}
+                      style={{ "--swatch-color": preset.value } as CSSProperties}
+                      title={preset.label}
+                      aria-label={preset.label}
+                      aria-pressed={settings.appearance.accent === preset.value}
+                      onClick={() => patch("appearance", { accent: preset.value })}
+                    />
                   ))}
+                  <input
+                    type="color"
+                    className="accent-swatch-custom"
+                    value={settings.appearance.accent ?? DEFAULT_ACCENT}
+                    title="Custom accent color"
+                    aria-label="Custom accent color"
+                    onChange={(e) => patch("appearance", { accent: e.target.value })}
+                  />
                 </div>
               </SettingsRow>
               <SettingsRow title="Reduce motion" desc="Minimize transitions and animations across the app">

@@ -1,6 +1,40 @@
 # Design Changelog
 
-## 2026-08-12 — Shortcut Conflict Engine, Generic Typing Protection, Always on Top Modifier Fix & Popup Bounds
+## 2026-08-13 — Custom Sounds, Accent Color Swatches, Hyper-First Popup, Source Switcher & Settings Layout Fix
+
+* **Custom KeyFlow Sound Assets (`public/sounds/`)**:
+  - Added `topmost-on.wav` (260ms soft ascending chirp C5→E5, 38% amplitude) and `topmost-off.wav` (220ms descending settle E5→C5, 32% amplitude), generated via `scripts/gen-sounds.mjs` as 16-bit 44100 Hz PCM WAV with no external dependencies.
+  - Created `electron/sound.ts`: resolves WAV asset path across dev (`public/sounds/`) and production (`resources/sounds/`), plays via PowerShell `System.Media.SoundPlayer.Play()` — async, non-blocking, no npm audio deps.
+  - Removed `play_system_beep()` (Windows `MessageBeep`) from `native/keyflow-input/src/window_control.rs`. The Rust binary accepts `--sound`/`--no-sound` for compatibility but no longer calls any Windows audio API.
+  - `electron/window-control.ts` calls `playKeyFlowSound("topmost-on" | "topmost-off")` on successful toggle, respecting the caller's `sound` flag.
+
+* **Accent Color Swatches (`src/lib/constants.ts`, `src/pages/Settings.tsx`, `src/store/useStore.ts`, `src/index.css`)**:
+  - Replaced `ACCENT_COLORS` (5 unlabeled blue hex strings) with `ACCENT_PRESETS`: 8 named color objects spanning distinct hues (KeyFlow Blue, Indigo, Violet, Emerald, Amber, Rose, Pink, Slate). `ACCENT_COLORS` kept as backward-compatible alias.
+  - Fixed `applyAppearance()` in `useStore.ts`: now injects `--color-accent` and all four derived tokens (`--color-accent-hover`, `--color-accent-pressed`, `--color-accent-soft`, `--color-accent-border`) from the stored hex value on every settings change, so the whole UI recolors instantly.
+  - Pure-TS color helpers (`hexToRgb`, `lightenHex`, `darkenHex`, `hexToRgba`) added inside `useStore.ts` — no npm color libraries.
+  - Settings Appearance section renders visual 26px circle swatches (`accent-swatch`) using `--swatch-color` CSS custom property, with selected state border + inner white ring. Also adds a `<input type="color">` custom picker (`accent-swatch-custom`) for any hex color.
+  - New CSS classes: `.accent-swatch-row`, `.accent-swatch`, `.accent-swatch.is-selected`, `.accent-swatch-custom`.
+
+* **Hyper-First Popup Preset (`src/pages/CreateShortcut.tsx`, `src/lib/defaults.ts`)**:
+  - Moved Popup Menu to first position in `RECOMMENDED_PRESETS`.
+  - Popup preset card shows `chip-accent "Hyper Tap"` badge when `hyperKeyConfig.enabled === true`; falls back to `chip-subtle "F (Double tap)"` otherwise.
+  - When Hyper is not configured, the card shows an inline nudge link: "Set up Hyper Key" → navigates to Settings page.
+  - Cleared `hyperKeyConfig.tapActionId` default from `"sc-f-popup"` to `undefined` to avoid silent mismatches on fresh installs.
+
+* **Keyboard/Mouse Source Switcher (`src/pages/CreateShortcut.tsx`, `src/index.css`)**:
+  - Added explicit `[⌨ Keyboard] [🖱 Mouse]` segmented control (`segmented-control` / `seg-btn`) above the key capture field in Step 1: Shortcut & Trigger.
+  - Keyboard→Mouse: sets `{ mouse: true, key: "MB1", modifiers: [] }`. Mouse→Keyboard: sets `{ mouse: false, key: "T", modifiers: ["Ctrl", "Shift"] }`.
+  - New CSS classes: `.segmented-control`, `.seg-btn`, `.seg-btn.is-active`, `.seg-btn:hover`.
+
+* **Settings Sticky Nav Layout Fix (`src/index.css`)**:
+  - `.settings-layout` changed from `display: grid` to `display: flex` with `min-height: 0; flex: 1` to enable proper overflow containment.
+  - `.settings-nav` now has `position: sticky; top: 0; max-height: calc(100vh - 160px); overflow-y: auto` — the category panel never scrolls off screen regardless of window height or content length.
+
+* **Utility CSS additions**:
+  - `.link-btn`: inline unstyled button styled as an accent-colored underline link (used for the Hyper Key setup nudge inside the preset tile).
+  - `.preset-tile-hint`: muted caption-size text for supplemental preset tile notes.
+
+
 
 * **Central Shortcut Conflict Engine (`src/lib/conflict.ts`)**:
   - Implemented unified conflict analysis checking for exact duplicates, gesture overlaps (`single` vs `double`/`triple`/`hold`, `double` vs `triple`), risky bare printable single keys, and Windows reserved combinations.

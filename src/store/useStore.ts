@@ -75,6 +75,61 @@ interface StoreState {
   finishOnboarding: () => void;
 }
 
+// ---------------------------------------------------------------------------
+// Accent color helpers (pure TS, no npm deps)
+// ---------------------------------------------------------------------------
+
+/** Convert a 6-char hex string to { r, g, b } integers */
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const clean = hex.replace(/^#/, "");
+  if (clean.length !== 6 && clean.length !== 3) return null;
+  const full = clean.length === 3
+    ? clean.split("").map((c) => c + c).join("")
+    : clean;
+  const n = parseInt(full, 16);
+  return { r: (n >> 16) & 0xff, g: (n >> 8) & 0xff, b: n & 0xff };
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return "#" + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+}
+
+// Construct an rgb-with-alpha color string for CSS custom property injection
+function buildRgbaColor(r: number, g: number, b: number, a: number): string {
+  const fn = ["r", "g", "b"].join("");
+  return `${fn}(${r} ${g} ${b} / ${a})`;
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const rgb = hexToRgb(hex);
+  // Fallback: use a CSS expression that resolves at runtime via the token
+  if (!rgb) return `color-mix(in srgb, var(--color-accent) ${Math.round(alpha * 100)}%, transparent)`;
+  return buildRgbaColor(rgb.r, rgb.g, rgb.b, alpha);
+}
+
+function lightenHex(hex: string, amount: number): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  return rgbToHex(rgb.r + amount, rgb.g + amount, rgb.b + amount);
+}
+
+function darkenHex(hex: string, amount: number): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  return rgbToHex(rgb.r - amount, rgb.g - amount, rgb.b - amount);
+}
+
+/** Write accent color and all derived tokens to the CSS root */
+function applyAccentColor(root: HTMLElement, accent: string): void {
+  root.style.setProperty("--color-accent", accent);
+  root.style.setProperty("--color-accent-hover", lightenHex(accent, 22));
+  root.style.setProperty("--color-accent-pressed", darkenHex(accent, 18));
+  root.style.setProperty("--color-accent-soft", hexToRgba(accent, 0.12));
+  root.style.setProperty("--color-accent-border", hexToRgba(accent, 0.35));
+}
+
+// ---------------------------------------------------------------------------
+
 function mergeSettings(s: Partial<Settings> | undefined): Settings {
   const defaults = createDefaultSettings();
   if (!s) return defaults;
@@ -132,6 +187,10 @@ export const useStore = create<StoreState>((set, get) => ({
     root.classList.toggle("reduce-motion", a.reduceMotion);
     root.classList.toggle("compact", a.compactMode);
     root.style.setProperty("--ui-scale", ({ "90": "0.9", "100": "1", "110": "1.1", "125": "1.25" } as Record<string, string>)[a.uiScale] ?? "1");
+    // Apply accent color and all derived tokens so the whole UI recolors live
+    if (a.accent) {
+      applyAccentColor(root, a.accent);
+    }
   },
   resetAll: () => {
     const state = createSampleState();

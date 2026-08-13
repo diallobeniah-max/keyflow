@@ -37,7 +37,7 @@ export function createDefaultSettings(): Settings {
       hyperKeyConfig: {
         enabled: false,
         key: "AltRight",
-        tapActionId: "sc-f-popup",
+        tapActionId: undefined,
         suppressOriginal: true,
       },
       typingProtection: "balanced",
