@@ -461,14 +461,16 @@ export function SettingsRow({
   desc,
   children,
   action,
+  id,
 }: {
   title: string;
   desc?: string;
   children?: React.ReactNode;
   action?: React.ReactNode;
+  id?: string;
 }) {
   return (
-    <div className="settings-row">
+    <div className="settings-row" id={id}>
       <div className="settings-row-info">
         <div className="settings-row-title">{title}</div>
         {desc && <div className="settings-row-desc">{desc}</div>}

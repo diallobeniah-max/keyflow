@@ -2220,3 +2220,497 @@ textarea.input {
   color: var(--color-text-muted);
   font-size: calc(11.5px * var(--font-scale, 1));
 }
+
+/* ==========================================================================
+   Settings Search & Highlight (Settings-only)
+   ========================================================================== */
+
+.settings-search-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.settings-search-box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 40px;
+  padding: 0 var(--space-3);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  transition: border-color var(--motion-fast), box-shadow var(--motion-fast);
+}
+
+.settings-search-box:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.settings-search-icon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.settings-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: var(--type-small-size);
+  color: var(--color-text-primary);
+}
+
+.settings-search-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.settings-search-clear {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--space-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+}
+
+.settings-search-clear:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.settings-search-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 120;
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-lg);
+  max-height: 340px;
+  overflow-y: auto;
+  padding: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.settings-search-result-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--motion-fast);
+}
+
+.settings-search-result-item:hover,
+.settings-search-result-item.is-selected {
+  background: var(--color-bg-hover);
+}
+
+.settings-search-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* Setting row pulse animation on search navigation */
+@keyframes settingPulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--color-accent-soft);
+    background-color: var(--color-bg-selected);
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--color-accent-soft);
+    background-color: var(--color-bg-selected);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    background-color: transparent;
+  }
+}
+
+.setting-row-highlight {
+  animation: settingPulse 1.8s ease-in-out;
+  border-radius: var(--radius-card);
+}
+
+/* ==========================================================================
+   Visual Mouse Map Diagram (Keyboard Map Page)
+   ========================================================================== */
+
+.mouse-map-layout {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-2) 0;
+}
+
+@media (max-width: 640px) {
+  .mouse-map-layout {
+    flex-direction: column;
+  }
+}
+
+.mouse-svg-container {
+  width: 220px;
+  height: 300px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.mouse-diagram-svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(var(--shadow-sm));
+}
+
+.mouse-svg-btn,
+.mouse-svg-wheel,
+.mouse-svg-side {
+  fill: var(--color-bg-surface);
+  stroke: var(--color-border-default);
+  stroke-width: 1.5px;
+  cursor: pointer;
+  transition: fill var(--motion-fast), stroke var(--motion-fast), filter var(--motion-fast);
+}
+
+.mouse-svg-btn:hover,
+.mouse-svg-wheel:hover,
+.mouse-svg-side:hover,
+.mouse-svg-btn.is-focused,
+.mouse-svg-wheel.is-focused,
+.mouse-svg-side.is-focused {
+  fill: var(--color-bg-hover);
+  stroke: var(--color-accent);
+}
+
+.mouse-svg-btn.is-assigned,
+.mouse-svg-wheel.is-assigned,
+.mouse-svg-side.is-assigned {
+  fill: var(--color-bg-selected);
+  stroke: var(--color-accent);
+}
+
+.mouse-controls-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1;
+  width: 100%;
+}
+
+.mouse-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  cursor: pointer;
+  transition: background var(--motion-fast), border-color var(--motion-fast);
+  text-align: left;
+}
+
+.mouse-list-item:hover,
+.mouse-list-item.is-focused {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-strong);
+}
+
+.mouse-list-item.is-assigned {
+  border-color: var(--color-accent-soft);
+  background: var(--color-bg-surface-elevated);
+}
+
+.mouse-list-item-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.mouse-btn-badge {
+  font-size: calc(var(--type-tiny-size) * var(--font-scale, 1));
+  font-weight: 700;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-accent);
+  min-width: 36px;
+  text-align: center;
+}
+
+/* ==========================================================================
+   Notes Popup Feature (Floating Rich-Text Note Editor)
+   ========================================================================== */
+
+.notes-popup-root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+  box-shadow: var(--shadow-xl);
+}
+
+.notes-popup-header {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-3);
+  background: var(--color-bg-surface-elevated);
+  border-bottom: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.notes-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+  font-size: var(--type-small-size);
+}
+
+.notes-header-title {
+  color: var(--color-text-primary);
+}
+
+.notes-search-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-control);
+  padding: var(--space-1) var(--space-2);
+  width: 160px;
+}
+
+.notes-search-field {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: var(--type-tiny-size);
+  color: var(--color-text-primary);
+  width: 100%;
+}
+
+.notes-search-field::placeholder {
+  color: var(--color-text-muted);
+}
+
+.notes-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--space-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  transition: color var(--motion-fast), background var(--motion-fast);
+}
+
+.notes-close-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.notes-popup-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.notes-sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+}
+
+.notes-sidebar-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition: background var(--motion-fast);
+  text-align: left;
+}
+
+.notes-sidebar-item:hover {
+  background: var(--color-bg-hover);
+}
+
+.notes-sidebar-item.is-active {
+  background: var(--color-bg-selected);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.notes-sidebar-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+
+.notes-item-title {
+  font-weight: 600;
+  font-size: var(--type-small-size);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notes-item-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--space-1);
+  opacity: 0.6;
+  transition: opacity var(--motion-fast), color var(--motion-fast);
+}
+
+.notes-sidebar-item:hover .notes-item-delete-btn {
+  opacity: 1;
+}
+
+.notes-item-delete-btn:hover {
+  color: var(--color-state-danger);
+}
+
+.notes-item-preview {
+  font-size: var(--type-tiny-size);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notes-editor-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-app);
+  overflow: hidden;
+}
+
+.notes-title-input {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--type-h3-size);
+  font-weight: 700;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.notes-title-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.notes-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+  flex-wrap: wrap;
+}
+
+.notes-toolbar-btn {
+  height: 26px;
+  padding: 0 var(--space-2);
+  font-size: var(--type-tiny-size);
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  transition: background var(--motion-fast), color var(--motion-fast);
+}
+
+.notes-toolbar-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.notes-toolbar-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--color-border-default);
+  margin: 0 var(--space-1);
+}
+
+.notes-editor-content {
+  flex: 1;
+  padding: var(--space-4);
+  outline: none;
+  overflow-y: auto;
+  line-height: 1.6;
+  font-size: var(--type-body-size);
+  color: var(--color-text-primary);
+  user-select: text;
+}
+
+.notes-editor-content h1 {
+  font-size: var(--type-h2-size);
+  margin: var(--space-2) 0;
+}
+
+.notes-editor-content h2 {
+  font-size: var(--type-h3-size);
+  margin: var(--space-2) 0;
+}
+
+.notes-editor-content ul,
+.notes-editor-content ol {
+  padding-left: 20px;
+  margin: var(--space-2) 0;
+}
+
+.notes-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--space-6);
+  text-align: center;
+}
+
+
+

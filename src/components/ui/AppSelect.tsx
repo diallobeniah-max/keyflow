@@ -106,17 +106,28 @@ export function AppSelect({
     const opensAbove = below < 220 && above > below;
     const available = opensAbove ? above : below;
     const maxHeight = Math.min(320, available);
-    const top = opensAbove
-      ? Math.max(viewportInset, rect.top - maxHeight - viewportInset)
-      : Math.min(window.innerHeight - viewportInset - maxHeight, rect.bottom + viewportInset);
 
-    setMenuStyle({
-      position: "fixed",
-      top,
-      left,
-      width,
-      maxHeight,
-    });
+    if (opensAbove) {
+      const bottom = Math.max(viewportInset, window.innerHeight - rect.top + 6);
+      setMenuStyle({
+        position: "fixed",
+        bottom: `${bottom}px`,
+        top: "auto",
+        left: `${left}px`,
+        width: `${width}px`,
+        maxHeight: `${maxHeight}px`,
+      });
+    } else {
+      const top = Math.min(window.innerHeight - viewportInset - 40, rect.bottom + 6);
+      setMenuStyle({
+        position: "fixed",
+        top: `${top}px`,
+        bottom: "auto",
+        left: `${left}px`,
+        width: `${width}px`,
+        maxHeight: `${maxHeight}px`,
+      });
+    }
   };
 
   useEffect(() => {

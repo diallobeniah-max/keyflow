@@ -29,6 +29,7 @@ export const ACTION_META: Record<ActionType, { label: string; icon: string; colo
   closeWindow: { label: "Close window", icon: "winClose", color: "#4F7CFF", category: "Window" },
   moveWindow: { label: "Move window", icon: "arrowRight", color: "#5D8DFF", category: "Window" },
   alwaysOnTop: { label: "Toggle always-on-top", icon: "pinTop", color: "#5D8DFF", category: "Window" },
+  notesPopup: { label: "Notes Popup", icon: "file", color: "#4F7CFF", category: "Productivity" },
   delay: { label: "Delay / wait", icon: "pause", color: "#7EA2FF", category: "Flow" },
 };
 

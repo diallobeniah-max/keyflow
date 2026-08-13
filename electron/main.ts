@@ -10,6 +10,7 @@ import { createWindowState } from "./window-state.js";
 import { NativeInputService } from "./input/native-input-service.js";
 import { runDesktopAction, ActionResult } from "./actions.js";
 import { PopupWindowManager } from "./popup-window.js";
+import { notesService } from "./notes-window.js";
 import { nextPopupGeneration, routeMatchedShortcut, notifyRendererMatched } from "./action-router.js";
 import { NativeInputHelper, buildNativeKeyConfig, resolveNativeHelperPath } from "./native-input-helper.js";
 import { nativeKeyName } from "./vk-catalog.js";
@@ -211,6 +212,8 @@ function registerIPC(): void {
   ipcMain.handle("window:is-maximized", () => mainWindow?.isMaximized() ?? false);
   ipcMain.handle("app:get-version", () => app.getVersion());
   ipcMain.handle("app:get-platform", () => process.platform);
+
+  notesService.setupIPC();
 
   ipcMain.handle("input:update-shortcuts", async (_event, entries: any[], context: any) => {
     if (inputService) inputService.updateShortcuts(entries);

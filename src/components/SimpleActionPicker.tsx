@@ -14,6 +14,7 @@ export interface PrimaryActionDef {
 
 export const PRIMARY_ACTIONS: PrimaryActionDef[] = [
   { type: "screenshot", label: "Screenshot", desc: "Windows snipping tool or full capture", icon: "screenshot", category: "System" },
+  { type: "notesPopup", label: "Notes Popup", desc: "Open floating rich-text desktop notepad", icon: "file", category: "Productivity" },
   { type: "alwaysOnTop", label: "Always on Top", desc: "Pin or toggle active window on top", icon: "pinTop", category: "Window" },
   { type: "openApp", label: "Open app", desc: "Launch an application by name or path", icon: "window", category: "Launch" },
   { type: "showPopup", label: "Popup menu", desc: "Show a quick action menu", icon: "popup", category: "Flow" },

@@ -1,4 +1,4 @@
-import { ChangeEvent, CSSProperties, useState } from "react";
+import { ChangeEvent, CSSProperties, useMemo, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import { ACCENT_PRESETS, HIGHLIGHT_PRESETS } from "../lib/constants";
 import { Button, Field, Input, PageIntro, SettingsGroup, SettingsRow, Toggle } from "../components/ui";
@@ -6,6 +6,8 @@ import { AppSelect } from "../components/ui/AppSelect";
 import { Icon } from "../components/Icon";
 import { getSafeHyperKeySuggestions } from "../lib/conflict";
 import { createDefaultSettings } from "../lib/defaults";
+import { searchSettings } from "../lib/fuzzySearch";
+import type { SettingSearchItem } from "../lib/settingsIndex";
 
 const DEFAULT_ACCENT = createDefaultSettings().appearance.accent;
 
@@ -49,6 +51,46 @@ export function Settings() {
   const importState = useStore((s) => s.importState);
 
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const searchResults = useMemo(() => searchSettings(searchQuery, 8), [searchQuery]);
+
+  const handleSelectResult = (item: SettingSearchItem) => {
+    setActiveSection(item.category);
+    setSearchQuery("");
+    setSelectedIndex(0);
+    setTimeout(() => {
+      const el = document.getElementById(item.anchorId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("setting-row-highlight");
+        setTimeout(() => {
+          el.classList.remove("setting-row-highlight");
+        }, 1800);
+      }
+    }, 60);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!searchResults.length) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((prev) => Math.min(prev + 1, searchResults.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const target = searchResults[selectedIndex] ?? searchResults[0];
+      if (target) handleSelectResult(target.item);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setSearchQuery("");
+      setSelectedIndex(0);
+    }
+  };
 
   const exportJson = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -74,6 +116,64 @@ export function Settings() {
         description="Configure desktop behaviors, visual appearance, gesture timings, and privacy settings."
       />
 
+      {/* Settings Search Bar */}
+      <div className="settings-search-wrapper mb-md">
+        <div className="settings-search-box">
+          <Icon name="search" size={16} className="settings-search-icon" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            className="settings-search-input"
+            placeholder="Search settings (e.g. 'hyper', 'color', 'typing')…"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setSelectedIndex(0);
+            }}
+            onKeyDown={handleSearchKeyDown}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              className="settings-search-clear"
+              title="Clear search"
+              onClick={() => {
+                setSearchQuery("");
+                setSelectedIndex(0);
+                searchInputRef.current?.focus();
+              }}
+            >
+              <Icon name="close" size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Live Search Results Dropdown */}
+        {searchQuery.trim().length > 0 && (
+          <div className="settings-search-dropdown animate-fade-in" role="listbox">
+            {searchResults.length > 0 ? (
+              searchResults.map((res, i) => (
+                <button
+                  key={res.item.id}
+                  type="button"
+                  className={"settings-search-result-item" + (i === selectedIndex ? " is-selected" : "")}
+                  onClick={() => handleSelectResult(res.item)}
+                  onMouseEnter={() => setSelectedIndex(i)}
+                >
+                  <div className="settings-search-result-header">
+                    <span className="font-medium text-main">{res.item.title}</span>
+                    <span className="chip chip-accent tiny">{res.item.categoryLabel}</span>
+                  </div>
+                  <div className="tiny muted">{res.item.description}</div>
+                </button>
+              ))
+            ) : (
+              <div className="p-sm text-center muted tiny">No matching settings found for "{searchQuery}"</div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="settings-layout">
         {/* Left Category Navigation */}
         <nav className="settings-nav">
@@ -94,35 +194,35 @@ export function Settings() {
         <div className="settings-content">
           {activeSection === "general" && (
             <SettingsGroup title="General Settings" icon="settings" desc="Core startup and background options">
-              <SettingsRow title="Launch on Windows startup" desc="Start KeyFlow automatically when you log in to Windows">
+              <SettingsRow id="row-gen-startup" title="Launch on Windows startup" desc="Start KeyFlow automatically when you log in to Windows">
                 <Toggle
                   label="Launch on startup"
                   checked={settings.general.launchOnStartup}
                   onChange={(v) => patch("general", { launchOnStartup: v })}
                 />
               </SettingsRow>
-              <SettingsRow title="Start minimized" desc="Open KeyFlow hidden in the background on launch">
+              <SettingsRow id="row-gen-minimized" title="Start minimized" desc="Open KeyFlow hidden in the background on launch">
                 <Toggle
                   label="Start minimized"
                   checked={settings.general.startMinimized}
                   onChange={(v) => patch("general", { startMinimized: v })}
                 />
               </SettingsRow>
-              <SettingsRow title="Minimize to system tray" desc="Keep running in the notification area when the window is closed">
+              <SettingsRow id="row-gen-tray" title="Minimize to system tray" desc="Keep running in the notification area when the window is closed">
                 <Toggle
                   label="Minimize to tray"
                   checked={settings.general.minimizeToTray}
                   onChange={(v) => patch("general", { minimizeToTray: v })}
                 />
               </SettingsRow>
-              <SettingsRow title="Desktop notifications" desc="Show Windows toast alerts when shortcuts execute">
+              <SettingsRow id="row-gen-notifications" title="Desktop notifications" desc="Show Windows toast alerts when shortcuts execute">
                 <Toggle
                   label="Show notifications"
                   checked={settings.general.showNotifications}
                   onChange={(v) => patch("general", { showNotifications: v })}
                 />
               </SettingsRow>
-              <SettingsRow title="Default workspace profile" desc="Profile activated when no specific application rule matches">
+              <SettingsRow id="row-gen-profile" title="Default workspace profile" desc="Profile activated when no specific application rule matches">
                 <div className="w-180">
                   <AppSelect
                     value={settings.general.defaultProfileId}
@@ -137,7 +237,7 @@ export function Settings() {
           {activeSection === "shortcuts" && (
             <>
               <SettingsGroup title="Global Emergency Shortcuts" icon="shortcuts" desc="System-wide safety combinations">
-                <SettingsRow title="Global pause shortcut" desc="Instantly pause all shortcut matching">
+                <SettingsRow id="row-sc-pause" title="Global pause shortcut" desc="Instantly pause all shortcut matching">
                   <div className="w-160">
                     <Input
                       value={settings.shortcuts.globalPause}
@@ -145,7 +245,7 @@ export function Settings() {
                     />
                   </div>
                 </SettingsRow>
-                <SettingsRow title="Emergency Safe Mode shortcut" desc="Instantly disconnect low-level hooks">
+                <SettingsRow id="row-sc-emergency" title="Emergency Safe Mode shortcut" desc="Instantly disconnect low-level hooks">
                   <div className="w-160">
                     <Input
                       value={settings.shortcuts.emergencySafe}
@@ -156,7 +256,7 @@ export function Settings() {
               </SettingsGroup>
 
               <SettingsGroup title="Default Gesture Timings" icon="shortcuts" desc="Default thresholds for automatic timing mode">
-                <SettingsRow title="Double tap threshold" desc="Maximum time between two presses in milliseconds">
+                <SettingsRow id="row-sc-double-tap" title="Double tap threshold" desc="Maximum time between two presses in milliseconds">
                   <div className="w-100">
                     <Input
                       type="number"
@@ -165,7 +265,7 @@ export function Settings() {
                     />
                   </div>
                 </SettingsRow>
-                <SettingsRow title="Hold press threshold" desc="Duration to hold a key before hold trigger fires">
+                <SettingsRow id="row-sc-hold-thresh" title="Hold press threshold" desc="Duration to hold a key before hold trigger fires">
                   <div className="w-100">
                     <Input
                       type="number"
@@ -174,7 +274,7 @@ export function Settings() {
                     />
                   </div>
                 </SettingsRow>
-                <SettingsRow title="Key repeat protection" desc="Ignore repeated OS key-down events while holding a physical key">
+                <SettingsRow id="row-sc-repeat-prot" title="Key repeat protection" desc="Ignore repeated OS key-down events while holding a physical key">
                   <Toggle
                     label="Key repeat protection"
                     checked={settings.shortcuts.keyRepeatProtection}
@@ -184,6 +284,7 @@ export function Settings() {
               </SettingsGroup>
               <SettingsGroup title="Hyper Key Modifier" icon="shortcuts" desc="Turn one physical key into your dedicated KeyFlow modifier for chords like Hyper + T">
                 <SettingsRow
+                  id="row-sc-hyper-enable"
                   title="Enable Hyper Key"
                   desc="Acts as a dedicated KeyFlow modifier key (bit 4) for all Hyper chords"
                 >
@@ -203,6 +304,7 @@ export function Settings() {
                   />
                 </SettingsRow>
                 <SettingsRow
+                  id="row-sc-hyper-key"
                   title="Physical Hyper Key"
                   desc="Select an unused physical key. CapsLock is preserved for Screenshot."
                 >
@@ -246,27 +348,47 @@ export function Settings() {
                   </div>
                 </SettingsRow>
                 <SettingsRow
+                  id="row-sc-hyper-tap"
                   title="Tap Hyper Key Action"
                   desc="Action triggered when the Hyper key is pressed and released alone without holding another key"
                 >
                   <div className="w-220">
                     <AppSelect
-                      value={settings.shortcuts.hyperKeyConfig?.tapActionId || "none"}
-                      onChange={(act) =>
+                      value={settings.shortcuts.hyperKeyConfig?.tapActionId || ""}
+                      onChange={(tapActionId) =>
                         patch("shortcuts", {
                           hyperKeyConfig: {
                             enabled: settings.shortcuts.hyperKeyConfig?.enabled ?? true,
                             key: settings.shortcuts.hyperKeyConfig?.key || "AltRight",
-                            tapActionId: act === "none" ? undefined : act,
+                            tapActionId: tapActionId || undefined,
                             suppressOriginal: true,
                           },
                         })
                       }
                       options={[
-                        { value: "none", label: "Do Nothing (Pass through)" },
-                        { value: "sc-f-popup", label: "Open Popup Menu" },
-                        { value: "sc-caps-screenshot", label: "Screenshot Overlay" },
-                        { value: "sc-aot-ctrl-shift-t", label: "Toggle Always on Top" },
+                        { value: "", label: "None (chord modifier only)" },
+                        ...data.shortcuts
+                          .filter((s) => s.profileId === activeProfileId)
+                          .map((s) => ({ value: s.id, label: s.name || `${s.key} (${s.trigger})` })),
+                      ]}
+                    />
+                  </div>
+                </SettingsRow>
+              </SettingsGroup>
+              <SettingsGroup title="Typing Burst Protection" icon="shortcuts" desc="Prevents rapid typing from accidentally activating single-key shortcuts">
+                <SettingsRow
+                  id="row-sc-typing-prot"
+                  title="Typing protection mode"
+                  desc="Throttles standalone letter/number single-taps during active typing streams. Function keys and modifier chords remain instant."
+                >
+                  <div className="w-200">
+                    <AppSelect
+                      value={settings.shortcuts.typingProtection ?? "balanced"}
+                      onChange={(v) => patch("shortcuts", { typingProtection: v as any })}
+                      options={[
+                        { value: "balanced", label: "Balanced (400ms burst gap)" },
+                        { value: "strict", label: "Strict (650ms burst gap)" },
+                        { value: "off", label: "Off (Raw key events)" },
                       ]}
                     />
                   </div>
@@ -276,86 +398,81 @@ export function Settings() {
           )}
 
           {activeSection === "alwaysOnTop" && (
-            <SettingsGroup title="Always on Top & Windows" icon="pinTop" desc="Keep active windows floating above all others">
-              <SettingsRow title="Sound feedback" desc="Play subtle Win32 confirmation chime when pinning or unpinning windows">
+            <SettingsGroup title="Always on Top Window Control" icon="pinTop" desc="Configure DWM border highlights and behavior">
+              <SettingsRow id="row-top-mode" title="Default pin mode" desc="Default action behavior when pinning window">
+                <div className="w-160">
+                  <AppSelect
+                    value={settings.windowControl?.defaultTopmostMode ?? "toggle"}
+                    onChange={(v) => patch("windowControl" as any, { defaultTopmostMode: v } as any)}
+                    options={[
+                      { value: "toggle", label: "Toggle topmost" },
+                      { value: "pin", label: "Always pin" },
+                      { value: "unpin", label: "Always unpin" },
+                    ]}
+                  />
+                </div>
+              </SettingsRow>
+              <SettingsRow id="row-top-highlight" title="Highlight pinned window border" desc="Apply a colored DWM accent border around pinned windows">
+                <Toggle
+                  label="Highlight border"
+                  checked={settings.windowControl?.highlightPinned ?? true}
+                  onChange={(v) => patch("windowControl" as any, { highlightPinned: v } as any)}
+                />
+              </SettingsRow>
+              <SettingsRow id="row-top-color" title="Pinned window highlight color" desc="Visual border highlight accent color">
+                <div className="row gap-xs">
+                  {HIGHLIGHT_PRESETS.map((preset) => (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      className={"chip clickable" + (settings.windowControl?.highlightColor === preset.value ? " chip-accent" : " chip-subtle")}
+                      onClick={() => patch("windowControl" as any, { highlightColor: preset.value } as any)}
+                    >
+                      <span>{preset.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </SettingsRow>
+              <SettingsRow id="row-top-sound" title="Sound feedback" desc="Play KeyFlow custom audio tones when pinning or unpinning">
                 <Toggle
                   label="Sound feedback"
                   checked={settings.windowControl?.soundFeedback ?? true}
                   onChange={(v) => patch("windowControl" as any, { soundFeedback: v } as any)}
                 />
               </SettingsRow>
-              <SettingsRow title="Highlight pinned windows" desc="Display a colored border on windows pinned as Always on Top">
-                <Toggle
-                  label="Highlight pinned windows"
-                  checked={settings.windowControl?.highlightPinned ?? true}
-                  onChange={(v) => patch("windowControl" as any, { highlightPinned: v } as any)}
-                />
-              </SettingsRow>
-              <SettingsRow title="Highlight border color" desc="DWM border highlight accent color">
-                <div className="row wrap gap-xs">
-                  {HIGHLIGHT_PRESETS.map((p) => {
-                    const currentHighlight = settings.windowControl?.highlightColor ?? HIGHLIGHT_PRESETS[0].value;
-                    const isSelected = currentHighlight === p.value;
-                    return (
-                      <button
-                        key={p.value}
-                        type="button"
-                        className={"chip clickable" + (isSelected ? " chip-accent" : " chip-subtle")}
-                        onClick={() => patch("windowControl" as any, { highlightColor: p.value } as any)}
-                      >
-                        <span className="brand-logo-dot" />
-                        <span>{p.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </SettingsRow>
-              <SettingsRow title="Border thickness" desc="Visual border width scale (note: DWM 1px limitation on Windows 11)">
-                <div className="w-160">
-                  <AppSelect
-                    value={settings.windowControl?.borderThickness ?? "medium"}
-                    onChange={(v) => patch("windowControl" as any, { borderThickness: v } as any)}
-                    options={[
-                      { value: "thin", label: "Thin (2px)" },
-                      { value: "medium", label: "Medium (4px)" },
-                      { value: "thick", label: "Thick (6px)" },
-                    ]}
-                  />
-                </div>
-              </SettingsRow>
             </SettingsGroup>
           )}
 
           {activeSection === "popup" && (
-            <SettingsGroup title="Global Popup Menu" icon="popup" desc="Quick action command palette opened via double-tap FF">
-              <SettingsRow title="Position" desc="Where the popup menu appears on screen">
-                <div className="w-160">
+            <SettingsGroup title="Popup Menu" icon="popup" desc="Quick command palette menu options">
+              <SettingsRow id="row-pop-pos" title="Popup position" desc="Default spawn location for the floating action menu">
+                <div className="w-180">
                   <AppSelect
                     value={settings.popup.position}
                     onChange={(v) => patch("popup", { position: v as any })}
                     options={[
-                      { value: "cursor", label: "Near cursor" },
-                      { value: "center", label: "Screen center" },
-                      { value: "last", label: "Last dragged position" },
+                      { value: "cursor", label: "Near mouse cursor" },
+                      { value: "center", label: "Center of active screen" },
+                      { value: "last", label: "Remember last position" },
                     ]}
                   />
                 </div>
               </SettingsRow>
-              <SettingsRow title="Show icons" desc="Display action type icons in the menu list">
+              <SettingsRow id="row-pop-icons" title="Show icons" desc="Display action type icons in the menu list">
                 <Toggle
                   label="Show icons"
                   checked={settings.popup.showIcons}
                   onChange={(v) => patch("popup", { showIcons: v })}
                 />
               </SettingsRow>
-              <SettingsRow title="Enable search" desc="Include instant search filter in the popup header">
+              <SettingsRow id="row-pop-search" title="Enable search" desc="Include instant search filter in the popup header">
                 <Toggle
                   label="Enable search"
                   checked={settings.popup.search}
                   onChange={(v) => patch("popup", { search: v })}
                 />
               </SettingsRow>
-              <SettingsRow title="Close after action" desc="Automatically dismiss the popup menu once an item is triggered">
+              <SettingsRow id="row-pop-close" title="Close after action" desc="Automatically dismiss the popup menu once an item is triggered">
                 <Toggle
                   label="Close after action"
                   checked={settings.popup.closeAfterAction}
@@ -367,7 +484,7 @@ export function Settings() {
 
           {activeSection === "appearance" && (
             <SettingsGroup title="Appearance & Themes" icon="monitor" desc="Visual styling, themes, and scaling">
-              <SettingsRow title="Theme mode" desc="Switch between dark and light desktop palettes">
+              <SettingsRow id="row-app-theme" title="Theme mode" desc="Switch between dark and light desktop palettes">
                 <div className="w-160">
                   <AppSelect
                     value={settings.appearance.theme}
@@ -380,7 +497,7 @@ export function Settings() {
                   />
                 </div>
               </SettingsRow>
-              <SettingsRow title="Text size" desc="Adjust application typography scaling across all pages and popups">
+              <SettingsRow id="row-app-fontsize" title="Text size" desc="Adjust application typography scaling across all pages and popups">
                 <div className="w-160">
                   <AppSelect
                     value={settings.appearance.fontSize ?? "default"}
@@ -394,7 +511,7 @@ export function Settings() {
                   />
                 </div>
               </SettingsRow>
-              <SettingsRow title="Accent color" desc="Signature highlight color used across buttons, focus rings, and key indicators">
+              <SettingsRow id="row-app-accent" title="Accent color" desc="Signature highlight color used across buttons, focus rings, and key indicators">
                 <div className="accent-swatch-row">
                   {ACCENT_PRESETS.map((preset) => (
                     <button
@@ -418,7 +535,7 @@ export function Settings() {
                   />
                 </div>
               </SettingsRow>
-              <SettingsRow title="Reduce motion" desc="Minimize transitions and animations across the app">
+              <SettingsRow id="row-app-motion" title="Reduce motion" desc="Minimize transitions and animations across the app">
                 <Toggle
                   label="Reduce motion"
                   checked={settings.appearance.reduceMotion}
@@ -430,21 +547,21 @@ export function Settings() {
 
           {activeSection === "privacy" && (
             <SettingsGroup title="Privacy & Safety" icon="shield" desc="Safety modes and app restrictions">
-              <SettingsRow title="Safe mode" desc="Immediately disable all shortcut hooks system-wide">
+              <SettingsRow id="row-priv-safe" title="Safe mode" desc="Immediately disable all shortcut hooks system-wide">
                 <Toggle
                   label="Safe mode"
                   checked={settings.privacy.safeMode}
                   onChange={setSafe}
                 />
               </SettingsRow>
-              <SettingsRow title="Pause in password fields" desc="Attempt to suspend hooks when entering sensitive credentials">
+              <SettingsRow id="row-priv-password" title="Pause in password fields" desc="Attempt to suspend hooks when entering sensitive credentials">
                 <Toggle
                   label="Pause in password"
                   checked={settings.privacy.pauseInPassword}
                   onChange={(v) => patch("privacy", { pauseInPassword: v })}
                 />
               </SettingsRow>
-              <SettingsRow title="Action history" desc="Clear recorded list of executed actions">
+              <SettingsRow id="row-priv-history" title="Action history" desc="Clear recorded list of executed actions">
                 <Button variant="secondary" size="sm" onClick={clearRecent}>
                   Clear history
                 </Button>
@@ -454,19 +571,19 @@ export function Settings() {
 
           {activeSection === "data" && (
             <SettingsGroup title="Data & Backup" icon="folder" desc="Local JSON storage and configuration export">
-              <SettingsRow title="Export backup" desc="Save all shortcuts and settings to a JSON file">
+              <SettingsRow id="row-data-export" title="Export backup" desc="Save all shortcuts and settings to a JSON file">
                 <Button variant="secondary" size="sm" icon="file" onClick={exportJson}>
                   Export JSON
                 </Button>
               </SettingsRow>
-              <SettingsRow title="Import backup" desc="Restore shortcuts and profiles from a previous backup file">
+              <SettingsRow id="row-data-import" title="Import backup" desc="Restore shortcuts and profiles from a previous backup file">
                 <label className="btn btn-secondary btn-sm">
                   <Icon name="folder" size={15} />
                   <span>Import JSON</span>
                   <input type="file" accept="application/json" hidden onChange={importJson} />
                 </label>
               </SettingsRow>
-              <SettingsRow title="Reset application data" desc="Delete all shortcuts, profiles, and reset settings to default">
+              <SettingsRow id="row-data-reset" title="Reset application data" desc="Delete all shortcuts, profiles, and reset settings to default">
                 <Button variant="danger" size="sm" icon="trash" onClick={reset}>
                   Reset all data
                 </Button>
@@ -477,6 +594,7 @@ export function Settings() {
           {activeSection === "advanced" && (
             <SettingsGroup title="Advanced System Settings" icon="terminal" desc="Elevated hooks, logging, and engine configuration">
               <SettingsRow
+                id="row-adv-extended"
                 title="Extended shortcut access"
                 desc="Allows shortcuts (e.g. Screenshot, Always on Top) to work while elevated apps (Task Manager / elevated Terminal) have focus. Runs the input helper at High integrity via a single Windows UAC prompt. Secure desktop screens remain protected."
               >
@@ -486,14 +604,14 @@ export function Settings() {
                   onChange={(v) => patch("advanced" as any, { extendedAccess: v } as any)}
                 />
               </SettingsRow>
-              <SettingsRow title="Enable debug logs" desc="Output verbose diagnostic logs to console and DevTools">
+              <SettingsRow id="row-adv-debug" title="Enable debug logs" desc="Output verbose diagnostic logs to console and DevTools">
                 <Toggle
                   label="Debug logs"
                   checked={settings.advanced.debugLogs}
                   onChange={(v) => patch("advanced", { debugLogs: v })}
                 />
               </SettingsRow>
-              <SettingsRow title="Performance mode" desc="Optimize input dispatcher for minimum CPU latency">
+              <SettingsRow id="row-adv-perf" title="Performance mode" desc="Optimize input dispatcher for minimum CPU latency">
                 <Toggle
                   label="Performance mode"
                   checked={settings.advanced.performanceMode}
@@ -505,7 +623,7 @@ export function Settings() {
 
           {activeSection === "about" && (
             <SettingsGroup title="About KeyFlow" icon="logo" desc="Version and platform information">
-              <SettingsRow title="Version" desc="Current installed build">
+              <SettingsRow id="row-about-version" title="Version" desc="Current installed build">
                 <span className="chip chip-subtle">v0.3.0 Desktop</span>
               </SettingsRow>
               <SettingsRow title="Native input engine" desc="Low-level Windows keyboard hook">

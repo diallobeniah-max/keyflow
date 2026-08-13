@@ -13,10 +13,15 @@ import { Profiles } from "./pages/Profiles";
 import { Settings } from "./pages/Settings";
 import { Onboarding } from "./pages/Onboarding";
 import { PopupShell } from "./components/PopupShell";
+import { NotesPopupShell } from "./components/NotesPopupShell";
 import { useStore } from "./store/useStore";
 
 function isPopupWindow(): boolean {
   return window.location.search.includes("window=popup");
+}
+
+function isNotesWindow(): boolean {
+  return window.location.search.includes("window=notes");
 }
 
 function Router() {
@@ -43,6 +48,7 @@ function Router() {
 
 export default function App() {
   if (isPopupWindow()) return <PopupShell />;
+  if (isNotesWindow()) return <NotesPopupShell />;
 
   const onboardingDone = useStore((s) => s.data.onboardingDone);
   const drawerOpen = useStore((s) => s.drawerOpen);

@@ -6,6 +6,7 @@ import { resolveScreenshotMode } from "./screenshot-modes.js";
 import { screenshotBaseName } from "./screenshot-modes.js";
 import { ELECTRON_DESKTOP_ACTIONS } from "./action-routing.js";
 import { toggleWindowTopmost } from "./window-control.js";
+import { notesService } from "./notes-window.js";
 
 export interface ActionResult {
   ok: boolean;
@@ -196,6 +197,9 @@ export async function runDesktopAction(action: any, mainWindow: BrowserWindow | 
         new Notification({ title: payload.notificationTitle ?? "KeyFlow", body: payload.notificationBody ?? "" }).show();
         break;
       case "showPopup":
+        break;
+      case "notesPopup":
+        notesService.toggle();
         break;
       case "minimizeWindow": mainWindow?.minimize(); break;
       case "maximizeWindow": mainWindow?.maximize(); break;

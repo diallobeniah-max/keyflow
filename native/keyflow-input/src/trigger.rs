@@ -222,11 +222,19 @@ impl TriggerEngine {
                     if bit != 0 {
                         self.mods &= !bit;
                     }
+                    // Right Alt (0xA5 / VK_RMENU) on AltGr Windows layouts fires a synthetic LControl (0xA2).
+                    // Clear the Ctrl bit (0b0001) so Right Alt Hyper chords remain pure MOD_BIT_HYPER.
+                    if ev.vk == 0xA5 {
+                        self.mods &= !0b0001;
+                    }
                     self.mods |= MOD_BIT_HYPER;
                 }
                 EvState::Up => {
                     if bit != 0 {
                         self.mods &= !bit;
+                    }
+                    if ev.vk == 0xA5 {
+                        self.mods &= !0b0001;
                     }
                     self.mods &= !MOD_BIT_HYPER;
                 }

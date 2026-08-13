@@ -62,4 +62,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
       };
     },
   },
+  notes: {
+    getAll: () => ipcRenderer.invoke("notes:get-all"),
+    save: (note) => ipcRenderer.invoke("notes:save", note),
+    delete: (id) => ipcRenderer.invoke("notes:delete", id),
+    close: () => ipcRenderer.invoke("notes:close"),
+    toggle: () => ipcRenderer.invoke("notes:toggle"),
+  },
 });

@@ -39,6 +39,7 @@ export type ActionType =
   | "closeWindow"
   | "moveWindow"
   | "alwaysOnTop"
+  | "notesPopup"
   | "delay";
 
 export interface ActionPayload {

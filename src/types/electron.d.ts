@@ -55,12 +55,29 @@ interface PopupAPI {
   onData: (callback: (data: PopupData) => void) => () => void;
 }
 
+interface NotesItem {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface NotesAPI {
+  getAll: () => Promise<NotesItem[]>;
+  save: (note: NotesItem) => Promise<NotesItem[]>;
+  delete: (id: string) => Promise<NotesItem[]>;
+  close: () => Promise<void>;
+  toggle: () => Promise<void>;
+}
+
 interface ElectronAPI {
   windowControls: WindowControls;
   appInfo: AppInfo;
   actions: ActionAPI;
   input: InputAPI;
   popup: PopupAPI;
+  notes?: NotesAPI;
 }
 
 interface Window {

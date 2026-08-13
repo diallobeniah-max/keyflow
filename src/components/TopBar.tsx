@@ -15,8 +15,6 @@ const TITLES: Record<string, string> = {
 
 export function TopBar() {
   const page = useStore((s) => s.currentPage);
-  const setPage = useStore((s) => s.setPage);
-  const setGlobalSearch = useStore((s) => s.setGlobalSearch);
   const paused = useStore((s) => s.paused);
   const safeMode = useStore((s) => s.safeMode);
   const focusedApp = useStore((s) => s.focusedApp);
@@ -24,7 +22,6 @@ export function TopBar() {
   const patch = useStore((s) => s.patchSettings);
   const drawerOpen = useStore((s) => s.drawerOpen);
   const setDrawerOpen = useStore((s) => s.setDrawerOpen);
-  const [q, setQ] = useState("");
   const hamburgerRef = useRef<HTMLButtonElement>(null);
 
   const nextTheme =
@@ -48,23 +45,6 @@ export function TopBar() {
         </button>
         <h1 className="topbar-title">{TITLES[page] ?? "KeyFlow"}</h1>
       </div>
-
-      <form
-        className="topbar-search"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setGlobalSearch(q);
-          setPage("shortcuts");
-        }}
-      >
-        <Icon name="search" size={15} className="topbar-search-icon" />
-        <Input
-          aria-label="Search shortcuts and actions"
-          placeholder="Search shortcuts (Ctrl+F)…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-      </form>
 
       <div className="topbar-actions">
         {focusedApp && focusedApp !== "keyflow.exe" && (

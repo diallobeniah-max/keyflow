@@ -123,11 +123,15 @@ impl Config {
             let special_scan = spec.key.scan_code;
             let extended = spec.key.extended;
             let mods = spec.modifiers.iter().fold(0u32, |acc, &m| {
-                let bit = crate::keymap::modifier_bit(m);
-                if bit != 0 {
-                    acc | bit
+                if m == MOD_BIT_HYPER {
+                    acc | MOD_BIT_HYPER
                 } else {
-                    acc | m
+                    let bit = crate::keymap::modifier_bit(m);
+                    if bit != 0 {
+                        acc | bit
+                    } else {
+                        acc | m
+                    }
                 }
             });
 
@@ -320,5 +324,24 @@ mod tests {
         assert_eq!(c.behavior_for(0x4B), KeyBehavior::Pass);
         assert_eq!(c.rules().len(), 1);
         assert_eq!(c.rules()[0].required_mods, MOD_BIT_CTRL);
+    }
+
+    #[test]
+    fn hyper_modifier_folding() {
+        let mut c = Config::new();
+        let spec = ShortcutSpec {
+            id: "sc-hyper-t".to_string(),
+            name: Some("Hyper T Popup".to_string()),
+            key: KeyIdentity { vk: 0x54, scan_code: 0, extended: false },
+            modifiers: vec![MOD_BIT_HYPER],
+            trigger: TriggerSpec { kind_raw: "single".to_string(), ..Default::default() },
+            behavior: "pass".to_string(),
+            remap_to: 0,
+            enabled: true,
+            suppress_key: None,
+            key_behavior: None,
+        };
+        c.apply_shortcuts(&[spec]);
+        assert_eq!(c.rules()[0].required_mods, MOD_BIT_HYPER);
     }
 }
