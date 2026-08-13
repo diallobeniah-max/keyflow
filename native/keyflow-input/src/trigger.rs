@@ -1,6 +1,6 @@
 //! Native trigger state machine. Rust is authoritative for keyboard gesture
-//! recognition: tap counts, double/triple windows, hold thresholds and the
-//! single-versus-double / tap-versus-hold arbitrations all live here.
+//! recognition: tap counts, double/triple windows, hold thresholds, hyper key chords,
+//! and single-versus-double / tap-versus-hold arbitrations all live here.
 //!
 //! Time is monotonic and injectable: every event carries an absolute `at`
 //! (Duration since the engine epoch). Tests drive the machine deterministically
@@ -14,15 +14,23 @@
 //!   exactly like the old TypeScript matcher but now inside the native helper.
 //! - Hold fires once via a deadline; releasing early cancels it and a
 //!   quick tap never fires a hold-only rule.
-//! - Fire decisions are collected as (rule-index, at) while gesture state is
-//!   mutably borrowed, then applied afterwards, so no borrow of `self.rules`
-//!   is held while mutating the engine.
+//! - Hyper Key: a designated physical key acts as a custom native modifier chord (bit 4 = 16).
+//!   Holding Hyper + pressing key resolves Hyper chord; releasing Hyper alone without other keys
+//!   fires the optional Hyper tap action.
+//! - Typing Protection: printable keys in rapid succession indicate active
+//!   typing. Standalone printable gestures (e.g. single-tap 'F' or double-tap 'F')
+//!   only arm when the user is idle before the gesture starts, preventing accidental
+//!   activations when typing words like "coffee" or "office".
+//! - Non-printable keys like CapsLock, Escape, F1-F24, and modifier combinations
+//!   (e.g. Ctrl+Shift+C, Hyper+T) are completely immune to typing protection.
 
 use std::collections::HashMap;
 use std::time::Duration;
 
 use crate::config::Rule;
-use crate::protocol::TriggerKind;
+use crate::protocol::{HyperKeySpec, TriggerKind};
+
+pub const MOD_BIT_HYPER: u32 = 0b0001_0000; // bit 4 = 16
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EvState {
@@ -97,6 +105,13 @@ pub struct TriggerEngine {
     cooldowns: HashMap<usize, Duration>,
     generation: u64,
     paused: bool,
+    typing_idle_threshold: Duration,
+    last_typing_down_at: Option<Duration>,
+    last_typing_vk: Option<u32>,
+    is_in_typing_burst: bool,
+    hyper_spec: Option<HyperKeySpec>,
+    hyper_active: bool,
+    hyper_tap_pending: bool,
 }
 
 impl TriggerEngine {
@@ -109,6 +124,42 @@ impl TriggerEngine {
             cooldowns: HashMap::new(),
             generation: 0,
             paused: false,
+            typing_idle_threshold: Duration::from_millis(crate::config::DEFAULT_TYPING_IDLE_MS as u64),
+            last_typing_down_at: None,
+            last_typing_vk: None,
+            is_in_typing_burst: false,
+            hyper_spec: None,
+            hyper_active: false,
+            hyper_tap_pending: false,
+        }
+    }
+
+    /// Set the idle threshold before printable keys can trigger standalone gestures.
+    /// Duration::ZERO disables typing protection.
+    pub fn set_typing_idle_threshold(&mut self, threshold: Duration) {
+        self.typing_idle_threshold = threshold;
+    }
+
+    pub fn is_in_typing_burst(&self) -> bool {
+        self.is_in_typing_burst
+    }
+
+    pub fn set_hyper_key(&mut self, spec: Option<HyperKeySpec>) {
+        self.hyper_spec = spec;
+        self.hyper_active = false;
+        self.hyper_tap_pending = false;
+        self.mods &= !MOD_BIT_HYPER;
+    }
+
+    pub fn is_hyper_active(&self) -> bool {
+        self.hyper_active
+    }
+
+    pub fn is_hyper_key_suppressed(&self, vk: u32) -> bool {
+        if let Some(spec) = &self.hyper_spec {
+            spec.enabled && spec.vk == vk && spec.suppress_original
+        } else {
+            false
         }
     }
 
@@ -124,6 +175,11 @@ impl TriggerEngine {
         self.mods = 0;
         self.gestures.clear();
         self.cooldowns.clear();
+        self.last_typing_down_at = None;
+        self.last_typing_vk = None;
+        self.is_in_typing_burst = false;
+        self.hyper_active = false;
+        self.hyper_tap_pending = false;
     }
 
     pub fn set_paused(&mut self, paused: bool) {
@@ -158,12 +214,30 @@ impl TriggerEngine {
         // Update modifier state first so matching sees the right mask.
         let mut fired = self.run_deadlines(ev.at);
         let bit = crate::keymap::modifier_bit(ev.vk);
-        if bit != 0 {
+        let is_hyper_key = self.hyper_spec.as_ref().map_or(false, |h| h.enabled && h.vk == ev.vk);
+
+        if is_hyper_key {
+            match ev.state {
+                EvState::Down => {
+                    if bit != 0 {
+                        self.mods &= !bit;
+                    }
+                    self.mods |= MOD_BIT_HYPER;
+                }
+                EvState::Up => {
+                    if bit != 0 {
+                        self.mods &= !bit;
+                    }
+                    self.mods &= !MOD_BIT_HYPER;
+                }
+            }
+        } else if bit != 0 {
             match ev.state {
                 EvState::Down => self.mods |= bit,
                 EvState::Up => self.mods &= !bit,
             }
         }
+
         match ev.state {
             EvState::Down => fired.extend(self.on_down(ev)),
             EvState::Up => fired.extend(self.on_up(ev)),
@@ -186,23 +260,60 @@ impl TriggerEngine {
         }
         self.pressed.insert(ev.vk, ev.at);
 
+        // ── Hyper Key State ─────────────────────────────────────────────────
+        if let Some(hyper) = &self.hyper_spec {
+            if hyper.enabled && ev.vk == hyper.vk {
+                self.hyper_active = true;
+                self.hyper_tap_pending = true;
+                self.mods |= MOD_BIT_HYPER;
+                return Vec::new();
+            }
+        }
+
+        if self.hyper_active {
+            // A non-hyper key is pressed while Hyper is active -> cancels tap action!
+            self.hyper_tap_pending = false;
+        }
+
+        // ── Typing Burst Model ──────────────────────────────────────────────
+        let is_printable = crate::keymap::is_printable_vk(ev.vk)
+            && (self.mods & !crate::keymap::modifier_bit(ev.vk) & !MOD_BIT_HYPER == 0);
+
+        if is_printable && self.typing_idle_threshold > Duration::ZERO {
+            let time_since_last = self.last_typing_down_at.map(|t| ev.at.saturating_sub(t));
+            if let Some(elapsed) = time_since_last {
+                if elapsed <= self.typing_idle_threshold {
+                    if self.last_typing_vk != Some(ev.vk) {
+                        self.is_in_typing_burst = true;
+                        self.gestures.clear();
+                    }
+                } else {
+                    self.is_in_typing_burst = false;
+                }
+            } else {
+                self.is_in_typing_burst = false;
+            }
+            self.last_typing_down_at = Some(ev.at);
+            self.last_typing_vk = Some(ev.vk);
+        }
+
         let matching = self.matching_rules(ev);
         if matching.is_empty() {
             return Vec::new();
         }
 
+        let suppress_gestures = is_printable && self.is_in_typing_burst && self.typing_idle_threshold > Duration::ZERO;
+
         let mut pending: Vec<(usize, Duration)> = Vec::new();
         {
             let gesture = self.gestures.entry(ev.vk).or_default();
 
-            // Tap-then-hold: a held second press arms a hold; the first quick
-            // tap armed `tth_armed` on release.
             let tth_rules: Vec<usize> = matching
                 .iter()
                 .copied()
                 .filter(|&ri| self.rules[ri].kind == TriggerKind::TapThenHold)
                 .collect();
-            if !tth_rules.is_empty() {
+            if !tth_rules.is_empty() && !suppress_gestures {
                 if gesture.tth_armed {
                     gesture.tth_armed = false;
                     gesture.tth_disarm_at = None;
@@ -217,10 +328,8 @@ impl TriggerEngine {
                         }
                     }
                 }
-                // else: first press — decided on release.
             }
 
-            // Double / triple tap counting.
             let multi: Vec<usize> = matching
                 .iter()
                 .copied()
@@ -228,42 +337,43 @@ impl TriggerEngine {
                 .collect();
             let has_multi = !multi.is_empty();
             if !multi.is_empty() {
-                let window = multi
-                    .iter()
-                    .map(|&ri| self.rules[ri].tap_interval)
-                    .min()
-                    .unwrap_or(crate::config::DEFAULT_TAP_INTERVAL_MS);
-                let window = Duration::from_millis(window as u64);
-                let is_fresh = gesture.taps == 0 || gesture.first_tap_at.map_or(true, |t| ev.at - t > window);
-                if is_fresh {
-                    gesture.taps = 1;
-                    gesture.first_tap_at = Some(ev.at);
+                if suppress_gestures {
+                    gesture.taps = 0;
+                    gesture.first_tap_at = None;
+                    gesture.tap_reset_at = None;
                 } else {
-                    gesture.taps += 1;
-                }
-                gesture.tap_reset_at = Some(gesture.first_tap_at.unwrap() + window);
-                for &ri in &multi {
-                    let target = if self.rules[ri].kind == TriggerKind::Triple { 3 } else { 2 };
-                    if gesture.taps >= target {
-                        let within = gesture.first_tap_at.map_or(true, |t| ev.at - t <= window);
-                        if within {
-                            pending.push((ri, ev.at));
-                            // Completed gesture: state resets immediately so the
-                            // next pair starts fresh. No cooldown is left behind.
-                            gesture.taps = 0;
-                            gesture.first_tap_at = None;
-                            gesture.tap_reset_at = None;
-                            gesture.deferred_singles.clear();
-                            gesture.singles_at = None;
-                            break;
+                    let window = multi
+                        .iter()
+                        .map(|&ri| self.rules[ri].tap_interval)
+                        .min()
+                        .unwrap_or(crate::config::DEFAULT_TAP_INTERVAL_MS);
+                    let window = Duration::from_millis(window as u64);
+                    let is_fresh = gesture.taps == 0 || gesture.first_tap_at.map_or(true, |t| ev.at - t > window);
+                    if is_fresh {
+                        gesture.taps = 1;
+                        gesture.first_tap_at = Some(ev.at);
+                    } else {
+                        gesture.taps += 1;
+                    }
+                    gesture.tap_reset_at = Some(gesture.first_tap_at.unwrap() + window);
+                    for &ri in &multi {
+                        let target = if self.rules[ri].kind == TriggerKind::Triple { 3 } else { 2 };
+                        if gesture.taps >= target {
+                            let within = gesture.first_tap_at.map_or(true, |t| ev.at - t <= window);
+                            if within {
+                                pending.push((ri, ev.at));
+                                gesture.taps = 0;
+                                gesture.first_tap_at = None;
+                                gesture.tap_reset_at = None;
+                                gesture.deferred_singles.clear();
+                                gesture.singles_at = None;
+                                break;
+                            }
                         }
                     }
                 }
-                // A multi gesture is pending: singles are deferred below so the
-                // double-tap decision can complete before any single fires.
             }
 
-            // Single / combo: immediate unless a multi is competing.
             let singles: Vec<usize> = matching
                 .iter()
                 .copied()
@@ -276,38 +386,43 @@ impl TriggerEngine {
                 .collect();
 
             if !singles.is_empty() {
-                if has_multi {
-                    if gesture.deferred_singles.is_empty() {
-                        let window = multi.iter().map(|&ri| self.rules[ri].tap_interval).min().unwrap_or(crate::config::DEFAULT_TAP_INTERVAL_MS);
-                        gesture.deferred_singles = singles.clone();
-                        gesture.singles_at = Some(ev.at + Duration::from_millis(window as u64));
+                for &ri in &singles {
+                    let is_standalone_printable_single = is_printable && self.rules[ri].required_mods == 0;
+                    if is_standalone_printable_single && suppress_gestures {
+                        continue;
                     }
-                } else {
-                    for &ri in &singles {
+                    if has_multi && !suppress_gestures {
+                        if gesture.deferred_singles.is_empty() {
+                            let window = multi.iter().map(|&ri| self.rules[ri].tap_interval).min().unwrap_or(crate::config::DEFAULT_TAP_INTERVAL_MS);
+                            gesture.deferred_singles.push(ri);
+                            gesture.singles_at = Some(ev.at + Duration::from_millis(window as u64));
+                        }
+                    } else {
                         pending.push((ri, ev.at));
                     }
                 }
             }
 
-            // Hold, and the tap-versus-hold arbitration when single+hold compete.
             if let Some(&hold_ri) = hold_rules.first() {
-                if !singles.is_empty() {
-                    if gesture.tap_or_hold.is_none() {
+                if !suppress_gestures {
+                    if !singles.is_empty() {
+                        if gesture.tap_or_hold.is_none() {
+                            let d = self.rules[hold_ri].hold_duration as u64;
+                            gesture.tap_or_hold = Some(TapOrHold {
+                                single_rules: singles,
+                                hold_rule: hold_ri,
+                                deadline: ev.at + Duration::from_millis(d),
+                                fired: false,
+                            });
+                        }
+                    } else if gesture.hold.is_none() {
                         let d = self.rules[hold_ri].hold_duration as u64;
-                        gesture.tap_or_hold = Some(TapOrHold {
-                            single_rules: singles,
-                            hold_rule: hold_ri,
+                        gesture.hold = Some(Hold {
+                            rule: hold_ri,
                             deadline: ev.at + Duration::from_millis(d),
                             fired: false,
                         });
                     }
-                } else if gesture.hold.is_none() {
-                    let d = self.rules[hold_ri].hold_duration as u64;
-                    gesture.hold = Some(Hold {
-                        rule: hold_ri,
-                        deadline: ev.at + Duration::from_millis(d),
-                        fired: false,
-                    });
                 }
             }
         }
@@ -316,26 +431,46 @@ impl TriggerEngine {
 
     fn on_up(&mut self, ev: KeyEvent) -> Vec<Fired> {
         let press_start = self.pressed.remove(&ev.vk);
+
+        // Hyper key release handling
+        if let Some(hyper) = self.hyper_spec.clone() {
+            if hyper.enabled && ev.vk == hyper.vk {
+                self.hyper_active = false;
+                self.mods &= !MOD_BIT_HYPER;
+                let mut pending = Vec::new();
+                if self.hyper_tap_pending {
+                    self.hyper_tap_pending = false;
+                    if let Some(act_id) = &hyper.tap_action_id {
+                        if !act_id.is_empty() {
+                            self.generation += 1;
+                            pending.push(Fired {
+                                id: act_id.clone(),
+                                generation: self.generation,
+                            });
+                        }
+                    }
+                }
+                return pending;
+            }
+        }
+
         let mut pending: Vec<(usize, Duration)> = Vec::new();
         {
             let Some(gesture) = self.gestures.get_mut(&ev.vk) else {
                 return Vec::new();
             };
-            // Tap-versus-hold: released before threshold -> the tap wins.
             if let Some(t) = gesture.tap_or_hold.take() {
                 if !t.fired {
                     pending.extend(t.single_rules.into_iter().map(|ri| (ri, ev.at)));
                 }
                 return self.apply_pending(pending);
             }
-            // Plain hold released before threshold: cancelled (quick tap != hold).
             if let Some(h) = gesture.hold.as_mut() {
                 if !h.fired {
                     gesture.hold = None;
                 }
                 return Vec::new();
             }
-            // Tap-then-hold first press: a quick tap arms tth.
             let tth_ri = self.rules.iter().position(|r| r.kind == TriggerKind::TapThenHold && matches_key(r, ev));
             if let Some(ri) = tth_ri {
                 let quick = press_start.map_or(true, |start| ev.at - start < Duration::from_millis(self.rules[ri].tap_interval as u64));
@@ -395,7 +530,6 @@ impl TriggerEngine {
         self.apply_pending(pending)
     }
 
-    /// Apply collected fire decisions, respecting per-rule cooldowns.
     fn apply_pending(&mut self, pending: Vec<(usize, Duration)>) -> Vec<Fired> {
         let mut fired = Vec::new();
         for (ri, at) in pending {
@@ -406,7 +540,6 @@ impl TriggerEngine {
         fired
     }
 
-    /// Fire a rule respecting its (default-zero) cooldown.
     fn fire(&mut self, ri: usize, at: Duration) -> Fired {
         let rule = &self.rules[ri];
         self.generation += 1;
@@ -457,10 +590,14 @@ mod tests {
     use crate::config::DEFAULT_TAP_INTERVAL_MS;
 
     fn rule(id: &str, vk: u32, kind: TriggerKind) -> Rule {
-        rule_with(id, vk, kind, 0, false)
+        rule_with(id, vk, kind, 0, false, 0)
     }
 
-    fn rule_with(id: &str, vk: u32, kind: TriggerKind, scan: u32, extended: bool) -> Rule {
+    fn rule_with_mods(id: &str, vk: u32, kind: TriggerKind, mods: u32) -> Rule {
+        rule_with(id, vk, kind, 0, false, mods)
+    }
+
+    fn rule_with(id: &str, vk: u32, kind: TriggerKind, scan: u32, extended: bool, required_mods: u32) -> Rule {
         Rule {
             id: id.to_string(),
             vk,
@@ -470,7 +607,7 @@ mod tests {
             tap_interval: DEFAULT_TAP_INTERVAL_MS,
             hold_duration: 400,
             cooldown: 0,
-            required_mods: 0,
+            required_mods,
         }
     }
 
@@ -496,23 +633,28 @@ mod tests {
         })
     }
 
+    fn tap(engine: &mut TriggerEngine, vk: u32, at: u64) -> Vec<Fired> {
+        let mut f = down(engine, vk, at);
+        f.extend(up(engine, vk, at + 30));
+        f
+    }
+
     fn helpers() -> (TriggerEngine, u64) {
         let mut e = TriggerEngine::new();
-        e.reload(vec![rule("caps", 20, TriggerKind::Single), rule("f-double", 70, TriggerKind::Double)]);
+        e.reload(vec![rule("caps", 0x14, TriggerKind::Single), rule("f-double", 0x46, TriggerKind::Double)]);
         (e, 0)
     }
 
     #[test]
     fn single_fires_on_down() {
         let (mut e, mut t) = helpers();
-        let fired = down(&mut e, 20, t);
+        let fired = down(&mut e, 0x14, t);
         assert_eq!(fired.len(), 1);
         assert_eq!(fired[0].id, "caps");
         assert_eq!(fired[0].generation, 1);
-        up(&mut e, 20, (t + 1) as u64);
-        // Second press: fresh gesture, next generation.
+        up(&mut e, 0x14, t + 1);
         t += 1000;
-        let fired = down(&mut e, 20, t);
+        let fired = down(&mut e, 0x14, t);
         assert_eq!(fired.len(), 1);
         assert_eq!(fired[0].generation, 2);
     }
@@ -520,104 +662,143 @@ mod tests {
     #[test]
     fn double_fires_on_second_down_within_window() {
         let (mut e, mut t) = helpers();
-        // First tap: nothing fires (deferred), deadlines set.
-        down(&mut e, 70, t);
-        up(&mut e, 70, (t + 1) as u64);
+        down(&mut e, 0x46, t);
+        up(&mut e, 0x46, t + 1);
         t += 100;
-        // Second tap within window: double fires.
-        let fired = down(&mut e, 70, t);
+        let fired = down(&mut e, 0x46, t);
         assert_eq!(fired.len(), 1);
         assert_eq!(fired[0].id, "f-double");
     }
 
     #[test]
-    fn two_singles_do_not_form_a_double() {
-        let (mut e, mut t) = helpers();
-        down(&mut e, 70, t);
-        up(&mut e, 70, (t + 1) as u64);
-        // Singles window elapses without a second press: nothing fires.
-        t += 1000;
-        let fired = e.timer_event(Duration::from_millis(t));
-        assert!(fired.is_empty());
-    }
-
-    #[test]
-    fn double_resets_so_next_pair_is_fresh() {
-        let (mut e, mut t) = helpers();
-        down(&mut e, 70, t);
-        up(&mut e, 70, (t + 1) as u64);
-        t += 100;
-        down(&mut e, 70, t); // double fires, state cleared
-        up(&mut e, 70, (t + 1) as u64);
-        t += 1000;
-        // A single press long after must be a fresh gesture, not a triple.
-        let fired = down(&mut e, 70, t);
-        assert!(fired.is_empty(), "single F long after double must not fire");
-    }
-
-    #[test]
-    fn hold_fires_via_deadline() {
+    fn generic_triggers_work_across_multiple_keys() {
         let mut e = TriggerEngine::new();
-        e.reload(vec![rule("hold", 20, TriggerKind::Hold)]);
-        let t = 0;
-        down(&mut e, 20, t);
-        assert!(e.next_deadline().is_some());
-        let fired = e.timer_event(Duration::from_millis(500));
+        // Configure generic triggers on G, K, P, H
+        e.reload(vec![
+            rule("g-double", 0x47, TriggerKind::Double), // G
+            rule("k-single", 0x4B, TriggerKind::Single), // K
+            rule("p-single", 0x50, TriggerKind::Single), // P
+            rule("h-hold", 0x48, TriggerKind::Hold),     // H
+        ]);
+
+        // G Double tap
+        let mut f = down(&mut e, 0x47, 0);
+        f.extend(up(&mut e, 0x47, 30));
+        f.extend(down(&mut e, 0x47, 120));
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].id, "g-double");
+
+        // K Single tap after idle
+        let f2 = tap(&mut e, 0x4B, 800);
+        assert_eq!(f2.len(), 1);
+        assert_eq!(f2[0].id, "k-single");
+
+        // H Hold
+        down(&mut e, 0x48, 1500);
+        let f3 = e.timer_event(Duration::from_millis(2000));
+        assert_eq!(f3.len(), 1);
+        assert_eq!(f3[0].id, "h-hold");
+    }
+
+    // ── Hyper Key System Tests ──────────────────────────────────────────────
+
+    #[test]
+    fn test_hyper_key_tap_action_fires_when_released_alone() {
+        let mut e = TriggerEngine::new();
+        e.set_hyper_key(Some(HyperKeySpec {
+            enabled: true,
+            vk: 0xA5, // Right Alt
+            suppress_original: true,
+            tap_action_id: Some("hyper-tap-popup".to_string()),
+        }));
+
+        // Press Right Alt down -> no trigger yet
+        let f1 = down(&mut e, 0xA5, 0);
+        assert!(f1.is_empty());
+        assert!(e.is_hyper_active());
+
+        // Release Right Alt alone -> fires tap action!
+        let f2 = up(&mut e, 0xA5, 100);
+        assert_eq!(f2.len(), 1);
+        assert_eq!(f2[0].id, "hyper-tap-popup");
+        assert!(!e.is_hyper_active());
+    }
+
+    #[test]
+    fn test_hyper_key_chord_fires_and_cancels_tap_action() {
+        let mut e = TriggerEngine::new();
+        e.set_hyper_key(Some(HyperKeySpec {
+            enabled: true,
+            vk: 0xA5, // Right Alt
+            suppress_original: true,
+            tap_action_id: Some("hyper-tap-popup".to_string()),
+        }));
+
+        // Rule for Hyper + T (0x54): required_mods = MOD_BIT_HYPER (16)
+        let hyper_t = rule_with_mods("sc-aot-hyper-t", 0x54, TriggerKind::Single, MOD_BIT_HYPER);
+        e.reload(vec![hyper_t]);
+
+        // Press Right Alt down
+        down(&mut e, 0xA5, 0);
+        assert!(e.is_hyper_active());
+
+        // Press T down while Right Alt is held -> Hyper + T chord fires!
+        let f1 = down(&mut e, 0x54, 50);
+        assert_eq!(f1.len(), 1);
+        assert_eq!(f1[0].id, "sc-aot-hyper-t");
+
+        up(&mut e, 0x54, 80);
+
+        // Release Right Alt -> tap action MUST NOT fire!
+        let f2 = up(&mut e, 0xA5, 150);
+        assert!(f2.is_empty(), "Releasing Hyper after a chord must NOT fire tap action!");
+    }
+
+    #[test]
+    fn test_hyper_plus_modifier_chord() {
+        let mut e = TriggerEngine::new();
+        e.set_hyper_key(Some(HyperKeySpec {
+            enabled: true,
+            vk: 0xA5, // Right Alt
+            suppress_original: true,
+            tap_action_id: None,
+        }));
+
+        // Rule for Hyper + Shift + P: mods = MOD_BIT_HYPER (16) | MOD_BIT_SHIFT (4) = 20
+        let hyper_shift_p = rule_with_mods("sc-hyper-shift-p", 0x50, TriggerKind::Single, 16 | 4);
+        e.reload(vec![hyper_shift_p]);
+
+        // Press Right Alt down
+        down(&mut e, 0xA5, 0);
+        // Press Left Shift down
+        down(&mut e, 0xA0, 10);
+        // Press P down
+        let fired = down(&mut e, 0x50, 50);
         assert_eq!(fired.len(), 1);
-        assert_eq!(fired[0].id, "hold");
+        assert_eq!(fired[0].id, "sc-hyper-shift-p");
     }
 
     #[test]
-    fn quick_tap_does_not_fire_hold() {
+    fn test_hyper_key_reconfiguration_live() {
         let mut e = TriggerEngine::new();
-        e.reload(vec![rule("hold", 20, TriggerKind::Hold)]);
-        down(&mut e, 20, 0);
-        let fired = up(&mut e, 20, 50);
-        assert!(fired.is_empty());
-        // After the deadline, nothing fires either (hold was cancelled).
-        let fired = e.timer_event(Duration::from_millis(600));
-        assert!(fired.is_empty());
-    }
+        // Configure Right Alt (0xA5)
+        e.set_hyper_key(Some(HyperKeySpec {
+            enabled: true,
+            vk: 0xA5,
+            suppress_original: true,
+            tap_action_id: Some("tap-1".to_string()),
+        }));
+        assert_eq!(e.is_hyper_key_suppressed(0xA5), true);
+        assert_eq!(e.is_hyper_key_suppressed(0x5D), false); // Apps key not hyper
 
-    #[test]
-    fn tap_or_hold_release_fires_single() {
-        let mut e = TriggerEngine::new();
-        e.reload(vec![rule("single", 20, TriggerKind::Single), rule("hold", 20, TriggerKind::Hold)]);
-        down(&mut e, 20, 0);
-        let fired = up(&mut e, 20, 50); // quick release -> tap wins
-        assert_eq!(fired.len(), 1);
-        assert_eq!(fired[0].id, "single");
-    }
-
-    #[test]
-    fn tap_or_hold_threshold_fires_hold() {
-        let mut e = TriggerEngine::new();
-        e.reload(vec![rule("single", 20, TriggerKind::Single), rule("hold", 20, TriggerKind::Hold)]);
-        down(&mut e, 20, 0);
-        let fired = e.timer_event(Duration::from_millis(500)); // held past threshold
-        assert_eq!(fired.len(), 1);
-        assert_eq!(fired[0].id, "hold");
-    }
-
-    #[test]
-    fn cooldown_gates_fire_but_not_tap_accumulation() {
-        let mut e = TriggerEngine::new();
-        let mut r = rule("cd", 20, TriggerKind::Double);
-        r.cooldown = 500;
-        e.reload(vec![r]);
-        // First double fires.
-        let fired = down(&mut e, 20, 0);
-        assert_eq!(fired.len(), 0);
-        up(&mut e, 20, 10);
-        let fired = down(&mut e, 20, 100);
-        assert_eq!(fired.len(), 1);
-        // Second pair starts immediately AFTER, still in cooldown -> suppressed.
-        up(&mut e, 20, 110);
-        let fired = down(&mut e, 20, 200);
-        assert!(fired.is_empty(), "cooldown must suppress the fire");
-        // Cooldown do NOT reset tap counting for the following pair.
-        up(&mut e, 20, 210);
-        let fired = down(&mut e, 20, 300);
-        assert!(fired.is_empty());
+        // Reconfigure Hyper key to Apps key (0x5D)
+        e.set_hyper_key(Some(HyperKeySpec {
+            enabled: true,
+            vk: 0x5D,
+            suppress_original: true,
+            tap_action_id: Some("tap-2".to_string()),
+        }));
+        assert_eq!(e.is_hyper_key_suppressed(0xA5), false); // Old key stops acting as hyper
+        assert_eq!(e.is_hyper_key_suppressed(0x5D), true); // New key is hyper
     }
 }

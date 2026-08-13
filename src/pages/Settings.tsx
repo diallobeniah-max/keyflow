@@ -4,6 +4,7 @@ import { ACCENT_COLORS, HIGHLIGHT_PRESETS } from "../lib/constants";
 import { Button, Field, Input, PageIntro, SettingsGroup, SettingsRow, Toggle } from "../components/ui";
 import { AppSelect } from "../components/ui/AppSelect";
 import { Icon } from "../components/Icon";
+import { getSafeHyperKeySuggestions } from "../lib/conflict";
 
 type SettingsSection =
   | "general"
@@ -36,6 +37,7 @@ const SECTIONS: SectionTab[] = [
 
 export function Settings() {
   const data = useStore((s) => s.data);
+  const activeProfileId = useStore((s) => s.activeProfileId);
   const settings = data.settings;
   const patch = useStore((s) => s.patchSettings);
   const setSafe = useStore((s) => s.setSafeMode);
@@ -177,6 +179,96 @@ export function Settings() {
                   />
                 </SettingsRow>
               </SettingsGroup>
+              <SettingsGroup title="Hyper Key Modifier" icon="shortcuts" desc="Turn one physical key into your dedicated KeyFlow modifier for chords like Hyper + T">
+                <SettingsRow
+                  title="Enable Hyper Key"
+                  desc="Acts as a dedicated KeyFlow modifier key (bit 4) for all Hyper chords"
+                >
+                  <Toggle
+                    label="Enable Hyper Key"
+                    checked={settings.shortcuts.hyperKeyConfig?.enabled ?? false}
+                    onChange={(v) =>
+                      patch("shortcuts", {
+                        hyperKeyConfig: {
+                          enabled: v,
+                          key: settings.shortcuts.hyperKeyConfig?.key || "AltRight",
+                          tapActionId: settings.shortcuts.hyperKeyConfig?.tapActionId || "sc-f-popup",
+                          suppressOriginal: true,
+                        },
+                      })
+                    }
+                  />
+                </SettingsRow>
+                <SettingsRow
+                  title="Physical Hyper Key"
+                  desc="Select an unused physical key. CapsLock is preserved for Screenshot."
+                >
+                  <div className="col gap-xs w-220">
+                    <AppSelect
+                      value={settings.shortcuts.hyperKeyConfig?.key || "AltRight"}
+                      onChange={(key) =>
+                        patch("shortcuts", {
+                          hyperKeyConfig: {
+                            enabled: settings.shortcuts.hyperKeyConfig?.enabled ?? true,
+                            key,
+                            tapActionId: settings.shortcuts.hyperKeyConfig?.tapActionId || "sc-f-popup",
+                            suppressOriginal: true,
+                          },
+                        })
+                      }
+                      options={getSafeHyperKeySuggestions(
+                        data.shortcuts,
+                        activeProfileId,
+                        settings.shortcuts.hyperKeyConfig?.key,
+                      ).map((s) => ({
+                        value: s.value,
+                        label: s.label + (s.safe ? "" : " ⚠️"),
+                      }))}
+                    />
+                    {getSafeHyperKeySuggestions(
+                      data.shortcuts,
+                      activeProfileId,
+                      settings.shortcuts.hyperKeyConfig?.key,
+                    ).find((s) => s.value === (settings.shortcuts.hyperKeyConfig?.key || "AltRight"))?.warning && (
+                      <p className="tiny text-warning no-margin">
+                        {
+                          getSafeHyperKeySuggestions(
+                            data.shortcuts,
+                            activeProfileId,
+                            settings.shortcuts.hyperKeyConfig?.key,
+                          ).find((s) => s.value === (settings.shortcuts.hyperKeyConfig?.key || "AltRight"))?.warning
+                        }
+                      </p>
+                    )}
+                  </div>
+                </SettingsRow>
+                <SettingsRow
+                  title="Tap Hyper Key Action"
+                  desc="Action triggered when the Hyper key is pressed and released alone without holding another key"
+                >
+                  <div className="w-220">
+                    <AppSelect
+                      value={settings.shortcuts.hyperKeyConfig?.tapActionId || "none"}
+                      onChange={(act) =>
+                        patch("shortcuts", {
+                          hyperKeyConfig: {
+                            enabled: settings.shortcuts.hyperKeyConfig?.enabled ?? true,
+                            key: settings.shortcuts.hyperKeyConfig?.key || "AltRight",
+                            tapActionId: act === "none" ? undefined : act,
+                            suppressOriginal: true,
+                          },
+                        })
+                      }
+                      options={[
+                        { value: "none", label: "Do Nothing (Pass through)" },
+                        { value: "sc-f-popup", label: "Open Popup Menu" },
+                        { value: "sc-caps-screenshot", label: "Screenshot Overlay" },
+                        { value: "sc-aot-ctrl-shift-t", label: "Toggle Always on Top" },
+                      ]}
+                    />
+                  </div>
+                </SettingsRow>
+              </SettingsGroup>
             </>
           )}
 
@@ -281,6 +373,20 @@ export function Settings() {
                       { value: "dark", label: "Dark" },
                       { value: "light", label: "Light" },
                       { value: "system", label: "System match" },
+                    ]}
+                  />
+                </div>
+              </SettingsRow>
+              <SettingsRow title="Text size" desc="Adjust application typography scaling across all pages and popups">
+                <div className="w-160">
+                  <AppSelect
+                    value={settings.appearance.fontSize ?? "default"}
+                    onChange={(v) => patch("appearance", { fontSize: v as any })}
+                    options={[
+                      { value: "small", label: "Small (92%)" },
+                      { value: "default", label: "Default (100%)" },
+                      { value: "large", label: "Large (110%)" },
+                      { value: "xlarge", label: "Extra Large (122%)" },
                     ]}
                   />
                 </div>

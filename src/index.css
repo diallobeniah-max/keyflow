@@ -90,6 +90,7 @@ input, textarea {
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--layout-page-padding-y) var(--layout-page-padding-x);
+  animation: fadeIn var(--motion-default);
 }
 
 .content > * {
@@ -1395,6 +1396,39 @@ textarea.input {
   animation: slideDown var(--motion-default);
 }
 
+.alert-banner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-control);
+  font-size: var(--type-small-size);
+}
+
+.alert-banner.alert-danger {
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
+}
+
+.alert-banner.alert-warning {
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning);
+  color: var(--color-warning);
+}
+
+.alert-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.alert-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
 .color-dot-sm {
   width: 8px;
   height: 8px;
@@ -1532,9 +1566,11 @@ textarea.input {
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-  padding: var(--space-2);
-  background: transparent;
+  padding: var(--space-0);
+  margin: var(--space-0);
+  background: transparent !important;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .popup-overlay {
@@ -1565,12 +1601,18 @@ textarea.input {
 .popup-brand {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  height: 40px;
+  justify-content: space-between;
+  height: 38px;
   padding: var(--space-0) var(--space-3);
-  background: transparent;
+  background: var(--color-bg-surface);
   border-bottom: 1px solid var(--color-border-subtle);
   user-select: none;
+}
+
+.popup-brand-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .popup-drag-region {
@@ -1590,19 +1632,20 @@ textarea.input {
 
 .popup-drag-handle {
   flex: 1;
-  height: 4px;
+  max-width: 64px;
+  height: 3px;
   margin: var(--space-0) var(--space-3);
-  background: var(--color-border-default);
+  background: var(--color-border-strong);
   border-radius: var(--radius-pill);
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .popup-close {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   padding: var(--space-0);
   background: transparent;
   border: none;
@@ -1643,8 +1686,8 @@ textarea.input {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  min-height: 44px;
-  padding: var(--space-0) var(--space-3);
+  min-height: 40px;
+  padding: var(--space-1) var(--space-3);
   background: transparent;
   border: none;
   border-radius: var(--radius-control);
@@ -1663,10 +1706,10 @@ textarea.input {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: var(--radius-sm);
-  background: var(--color-bg-surface-elevated);
+  background: var(--color-accent-soft);
   color: var(--color-accent);
   flex-shrink: 0;
 }
@@ -1679,7 +1722,7 @@ textarea.input {
 }
 
 .popup-copy b {
-  font-size: var(--type-body-size);
+  font-size: var(--type-small-size);
   font-weight: 600;
   color: var(--color-text-primary);
   overflow: hidden;
@@ -1690,6 +1733,15 @@ textarea.input {
 .popup-copy small {
   font-size: var(--type-caption-size);
   color: var(--color-text-muted);
+}
+
+.popup-num {
+  font-size: var(--type-caption-size);
+  color: var(--color-text-muted);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  padding: var(--space-0) var(--space-1);
 }
 
 /* ==========================================================================
@@ -1936,13 +1988,13 @@ textarea.input {
 }
 
 @keyframes popIn {
-  from { opacity: 0; transform: scale(0.97); }
-  to { opacity: 1; transform: scale(1); }
+  from { opacity: 0; transform: translateY(-3px) scale(0.995); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes popOut {
-  from { opacity: 1; transform: scale(1); }
-  to { opacity: 0; transform: scale(0.97); }
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-2px); }
 }
 
 @keyframes slideDown {
@@ -1986,3 +2038,31 @@ textarea.input {
     display: none !important;
   }
 }
+
+.max-readable {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.key-tile.key-hyper {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.key-hyper-badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--color-accent);
+}
+
+.key-details-popover {
+  border: 1px solid var(--color-accent-soft);
+  box-shadow: var(--shadow-md);
+}
+

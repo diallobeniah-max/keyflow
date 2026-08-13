@@ -65,12 +65,23 @@ pub fn queue(line: String) {
 
 /// Reload the engine's rules from CONFIG. Call after every Configure.
 pub fn reload_engine() {
-    let rules = CONFIG.lock().unwrap_or_else(|p| p.into_inner()).rules().to_vec();
+    reload_engine_with_hyper(None);
+}
+
+pub fn reload_engine_with_hyper(hyper_key: Option<crate::protocol::HyperKeySpec>) {
+    let cfg = CONFIG.lock().unwrap_or_else(|p| p.into_inner());
+    let rules = cfg.rules().to_vec();
+    let threshold = cfg.typing_idle_threshold();
+    drop(cfg);
+
     let mut engine = ENGINE.lock().unwrap_or_else(|p| p.into_inner());
     if engine.is_none() {
         *engine = Some(TriggerEngine::new());
     }
-    engine.as_mut().unwrap().reload(rules);
+    let e = engine.as_mut().unwrap();
+    e.set_typing_idle_threshold(threshold);
+    e.set_hyper_key(hyper_key);
+    e.reload(rules);
 }
 
 pub fn set_engine_paused(paused: bool) {
@@ -260,7 +271,16 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
         reschedule_deadline();
     }
 
-    let decision = decide(down, own, bypass, behavior);
+    let is_hyper_suppressed = {
+        let engine = ENGINE.lock().unwrap_or_else(|p| p.into_inner());
+        engine.as_ref().map_or(false, |e| e.is_hyper_key_suppressed(kbd.vkCode))
+    };
+
+    let decision = if !own && !bypass && is_hyper_suppressed {
+        Decision::Consume
+    } else {
+        decide(down, own, bypass, behavior)
+    };
     match decision {
         Decision::Pass => {
             report_key(if down { "down" } else { "up" }, kbd, extended, injected, lower);

@@ -145,9 +145,9 @@ export function Sidebar() {
       <div className="sidebar-foot">
         {!collapsed && (
           <div className="sidebar-profile-box">
-            <div className="sidebar-profile-label">ACTIVE PROFILE</div>
+            <div className="sidebar-profile-label">PROFILE</div>
             <AppSelect
-              label="Active profile"
+              label=""
               value={activeId}
               onChange={setActive}
               options={profiles.map((p) => ({ value: p.id, label: p.name }))}

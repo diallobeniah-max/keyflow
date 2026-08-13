@@ -1,5 +1,6 @@
 import { BrowserWindow, screen } from "electron";
 import { join } from "path";
+import { existsSync } from "fs";
 import {
   clampPopupSize,
   clampRectWithin,
@@ -94,7 +95,7 @@ export class PopupWindowManager {
   /** Position saved when the user drags the popup. In-memory per session. */
   private lastPosition: Point | null = null;
   /** Size at last finalizeAndShow, used as fallback on re-open. */
-  private lastSize: Size = { width: 460, height: 400 };
+  private lastSize: Size = { width: 540, height: 380 };
 
   private readonly devUrl: string;
   private readonly preloadPath: string;
@@ -229,6 +230,22 @@ export class PopupWindowManager {
       console.log(`[popup-trace]   reportContentSize ${width}×${height} gen=${this.genLabel()} → finalizeAndShow`);
       this.cancelPreparingTimer(); // primary path delivered; timer not needed
       this.finalizeAndShow({ width, height });
+    } else if (this.machine.phase === "open" && win.isVisible()) {
+      const displays = getAllWorkAreaRects();
+      const cursor = screen.getCursorScreenPoint();
+      const display = screen.getDisplayNearestPoint(cursor);
+      const workArea: Rect = {
+        x: display.workArea.x,
+        y: display.workArea.y,
+        width: display.workArea.width,
+        height: display.workArea.height,
+      };
+      const clamped = clampPopupSize({ width, height }, workArea);
+      const current = win.getBounds();
+      if (Math.abs(current.height - clamped.height) > 2 || Math.abs(current.width - clamped.width) > 2) {
+        win.setBounds({ x: current.x, y: current.y, width: clamped.width, height: clamped.height });
+        this.lastSize = clamped;
+      }
     }
   }
 
@@ -315,7 +332,7 @@ export class PopupWindowManager {
     this.preparingTimer = setTimeout(() => {
       this.preparingTimer = null;
       if (this.machine.phase !== "preparing") return;
-      const size = this.lastSize.width > 0 ? this.lastSize : { width: 460, height: 400 };
+      const size = this.lastSize.width > 0 ? this.lastSize : { width: 460, height: 320 };
       console.warn(`[popup] preparing fallback fired after ${PREPARING_FALLBACK_MS}ms — using cached size ${size.width}×${size.height} gen=${this.genLabel()}`);
       this.finalizeAndShow(size);
     }, PREPARING_FALLBACK_MS);
@@ -454,22 +471,23 @@ export class PopupWindowManager {
 
   private ensureWindow(): void {
     if (this.window && !this.window.isDestroyed()) return;
-    this.ready = false;
+    const iconPath = join(this.appPath, "build/icon.ico");
     this.window = new BrowserWindow({
-      width: 460,
-      height: 400,
+      width: 540,
+      height: 380,
       show: false,
       frame: false,
-      transparent: false,
+      transparent: true,
       backgroundColor: "#00000000",
       alwaysOnTop: true,
+      icon: existsSync(iconPath) ? iconPath : undefined,
       skipTaskbar: true,
       resizable: false,
       maximizable: false,
       minimizable: false,
       focusable: true,
       fullscreenable: false,
-      hasShadow: true,
+      hasShadow: false,
       roundedCorners: true,
       thickFrame: false,
       webPreferences: {

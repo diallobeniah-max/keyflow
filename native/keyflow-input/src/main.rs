@@ -105,15 +105,25 @@ fn main() -> ExitCode {
                         continue;
                     }
                     match protocol::parse_line(line) {
-                        Some(InMessage::Configure { shortcuts, keys, .. }) => {
+                        Some(InMessage::Configure { version: _, shortcuts, keys, typing_protection, typing_idle_ms, hyper_key }) => {
                             if let Ok(mut cfg) = config::CONFIG.lock() {
+                                let idle_ms = if let Some(ms) = typing_idle_ms {
+                                    ms
+                                } else {
+                                    match typing_protection.as_deref() {
+                                        Some("off") => 0,
+                                        Some("strict") => 650,
+                                        _ => config::DEFAULT_TYPING_IDLE_MS,
+                                    }
+                                };
+                                cfg.set_typing_idle_threshold(std::time::Duration::from_millis(idle_ms as u64));
                                 if shortcuts.is_empty() {
                                     cfg.apply(&keys);
                                 } else {
                                     cfg.apply_shortcuts(&shortcuts);
                                 }
                             }
-                            hook::reload_engine();
+                            hook::reload_engine_with_hyper(hyper_key);
                             hook::queue(
                                 OutMessage::Ack {
                                     version: PROTOCOL_VERSION,

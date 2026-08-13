@@ -210,9 +210,12 @@ export class NativeInputHelper {
     if (this.status === "ready") this.sendConfigure();
   }
 
+  private pendingHyperKey: unknown = null;
+
   /** Full replacement of the canonical native shortcut configuration. */
-  setShortcuts(shortcuts: unknown[]): void {
+  setShortcuts(shortcuts: unknown[], hyperKey?: unknown): void {
     this.pendingShortcuts = shortcuts;
+    this.pendingHyperKey = hyperKey ?? null;
     if (this.status === "ready") this.sendConfigure();
   }
 
@@ -308,7 +311,12 @@ export class NativeInputHelper {
 
   private sendConfigure(): void {
     if (this.pendingShortcuts !== null) {
-      this.send({ type: "configure", version: NATIVE_PROTOCOL_VERSION, shortcuts: this.pendingShortcuts });
+      this.send({
+        type: "configure",
+        version: NATIVE_PROTOCOL_VERSION,
+        shortcuts: this.pendingShortcuts,
+        hyperKey: this.pendingHyperKey ?? undefined,
+      });
       this.pendingShortcuts = null;
       return;
     }

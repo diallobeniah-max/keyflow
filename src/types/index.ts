@@ -1,4 +1,4 @@
-export type ModifierKey = "Ctrl" | "Alt" | "Shift" | "Win";
+export type ModifierKey = "Ctrl" | "Alt" | "Shift" | "Win" | "Hyper";
 
 export type TriggerType =
   | "single"
@@ -149,7 +149,7 @@ export interface GeneralSettings {
 
 export type ThemeMode = "dark" | "light" | "system";
 export type UIScale = "90" | "100" | "110" | "125";
-export type FontSize = "small" | "normal" | "large";
+export type FontSize = "small" | "default" | "normal" | "large" | "xlarge";
 
 export interface AppearanceSettings {
   theme: ThemeMode;
@@ -160,6 +160,13 @@ export interface AppearanceSettings {
   radiusIntensity: number;
   uiScale: UIScale;
   fontSize: FontSize;
+}
+
+export interface HyperKeyConfig {
+  enabled: boolean;
+  key: string;
+  tapActionId?: string;
+  suppressOriginal?: boolean;
 }
 
 export interface ShortcutSettings {
@@ -174,6 +181,9 @@ export interface ShortcutSettings {
   hyperKeyEnabled: boolean;
   hyperKey: string;
   hyperKeyOutput: string;
+  hyperKeyConfig?: HyperKeyConfig;
+  typingProtection?: "balanced" | "strict" | "off";
+  typingIdleMs?: number;
 }
 
 export type PopupPosition = "cursor" | "center" | "last";

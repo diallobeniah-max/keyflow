@@ -1,4 +1,4 @@
-import { ActionType, TriggerType } from "../types";
+import type { ActionType, TriggerType } from "../types/index.ts";
 
 export const ACTION_META: Record<ActionType, { label: string; icon: string; color: string; category: string }> = {
   openApp: { label: "Open app", icon: "window", color: "#4F7CFF", category: "Launch" },

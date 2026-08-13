@@ -130,7 +130,13 @@ pub struct TriggerSpec {
 
 impl Default for TriggerSpec {
     fn default() -> Self {
-        TriggerSpec { kind_raw: "single".to_string(), tap_interval: 0, hold_duration: 0, cooldown: 0, delay: 0 }
+        TriggerSpec {
+            kind_raw: "single".to_string(),
+            tap_interval: 0,
+            hold_duration: 0,
+            cooldown: 0,
+            delay: 0,
+        }
     }
 }
 
@@ -218,6 +224,23 @@ fn default_mode() -> String {
     "pass".to_string()
 }
 
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct HyperKeySpec {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub vk: u32,
+    #[serde(default = "default_true")]
+    pub suppress_original: bool,
+    #[serde(default)]
+    pub tap_action_id: Option<String>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
 /// Inbound commands. `version` fields are protocol-versioned for future
 /// compatibility; they are deserialized but not yet acted on.
 #[derive(Debug, Deserialize)]
@@ -234,6 +257,12 @@ pub enum InMessage {
         /// Legacy per-key policy list; applied only when `shortcuts` is empty.
         #[serde(default)]
         keys: Vec<KeySpec>,
+        #[serde(default)]
+        typing_protection: Option<String>,
+        #[serde(default)]
+        typing_idle_ms: Option<u32>,
+        #[serde(default)]
+        hyper_key: Option<HyperKeySpec>,
     },
     Pause {
         #[serde(default)]
@@ -340,8 +369,6 @@ mod tests {
 
     #[test]
     fn caps_lock_screenshot_resolves_to_suppress() {
-        // Exact JSON shape Electron's canonical builder emits for the user's
-        // CapsLock screenshot shortcut.
         let msg = parse_line(
             r#"{"type":"configure","shortcuts":[{"id":"sc-3w02ys1","name":"Screenshot","key":{"vk":20,"scanCode":58},"modifiers":[],"trigger":{"kind":"single","tapInterval":220},"behavior":"suppress","enabled":true}]}"#,
         )
@@ -356,7 +383,6 @@ mod tests {
 
     #[test]
     fn legacy_behavior_fields_are_compat_fallback() {
-        // Old saved data that only carries suppressKey: true -> suppress.
         let msg = parse_line(
             r#"{"type":"configure","shortcuts":[{"id":"old","key":{"vk":20},"trigger":{"kind":"single"},"enabled":true,"suppressKey":true}]}"#,
         )

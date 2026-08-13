@@ -18,10 +18,10 @@ export interface Size {
 export type PopupPreference = "cursor" | "center" | "last";
 
 export const POPUP_SIZE = {
-  minWidth: 420,
-  maxWidth: 500,
-  minHeight: 180,
-  maxHeight: 560,
+  minWidth: 480,
+  maxWidth: 580,
+  minHeight: 140,
+  maxHeight: 600,
 };
 
 /**

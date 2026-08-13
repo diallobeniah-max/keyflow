@@ -15,7 +15,7 @@ import { NativeInputHelper, buildNativeKeyConfig, resolveNativeHelperPath } from
 import { nativeKeyName } from "./vk-catalog.js";
 import { AhkSuppressionManager } from "./ahk-suppression-manager.js";
 import { findAhkExecutable } from "./ahk-detect.js";
-import { buildNativeShortcutConfig, buildSuppressionConfig } from "./suppression-config.js";
+import { buildNativeShortcutConfig, buildSuppressionConfig, buildNativeHyperSpec } from "./suppression-config.js";
 import { initInputDebug, inputDebug } from "./input/input-debug.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -81,6 +81,7 @@ function createWindow(): void {
   console.log(`[keyflow] __dirname: ${__dirname}`);
   console.log(`[keyflow] DEV_URL: ${DEV_URL}`);
 
+  const iconPath = join(__dirname, "../build/icon.ico");
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -88,6 +89,7 @@ function createWindow(): void {
     minHeight: 640,
     frame: false,
     show: false,
+    icon: existsSync(iconPath) ? iconPath : undefined,
     backgroundColor: "#0B1630",
     webPreferences: {
       preload: PRELOAD_PATH,
@@ -219,7 +221,8 @@ function registerIPC(): void {
         await nativeHelper.setElevated(!!context.extendedAccess);
       }
       const specs = buildNativeShortcutConfig(entries ?? [], suppressionContext);
-      nativeHelper?.setShortcuts(specs);
+      const hyperSpec = buildNativeHyperSpec(suppressionContext);
+      nativeHelper?.setShortcuts(specs, hyperSpec);
       inputDebug(`[input-debug] update-shortcuts (native): ${specs.length} native specs, context.paused=${suppressionContext.paused} safeMode=${suppressionContext.safeMode} elevated=${nativeHelper?.isElevatedMode()}`);
       console.log(`[native-input] owner=native-rust gesture-engine=native-rust shortcuts=${specs.length} paused=${!!suppressionContext.paused} elevated=${nativeHelper?.isElevatedMode()}`);
       return;

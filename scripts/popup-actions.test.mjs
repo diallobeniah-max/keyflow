@@ -248,31 +248,31 @@ test("isDuplicate detects same-input-cycle callbacks only", () => {
 test("clampPopupSize clamps height and width to safe bounds and the monitor", () => {
   const workArea = { x: 0, y: 0, width: 1920, height: 1080 };
   const tiny = clampPopupSize({ width: 50, height: 50 }, workArea);
-  assert.equal(tiny.width, 420);
-  assert.equal(tiny.height, 180);
+  assert.equal(tiny.width, 480);
+  assert.equal(tiny.height, 140);
   const huge = clampPopupSize({ width: 5000, height: 5000 }, workArea);
-  assert.equal(huge.width, 500);
-  assert.equal(huge.height, 560);
+  assert.equal(huge.width, 580);
+  assert.equal(huge.height, 600);
 });
 
 test("clampPopupSize never exceeds the monitor work area", () => {
   const shortWorkArea = { x: 0, y: 0, width: 800, height: 400 };
   const size = clampPopupSize({ width: 2000, height: 2000 }, shortWorkArea);
-  assert.ok(size.width <= 560);
+  assert.ok(size.width <= 580);
   assert.ok(size.height <= 400);
-  assert.ok(size.width >= 320);
+  assert.ok(size.width >= 480);
 });
 
 test("clampPopupSize accepts fractional measurements and stays bounded", () => {
   const workArea = { x: 0, y: 0, width: 1920, height: 1200 };
-  const size = clampPopupSize({ width: 459.7, height: 399.9 }, workArea);
-  assert.ok(size.width >= 420 && size.width <= 500);
-  assert.ok(size.height >= 180 && size.height <= 560);
+  const size = clampPopupSize({ width: 519.7, height: 399.9 }, workArea);
+  assert.ok(size.width >= 480 && size.width <= 580);
+  assert.ok(size.height >= 140 && size.height <= 600);
   const ceilHeight = Math.ceil(size.height) + 6;
-  assert.ok(ceilHeight >= 200 && ceilHeight <= 560);
+  assert.ok(ceilHeight >= 140 && ceilHeight <= 600);
   const tiny = clampPopupSize({ width: 200.4, height: 90.3 }, workArea);
-  assert.equal(tiny.width, 420);
-  assert.equal(tiny.height, 180);
+  assert.equal(tiny.width, 480);
+  assert.equal(tiny.height, 140);
 });
 
 test("trigger guard only discards the matching trigger key", () => {

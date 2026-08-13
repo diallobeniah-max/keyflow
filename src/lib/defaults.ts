@@ -20,7 +20,7 @@ export function createDefaultSettings(): Settings {
       popupBlur: true,
       radiusIntensity: 1,
       uiScale: "100",
-      fontSize: "normal",
+      fontSize: "default",
     },
     shortcuts: {
       globalPause: "Ctrl+Shift+P",
@@ -34,6 +34,13 @@ export function createDefaultSettings(): Settings {
       hyperKeyEnabled: true,
       hyperKey: "CapsLock",
       hyperKeyOutput: "Ctrl+Alt+Shift+Win",
+      hyperKeyConfig: {
+        enabled: false,
+        key: "AltRight",
+        tapActionId: "sc-f-popup",
+        suppressOriginal: true,
+      },
+      typingProtection: "balanced",
     },
     popup: {
       position: "cursor",

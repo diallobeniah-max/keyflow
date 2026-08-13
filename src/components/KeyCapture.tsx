@@ -2,8 +2,9 @@ import { useState, type AriaRole } from "react";
 import { getEngine } from "../lib/engine";
 import { ModifierKey } from "../types";
 import { Button, KeycapBadge } from "./ui";
+import { useStore } from "../store/useStore";
 
-const MODS: ModifierKey[] = ["Ctrl", "Alt", "Shift", "Win"];
+const STANDARD_MODS: ModifierKey[] = ["Ctrl", "Alt", "Shift", "Win"];
 
 export function KeyCapture({
   value,
@@ -25,13 +26,17 @@ export function KeyCapture({
   role?: AriaRole;
 }) {
   const [capturing, setCapturing] = useState(false);
+  const settings = useStore((s) => s.data.settings);
+  const hyperEnabled = settings?.shortcuts?.hyperKeyConfig?.enabled ?? false;
+
+  const availableMods: ModifierKey[] = hyperEnabled ? [...STANDARD_MODS, "Hyper"] : STANDARD_MODS;
 
   const start = () => {
     setCapturing(true);
     getEngine().captureNext((token, mods) => {
       setCapturing(false);
       onChangeKey(token);
-      onChangeMods(MODS.filter((m) => mods.includes(m)));
+      onChangeMods(availableMods.filter((m) => mods.includes(m)));
     });
   };
 
@@ -62,7 +67,7 @@ export function KeyCapture({
 
       <div className="row wrap gap-xs" style={{ marginTop: 2 }}>
         <span className="muted tiny" style={{ marginRight: 4 }}>Modifiers:</span>
-        {MODS.map((m) => {
+        {availableMods.map((m) => {
           const active = modifiers.includes(m);
           return (
             <button

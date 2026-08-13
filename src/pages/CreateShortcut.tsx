@@ -3,7 +3,7 @@ import { Action, ModifierKey, Shortcut, TriggerType } from "../types";
 import { useStore } from "../store/useStore";
 import { uid } from "../store/sampleData";
 import { ACTION_META, MOUSE_BUTTONS, TRIGGER_META } from "../lib/constants";
-import { detectConflicts } from "../lib/conflict";
+import { analyzeShortcutConflicts, formatShortcutLabel } from "../lib/conflict";
 import { getEngine } from "../lib/engine";
 import { resolveShortcutBehavior } from "../lib/defaults";
 import { ActionListEditor } from "../components/ActionEditor";
@@ -18,6 +18,7 @@ interface RecommendedPreset {
   desc: string;
   icon: string;
   defaultKey: string;
+  defaultModifiers: ModifierKey[];
   defaultTrigger: TriggerType;
   action: Action;
 }
@@ -29,15 +30,17 @@ const RECOMMENDED_PRESETS: RecommendedPreset[] = [
     desc: "Capture any part of your screen.",
     icon: "camera",
     defaultKey: "CapsLock",
+    defaultModifiers: [],
     defaultTrigger: "single",
     action: { id: "act-snip", type: "screenshot", payload: { screenshotMode: "snipOverlay" } },
   },
   {
     id: "rec-topmost",
     title: "Always on Top",
-    desc: "Keep the current window above others.",
+    desc: "Keep the current window floating above others.",
     icon: "pinTop",
     defaultKey: "T",
+    defaultModifiers: ["Ctrl", "Shift"],
     defaultTrigger: "single",
     action: { id: "act-top", type: "alwaysOnTop", payload: { topmostMode: "toggle", highlight: true, sound: true } },
   },
@@ -47,6 +50,7 @@ const RECOMMENDED_PRESETS: RecommendedPreset[] = [
     desc: "Open your KeyFlow action menu anywhere.",
     icon: "popup",
     defaultKey: "F",
+    defaultModifiers: [],
     defaultTrigger: "double",
     action: { id: "act-pop", type: "showPopup", payload: {} },
   },
@@ -56,6 +60,7 @@ const RECOMMENDED_PRESETS: RecommendedPreset[] = [
     desc: "Launch an application instantly.",
     icon: "app",
     defaultKey: "O",
+    defaultModifiers: ["Ctrl", "Shift"],
     defaultTrigger: "single",
     action: { id: "act-app", type: "openApp", payload: { path: "notepad.exe" } },
   },
@@ -66,12 +71,12 @@ function defaultBlankShortcut(profileId: string, pending?: { key: string; mouse?
     id: uid("sc"),
     name: "",
     profileId,
-    key: pending?.key ?? "F",
+    key: pending?.key ?? "T",
     mouse: !!pending?.mouse,
-    modifiers: [],
+    modifiers: ["Ctrl", "Shift"],
     trigger: "single",
     timing: { tapInterval: 300, holdDuration: 500, delay: 0, cooldown: 350, timingMode: "auto" },
-    actions: [{ id: uid("act"), type: "screenshot", payload: { screenshotMode: "snipOverlay" } }],
+    actions: [{ id: uid("act"), type: "alwaysOnTop", payload: { topmostMode: "toggle", highlight: true, sound: true } }],
     enabled: true,
     createdAt: Date.now(),
   };
@@ -138,11 +143,15 @@ export function CreateShortcut() {
       timing: { ...d.timing, timingMode: m === "custom" ? "custom" : "auto" },
     }));
 
-  const conflicts = useMemo(
-    () => detectConflicts(draft, data.shortcuts, data.settings),
-    [draft, data.shortcuts, data.settings]
+  const conflictReport = useMemo(
+    () =>
+      analyzeShortcutConflicts(draft, data.shortcuts, data.settings, {
+        currentShortcutId: editingId ?? undefined,
+        activeProfileId: active,
+      }),
+    [draft, data.shortcuts, data.settings, editingId, active]
   );
-  const hasError = conflicts.some((c) => c.level === "error");
+  const hasError = conflictReport.hasBlockingConflict;
 
   const set = (p: Partial<Shortcut>) => setDraft((d) => ({ ...d, ...p }));
   const setTiming = (k: keyof Shortcut["timing"], v: number) =>
@@ -157,15 +166,47 @@ export function CreateShortcut() {
 
   const applyRecommendation = (preset: RecommendedPreset) => {
     setActiveRecommendation(preset.id);
+    let key = preset.defaultKey;
+    let modifiers = preset.defaultModifiers ?? [];
+    let trigger = preset.defaultTrigger;
+
+    // Pre-check conflicts so preset does not collide with existing shortcuts
+    const candidateTest: Partial<Shortcut> = {
+      id: editingId ?? "preset-test",
+      key,
+      modifiers,
+      trigger,
+      profileId: active,
+    };
+    const rep = analyzeShortcutConflicts(candidateTest, data.shortcuts, data.settings, {
+      currentShortcutId: editingId ?? undefined,
+      activeProfileId: active,
+    });
+
+    if (rep.hasBlockingConflict && rep.suggestions.length > 0) {
+      const sug = rep.suggestions[0];
+      key = sug.key;
+      modifiers = sug.modifiers;
+      trigger = sug.trigger;
+    }
+
     setDraft((d) => ({
       ...d,
-      key: d.key && d.key !== "F" ? d.key : preset.defaultKey,
-      trigger: preset.defaultTrigger,
+      key,
+      modifiers,
+      trigger,
       actions: [{ ...preset.action, id: uid("act") }],
     }));
   };
 
   const save = () => {
+    // Re-verify conflicts immediately before saving
+    const rep = analyzeShortcutConflicts(draft, data.shortcuts, data.settings, {
+      currentShortcutId: editingId ?? undefined,
+      activeProfileId: active,
+    });
+    if (rep.hasBlockingConflict) return;
+
     const finalShortcut: Shortcut = {
       ...draft,
       name: draft.name?.trim() ? draft.name.trim() : deriveFriendlyName(draft),
@@ -222,6 +263,7 @@ export function CreateShortcut() {
               {RECOMMENDED_PRESETS.map((preset) => {
                 const isSelected =
                   activeRecommendation === preset.id || primaryAction.type === preset.action.type;
+                const chordLabel = formatShortcutLabel(preset.defaultModifiers, preset.defaultKey);
                 return (
                   <button
                     key={preset.id}
@@ -235,7 +277,7 @@ export function CreateShortcut() {
                         <span>{preset.title}</span>
                       </div>
                       <span className="chip chip-subtle">
-                        {TRIGGER_META[preset.defaultTrigger]?.label ?? "Tap"}
+                        {chordLabel} ({TRIGGER_META[preset.defaultTrigger]?.label ?? "Tap"})
                       </span>
                     </div>
                     <p className="preset-tile-desc">{preset.desc}</p>
@@ -283,6 +325,62 @@ export function CreateShortcut() {
               />
             </Field>
           </div>
+
+          {/* Inline Conflict / Warning Banner */}
+          {conflictReport.hasBlockingConflict && (
+            <div className="alert-banner alert-danger mt-sm">
+              <div className="alert-header">
+                <Icon name="close" size={16} />
+                <b>{conflictReport.conflicts.find((c) => c.level === "error")?.message}</b>
+              </div>
+              {conflictReport.suggestions.length > 0 && (
+                <div className="alert-actions mt-xs">
+                  <span className="muted tiny">Suggested alternatives:</span>
+                  <div className="row gap-xs wrap mt-xs">
+                    {conflictReport.suggestions.map((sug) => (
+                      <Button
+                        key={sug.label}
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          set({ key: sug.key, modifiers: sug.modifiers, trigger: sug.trigger })
+                        }
+                      >
+                        Use {sug.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!conflictReport.hasBlockingConflict && conflictReport.hasWarning && (
+            <div className="alert-banner alert-warning mt-sm">
+              <div className="alert-header">
+                <Icon name="shield" size={16} />
+                <span>{conflictReport.conflicts.find((c) => c.level === "warning")?.message}</span>
+              </div>
+              {conflictReport.suggestions.length > 0 && (
+                <div className="alert-actions mt-xs">
+                  <div className="row gap-xs wrap mt-xs">
+                    {conflictReport.suggestions.slice(0, 2).map((sug) => (
+                      <Button
+                        key={sug.label}
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          set({ key: sug.key, modifiers: sug.modifiers, trigger: sug.trigger })
+                        }
+                      >
+                        Switch to {sug.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </Card>
 
         {/* Step 2: Action */}
@@ -423,17 +521,6 @@ export function CreateShortcut() {
                   onChange={(actions: Action[]) => set({ actions })}
                 />
               </div>
-
-              {/* Conflicts */}
-              {conflicts.length > 0 && (
-                <div className="col gap-xs">
-                  {conflicts.map((c, i) => (
-                    <div key={i} className={"chip chip-" + (c.level === "error" ? "danger" : "warning")}>
-                      {c.message}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 

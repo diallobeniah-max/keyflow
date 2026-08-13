@@ -19,6 +19,29 @@ pub fn is_f12(vk: u32) -> bool {
     vk == F12_VK
 }
 
+/// Returns true if this virtual key code represents a standard printable or
+/// typing key (letters, numbers, space, punctuation, enter, backspace).
+/// Non-printable dedicated control keys like CapsLock, Escape, F-keys, and
+/// navigation arrows return false and are never throttled by typing protection.
+pub fn is_printable_vk(vk: u32) -> bool {
+    match vk {
+        // Letters A-Z
+        0x41..=0x5A => true,
+        // Numbers 0-9
+        0x30..=0x39 => true,
+        // Numpad 0-9, Multiply, Add, Separator, Subtract, Decimal, Divide
+        0x60..=0x6F => true,
+        // OEM Punctuation (;:, =+, ,<, -_, .>, /?, `~)
+        0xBA..=0xC0 => true,
+        // OEM Brackets, Slash, Quote ([{, \|, ]}, '")
+        0xDB..=0xDE => true,
+        // Space, Enter, Backspace (standard typing stream keys)
+        0x20 | 0x0D | 0x08 => true,
+        // Dedicated special/function keys (CapsLock, Escape, F-keys, arrows, etc.) are NOT printable
+        _ => false,
+    }
+}
+
 /// Human-readable name for capture results (best-effort; fallback hex).
 pub fn vk_name(vk: u32) -> &'static str {
     match vk {
@@ -102,5 +125,20 @@ mod tests {
     fn f12_detection() {
         assert!(is_f12(0x7B));
         assert!(!is_f12(0x7A));
+    }
+
+    #[test]
+    fn printable_keys_classification() {
+        // Letters and digits are printable
+        assert!(is_printable_vk(0x46)); // 'F'
+        assert!(is_printable_vk(0x41)); // 'A'
+        assert!(is_printable_vk(0x31)); // '1'
+        assert!(is_printable_vk(0x20)); // Space
+
+        // CapsLock, Escape, F-keys are NOT printable
+        assert!(!is_printable_vk(0x14)); // CapsLock
+        assert!(!is_printable_vk(0x1B)); // Escape
+        assert!(!is_printable_vk(0x70)); // F1
+        assert!(!is_printable_vk(0x25)); // Left arrow
     }
 }

@@ -24,6 +24,12 @@ export interface SuppressionConfig {
 export interface SuppressionContext {
   emergencySafe?: string;
   hyperKey?: string;
+  hyperKeyConfig?: {
+    enabled: boolean;
+    key: string;
+    tapActionId?: string;
+    suppressOriginal?: boolean;
+  };
   paused?: boolean;
   safeMode?: boolean;
 }
@@ -54,6 +60,21 @@ export interface NativeShortcutSpec {
   enabled: boolean;
 }
 
+export function buildNativeHyperSpec(context: SuppressionContext) {
+  const cfg = context.hyperKeyConfig;
+  if (!cfg || !cfg.enabled || !cfg.key) return null;
+  const vk = keyToVk(cfg.key);
+  if (vk === undefined) return null;
+  return {
+    enabled: true,
+    vk,
+    suppressOriginal: cfg.suppressOriginal ?? true,
+    tapActionId: cfg.tapActionId || undefined,
+  };
+}
+
+const MOD_BIT_HYPER = 16;
+
 /**
  * Build the canonical shortcut configuration the Rust engine consumes. Every
  * enabled keyboard shortcut becomes one spec; key/trigger/behavior values are
@@ -76,7 +97,7 @@ export function buildNativeShortcutConfig(entries: any[], context: SuppressionCo
       id: entry.id,
       name: entry.name,
       key: { vk, scanCode: 0, extended: false },
-      modifiers: (entry.modifiers ?? []).map((m: string) => keyToVk(m)).filter((v: number | undefined): v is number => v !== undefined),
+      modifiers: (entry.modifiers ?? []).map((m: string) => (m === "Hyper" ? MOD_BIT_HYPER : keyToVk(m))).filter((v: number | undefined): v is number => v !== undefined),
       trigger: {
         kind,
         tapInterval: t.tapInterval ?? timing.tapInterval,

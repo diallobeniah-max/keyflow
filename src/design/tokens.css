@@ -1,12 +1,26 @@
 /*
  * KeyFlow Design Tokens (v2 — Modern Native Desktop)
- *
- * Central source of truth for design tokens.
- * Minimal, calm, Apple-level restraint adapted for Windows desktop utility.
+ * Permanent runtime design system tokens.
  */
 
+:root, [data-font-size="default"], [data-font-size="normal"] {
+  --font-scale: 1;
+}
+
+[data-font-size="small"] {
+  --font-scale: 0.92;
+}
+
+[data-font-size="large"] {
+  --font-scale: 1.10;
+}
+
+[data-font-size="xlarge"] {
+  --font-scale: 1.22;
+}
+
 :root {
-  /* Surface hierarchy — dark theme (default) */
+  /* Color Palette — Calm, deep dark desktop palette */
   --color-bg-app: #0d1117;
   --color-bg-sidebar: #090d13;
   --color-bg-surface: #131922;
@@ -15,26 +29,24 @@
   --color-bg-selected: #223249;
   --color-bg-input: #121822;
 
-  /* Borders */
   --color-border-subtle: #1c2533;
   --color-border-default: #263346;
   --color-border-strong: #37475e;
 
-  /* Text hierarchy */
   --color-text-primary: #f1f5f9;
   --color-text-secondary: #94a3b8;
   --color-text-muted: #64748b;
   --color-text-disabled: #475569;
   --color-text-on-accent: #ffffff;
 
-  /* Accent — KeyFlow Calm Blue */
+  /* KeyFlow Signature Calm Blue */
   --color-accent: #3b82f6;
   --color-accent-hover: #60a5fa;
   --color-accent-pressed: #2563eb;
   --color-accent-soft: rgba(59, 130, 246, 0.12);
   --color-accent-border: rgba(59, 130, 246, 0.35);
 
-  /* Semantic colors */
+  /* Status Colors */
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
@@ -42,56 +54,56 @@
   --color-success-soft: rgba(16, 185, 129, 0.12);
   --color-warning-soft: rgba(245, 158, 11, 0.12);
   --color-danger-soft: rgba(239, 68, 68, 0.12);
-  --color-overlay: rgba(0, 0, 0, 0.50);
-  --color-overlay-strong: rgba(0, 0, 0, 0.70);
+  --color-overlay: rgba(0, 0, 0, 0.60);
+  --color-overlay-strong: rgba(0, 0, 0, 0.80);
   --color-scrim-light: rgba(255, 255, 255, 0.04);
 
-  /* Typography */
+  /* Typography — Derived from centralized --font-scale */
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", "Inter", system-ui, sans-serif;
   --font-family-mono: "Cascadia Code", "Consolas", "SF Mono", monospace;
 
-  --type-display-size: 28px;
-  --type-display-line: 36px;
+  --type-display-size: calc(28px * var(--font-scale, 1));
+  --type-display-line: calc(36px * var(--font-scale, 1));
   --type-display-weight: 650;
 
-  --type-page-size: 22px;
-  --type-page-line: 28px;
+  --type-page-size: calc(22px * var(--font-scale, 1));
+  --type-page-line: calc(28px * var(--font-scale, 1));
   --type-page-weight: 650;
 
-  --type-section-size: 16px;
-  --type-section-line: 22px;
+  --type-section-size: calc(16px * var(--font-scale, 1));
+  --type-section-line: calc(22px * var(--font-scale, 1));
   --type-section-weight: 600;
 
-  --type-card-size: 14px;
-  --type-card-line: 20px;
+  --type-card-size: calc(14px * var(--font-scale, 1));
+  --type-card-line: calc(20px * var(--font-scale, 1));
   --type-card-weight: 600;
 
-  --type-body-large-size: 15px;
-  --type-body-large-line: 22px;
+  --type-body-large-size: calc(15px * var(--font-scale, 1));
+  --type-body-large-line: calc(22px * var(--font-scale, 1));
   --type-body-large-weight: 400;
 
-  --type-body-size: 13.5px;
-  --type-body-line: 19px;
+  --type-body-size: calc(13.5px * var(--font-scale, 1));
+  --type-body-line: calc(19px * var(--font-scale, 1));
   --type-body-weight: 400;
 
-  --type-body-strong-size: 13.5px;
-  --type-body-strong-line: 19px;
+  --type-body-strong-size: calc(13.5px * var(--font-scale, 1));
+  --type-body-strong-line: calc(19px * var(--font-scale, 1));
   --type-body-strong-weight: 600;
 
-  --type-small-size: 12.5px;
-  --type-small-line: 17px;
+  --type-small-size: calc(12.5px * var(--font-scale, 1));
+  --type-small-line: calc(17px * var(--font-scale, 1));
   --type-small-weight: 400;
 
-  --type-caption-size: 11.5px;
-  --type-caption-line: 15px;
+  --type-caption-size: calc(11.5px * var(--font-scale, 1));
+  --type-caption-line: calc(15px * var(--font-scale, 1));
   --type-caption-weight: 500;
 
-  --type-button-size: 13px;
-  --type-button-line: 18px;
+  --type-button-size: calc(13px * var(--font-scale, 1));
+  --type-button-line: calc(18px * var(--font-scale, 1));
   --type-button-weight: 550;
 
-  --type-keycap-size: 12px;
-  --type-keycap-line: 16px;
+  --type-keycap-size: calc(12px * var(--font-scale, 1));
+  --type-keycap-line: calc(16px * var(--font-scale, 1));
   --type-keycap-weight: 600;
 
   --type-titlebar: var(--type-caption-size);
@@ -177,10 +189,11 @@
   --toggle-height: 22px;
   --toggle-knob-size: 16px;
 
-  /* Motion */
+  /* Motion & Animations */
   --motion-fast: 100ms cubic-bezier(0.16, 1, 0.3, 1);
   --motion-default: 160ms cubic-bezier(0.16, 1, 0.3, 1);
   --motion-slow: 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-desktop: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Z-indices */
   --z-base: 0;
@@ -201,18 +214,18 @@
   --card-radius: var(--radius-lg);
 
   /* Popup overlay specifics */
-  --popup-width: 440px;
-  --popup-min-width: 380px;
-  --popup-max-width: 520px;
-  --popup-min-height: 160px;
-  --popup-max-height: 520px;
-  --popup-item-height: 52px;
-  --popup-list-max-height: 320px;
+  --popup-width: 540px;
+  --popup-min-width: 480px;
+  --popup-max-width: 580px;
+  --popup-min-height: 140px;
+  --popup-max-height: 600px;
+  --popup-item-height: 48px;
+  --popup-list-max-height: 440px;
   --popup-radius: var(--radius-lg);
   --popup-backdrop-blur: 24px;
   --popup-surface: var(--color-bg-surface-elevated);
   --popup-surface-border: var(--color-border-default);
-  --popup-surface-opacity: 0.94;
+  --popup-surface-opacity: 0.96;
   --popup-shadow-fallback: var(--shadow-popup);
   --popup-open-duration: 140ms;
   --popup-close-duration: 120ms;

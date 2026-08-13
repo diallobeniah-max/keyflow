@@ -1,4 +1,5 @@
-﻿import { TitleBar } from "./components/TitleBar";
+import { useEffect } from "react";
+import { TitleBar } from "./components/TitleBar";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { PopupMenu } from "./components/PopupMenu";
@@ -18,32 +19,69 @@ function isPopupWindow(): boolean {
   return window.location.search.includes("window=popup");
 }
 
-function Router(){
-  const page=useStore((s)=>s.currentPage);
-  switch(page){
-    case "dashboard": return <Dashboard/>;
-    case "shortcuts": return <Shortcuts/>;
-    case "create": return <CreateShortcut/>;
-    case "visual": return <VisualKeyboard/>;
-    case "library": return <ActionLibrary/>;
-    case "profiles": return <Profiles/>;
-    case "settings": return <Settings/>;
-    default: return <Dashboard/>;
+function Router() {
+  const page = useStore((s) => s.currentPage);
+  switch (page) {
+    case "dashboard":
+      return <Dashboard />;
+    case "shortcuts":
+      return <Shortcuts />;
+    case "create":
+      return <CreateShortcut />;
+    case "visual":
+      return <VisualKeyboard />;
+    case "library":
+      return <ActionLibrary />;
+    case "profiles":
+      return <Profiles />;
+    case "settings":
+      return <Settings />;
+    default:
+      return <Dashboard />;
   }
 }
 
-export default function App(){
-  if (isPopupWindow()) return <PopupShell/>;
-  const onboardingDone=useStore((s)=>s.data.onboardingDone);
-  const drawerOpen=useStore((s)=>s.drawerOpen);
-  const setDrawerOpen=useStore((s)=>s.setDrawerOpen);
-  return <div className="app-shell">
-    <TitleBar/>
-    <div className="app-body">
-      <Sidebar/>
-      {drawerOpen && <div className="drawer-backdrop" onClick={()=>setDrawerOpen(false)} aria-hidden="true"/>}
-<main className="main"><TopBar/><Router/></main>
+export default function App() {
+  if (isPopupWindow()) return <PopupShell />;
+
+  const onboardingDone = useStore((s) => s.data.onboardingDone);
+  const drawerOpen = useStore((s) => s.drawerOpen);
+  const setDrawerOpen = useStore((s) => s.setDrawerOpen);
+  const appearance = useStore((s) => s.data.settings.appearance);
+
+  useEffect(() => {
+    const fontSize = appearance?.fontSize ?? "default";
+    document.documentElement.setAttribute("data-font-size", fontSize);
+  }, [appearance?.fontSize]);
+
+  useEffect(() => {
+    if (appearance?.reduceMotion) {
+      document.documentElement.classList.add("reduce-motion");
+    } else {
+      document.documentElement.classList.remove("reduce-motion");
+    }
+  }, [appearance?.reduceMotion]);
+
+  return (
+    <div className="app-shell" data-font-size={appearance?.fontSize ?? "default"}>
+      <TitleBar />
+      <div className="app-body">
+        <Sidebar />
+        {drawerOpen && (
+          <div
+            className="drawer-backdrop"
+            onClick={() => setDrawerOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+        <main className="main">
+          <TopBar />
+          <Router />
+        </main>
+      </div>
+      <PopupMenu />
+      <ToastHost />
+      {!onboardingDone && <Onboarding />}
     </div>
-    <PopupMenu/><ToastHost/>{!onboardingDone&&<Onboarding/>}
-  </div>;
+  );
 }

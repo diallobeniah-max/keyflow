@@ -7,6 +7,7 @@
 
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
+use std::time::Duration;
 
 use crate::protocol::{BehaviorKind, KeySpec, ShortcutSpec, TriggerKind};
 
@@ -17,6 +18,7 @@ pub const DEFAULT_DOUBLE_INTERVAL_MS: u32 = 220;
 pub const DEFAULT_TRIPLE_INTERVAL_MS: u32 = 220;
 pub const DEFAULT_HOLD_DURATION_MS: u32 = 400;
 pub const DEFAULT_COOLDOWN_MS: u32 = 0; // no cooldown swallows the next gesture's first tap
+pub const DEFAULT_TYPING_IDLE_MS: u32 = 400; // Balanced typing protection default
 
 /// Process-wide configuration, replaced wholesale on each Configure message.
 pub static CONFIG: LazyLock<Mutex<Config>> = LazyLock::new(|| Mutex::new(Config::new()));
@@ -60,6 +62,7 @@ pub const MOD_BIT_CTRL: u32 = 0b0001;
 pub const MOD_BIT_ALT: u32 = 0b0010;
 pub const MOD_BIT_SHIFT: u32 = 0b0100;
 pub const MOD_BIT_WIN: u32 = 0b1000;
+pub const MOD_BIT_HYPER: u32 = 0b0001_0000;
 
 #[derive(Debug)]
 pub struct Config {
@@ -68,19 +71,35 @@ pub struct Config {
     behavior: HashMap<u32, KeyBehavior>,
     /// Legacy fallback (single-key policy mode). Prefer rules.
     keys: HashMap<u32, KeyBehavior>,
+    typing_idle_threshold: Duration,
     paused: bool,
     bypass: bool,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Config { rules: Vec::new(), behavior: HashMap::new(), keys: HashMap::new(), paused: false, bypass: false }
+        Config {
+            rules: Vec::new(),
+            behavior: HashMap::new(),
+            keys: HashMap::new(),
+            typing_idle_threshold: Duration::from_millis(DEFAULT_TYPING_IDLE_MS as u64),
+            paused: false,
+            bypass: false,
+        }
     }
 }
 
 impl Config {
     pub fn new() -> Self {
         Config::default()
+    }
+
+    pub fn set_typing_idle_threshold(&mut self, d: Duration) {
+        self.typing_idle_threshold = d;
+    }
+
+    pub fn typing_idle_threshold(&self) -> Duration {
+        self.typing_idle_threshold
     }
 
     /// Full replacement from the canonical shortcut configuration.
@@ -93,182 +112,213 @@ impl Config {
             return;
         }
         self.keys.clear();
-for spec in specs.iter().filter(|s| s.enabled) {
-                let Some(kind) = spec.trigger.kind() else {
-                    // sequence and unknown kinds are skipped, never fatal.
-                    continue;
-                };
-                let behavior = spec.resolved_behavior();
-                let required_mods = mod_bits_for(&spec.modifiers);
-                // Only pass/suppress behaviors own a gesture rule (they fire an
-                // action). disable/remap are pure hook-side policy and never fire.
-                if matches!(behavior, BehaviorKind::Pass | BehaviorKind::Suppress) {
-                    self.rules.push(Rule {
-                        id: spec.id.clone(),
-                        vk: spec.key.vk,
-                        special_scan: spec.key.scan_code,
-                        extended: spec.key.extended,
-                        kind,
-                        tap_interval: pick(spec.trigger.tap_interval, default_interval_for(kind)),
-                        hold_duration: pick(spec.trigger.hold_duration, DEFAULT_HOLD_DURATION_MS),
-                        cooldown: pick(spec.trigger.cooldown, DEFAULT_COOLDOWN_MS),
-                        required_mods,
-                    });
+
+        for spec in specs.iter().filter(|s| s.enabled) {
+            let Some(kind) = spec.trigger.kind() else {
+                // sequence and unknown kinds are skipped, never fatal.
+                continue;
+            };
+
+            let vk = spec.key.vk;
+            let special_scan = spec.key.scan_code;
+            let extended = spec.key.extended;
+            let mods = spec.modifiers.iter().fold(0u32, |acc, &m| {
+                let bit = crate::keymap::modifier_bit(m);
+                if bit != 0 {
+                    acc | bit
+                } else {
+                    acc | m
                 }
-            // Only plain (no-modifier) keys participate in hook suppression.
-            if required_mods == 0 && !matches!(behavior, BehaviorKind::Pass) {
-                self.behavior.insert(spec.key.vk, behavior.into());
+            });
+
+            let tap_interval = if spec.trigger.tap_interval > 0 {
+                spec.trigger.tap_interval
+            } else {
+                match kind {
+                    TriggerKind::Double => DEFAULT_DOUBLE_INTERVAL_MS,
+                    TriggerKind::Triple => DEFAULT_TRIPLE_INTERVAL_MS,
+                    _ => DEFAULT_TAP_INTERVAL_MS,
+                }
+            };
+            let hold_duration = if spec.trigger.hold_duration > 0 {
+                spec.trigger.hold_duration
+            } else {
+                DEFAULT_HOLD_DURATION_MS
+            };
+            let cooldown = if spec.trigger.cooldown > 0 {
+                spec.trigger.cooldown
+            } else {
+                DEFAULT_COOLDOWN_MS
+            };
+
+            self.rules.push(Rule {
+                id: spec.id.clone(),
+                vk,
+                special_scan,
+                extended,
+                kind,
+                tap_interval,
+                hold_duration,
+                cooldown,
+                required_mods: mods,
+            });
+
+            // Derive per-key suppression policy for unmodified keys. Modifier
+            // combinations (Ctrl+K, etc.) never suppress the base key.
+            if mods == 0 && vk != 0 {
+                let behavior: KeyBehavior = spec.resolved_behavior().into();
+                // Most-restrictive behavior wins if multiple rules target the same key.
+                let prev = self.behavior.get(&vk).copied().unwrap_or(KeyBehavior::Pass);
+                let merged = match (prev, behavior) {
+                    (KeyBehavior::Disable, _) | (_, KeyBehavior::Disable) => KeyBehavior::Disable,
+                    (KeyBehavior::Suppress, _) | (_, KeyBehavior::Suppress) => KeyBehavior::Suppress,
+                    (KeyBehavior::Remap(to), _) | (_, KeyBehavior::Remap(to)) => KeyBehavior::Remap(to),
+                    _ => KeyBehavior::Pass,
+                };
+                self.behavior.insert(vk, merged);
             }
         }
-        self.bypass = false;
     }
 
+    /// Legacy single-key policy replacement (self-test fallback).
     pub fn apply(&mut self, specs: &[KeySpec]) {
+        self.keys.clear();
         self.rules.clear();
         self.behavior.clear();
-        self.keys.clear();
-        for spec in specs {
-            let mode = match spec.mode.as_str() {
+        for s in specs {
+            let b = match s.mode.as_str() {
                 "suppress" => KeyBehavior::Suppress,
                 "disable" => KeyBehavior::Disable,
-                "remap" if spec.remap_to != 0 => KeyBehavior::Remap(spec.remap_to),
+                "remap" if s.remap_to != 0 => KeyBehavior::Remap(s.remap_to),
                 _ => KeyBehavior::Pass,
             };
-            self.keys.insert(spec.vk, mode);
+            self.keys.insert(s.vk, b);
         }
-        self.bypass = false;
-    }
-
-    pub fn rules(&self) -> &[Rule] {
-        &self.rules
-    }
-
-    /// Synchronous per-key decision for the hook callback. Paused/safe/bypass
-    /// always pass through; unknown keys pass; legacy `keys` table is consulted
-    /// only when no native shortcut rules were installed.
-    pub fn behavior_of(&self, vk: u32) -> KeyBehavior {
-        if self.paused || self.bypass {
-            return KeyBehavior::Pass;
-        }
-        self.behavior.get(&vk).copied().unwrap_or_else(|| self.keys.get(&vk).copied().unwrap_or(KeyBehavior::Pass))
     }
 
     pub fn set_paused(&mut self, paused: bool) {
         self.paused = paused;
     }
 
-    /// Emergency bypass latch: once engaged, everything passes through until
-    /// a fresh configure arrives.
     pub fn latch_bypass(&mut self) {
         self.bypass = true;
+    }
+
+    pub fn set_bypass(&mut self, bypass: bool) {
+        self.bypass = bypass;
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.paused
     }
 
     pub fn is_bypass(&self) -> bool {
         self.bypass
     }
-}
 
-fn pick(override_ms: u32, default_ms: u32) -> u32 {
-    if override_ms == 0 {
-        default_ms
-    } else {
-        override_ms
+    pub fn rules(&self) -> &[Rule] {
+        &self.rules
     }
-}
 
-fn default_interval_for(kind: TriggerKind) -> u32 {
-    match kind {
-        TriggerKind::Triple => DEFAULT_TRIPLE_INTERVAL_MS,
-        _ => DEFAULT_DOUBLE_INTERVAL_MS,
+    /// Synchronous suppression lookup for the hook thread.
+    pub fn behavior_of(&self, vk: u32) -> KeyBehavior {
+        if self.paused || self.bypass {
+            return KeyBehavior::Pass;
+        }
+        if let Some(&b) = self.behavior.get(&vk) {
+            return b;
+        }
+        if let Some(&b) = self.keys.get(&vk) {
+            return b;
+        }
+        KeyBehavior::Pass
     }
-}
 
-fn mod_bits_for(mods: &[u32]) -> u32 {
-    let mut bits = 0u32;
-    for m in mods {
-        bits |= match *m {
-            0x10 | 0xa0 | 0xa1 => MOD_BIT_SHIFT,
-            0x11 | 0xa2 | 0xa3 => MOD_BIT_CTRL,
-            0x12 | 0xa4 | 0xa5 => MOD_BIT_ALT,
-            0x5b | 0x5c => MOD_BIT_WIN,
-            _ => 0,
-        };
+    pub fn behavior_for(&self, vk: u32) -> KeyBehavior {
+        self.behavior_of(vk)
     }
-    bits
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::KeyIdentity;
-
-    fn spec(id: &str, vk: u32, kind: &str, behavior: &str, mods: &[u32]) -> ShortcutSpec {
-        ShortcutSpec {
-            id: id.to_string(),
-            name: None,
-            key: KeyIdentity { vk, scan_code: 0, extended: false },
-            modifiers: mods.to_vec(),
-            trigger: crate::protocol::TriggerSpec {
-                kind_raw: kind.to_string(),
-                tap_interval: 0,
-                hold_duration: 0,
-                cooldown: 0,
-                delay: 0,
-            },
-            behavior: behavior.to_string(),
-            remap_to: 0,
-            enabled: true,
-            suppress_key: None,
-            key_behavior: None,
-        }
-    }
-
-    #[test]
-    fn caps_lock_screenshot_derives_suppress() {
-        let mut cfg = Config::new();
-        cfg.apply_shortcuts(&[spec("sc-3w02ys1", 20, "single", "suppress", &[])]);
-        assert_eq!(cfg.behavior_of(20), KeyBehavior::Suppress);
-        assert_eq!(cfg.rules().len(), 1);
-        // A different key is untouched.
-        assert_eq!(cfg.behavior_of(70), KeyBehavior::Pass);
-    }
-
-    #[test]
-    fn combo_shortcuts_pass_but_still_route() {
-        let mut cfg = Config::new();
-        cfg.apply_shortcuts(&[spec("ctrl-k", 75, "single", "pass", &[0x11])]);
-        // Combo key itself is never suppressed at the hook level.
-        assert_eq!(cfg.behavior_of(75), KeyBehavior::Pass);
-        // But the rule exists for the gesture engine.
-        assert_eq!(cfg.rules().len(), 1);
-        assert_eq!(cfg.rules()[0].required_mods, MOD_BIT_CTRL);
-    }
-
-    #[test]
-    fn disabled_shortcut_not_installed() {
-        let mut s = spec("off", 20, "single", "suppress", &[]);
-        s.enabled = false;
-        let mut cfg = Config::new();
-        cfg.apply_shortcuts(&[s]);
-        assert!(cfg.rules().is_empty());
-        assert_eq!(cfg.behavior_of(20), KeyBehavior::Pass);
-    }
+    use crate::protocol::{KeyIdentity, TriggerSpec};
 
     #[test]
     fn pause_overrides_everything() {
-        let mut cfg = Config::new();
-        cfg.apply_shortcuts(&[spec("c", 20, "single", "suppress", &[])]);
-        cfg.set_paused(true);
-        assert_eq!(cfg.behavior_of(20), KeyBehavior::Pass);
+        let mut c = Config::new();
+        c.apply(&[KeySpec { vk: 0x14, mode: "suppress".to_string(), remap_to: 0 }]);
+        assert_eq!(c.behavior_for(0x14), KeyBehavior::Suppress);
+        c.set_paused(true);
+        assert_eq!(c.behavior_for(0x14), KeyBehavior::Pass);
     }
 
     #[test]
     fn bypass_resets_on_reconfigure() {
-        let mut cfg = Config::new();
-        cfg.apply_shortcuts(&[spec("c", 20, "single", "suppress", &[])]);
-        cfg.latch_bypass();
-        assert_eq!(cfg.behavior_of(20), KeyBehavior::Pass);
-        cfg.apply_shortcuts(&[spec("c", 20, "single", "suppress", &[])]);
-        assert_eq!(cfg.behavior_of(20), KeyBehavior::Suppress);
+        let mut c = Config::new();
+        c.set_bypass(true);
+        assert_eq!(c.behavior_for(0x14), KeyBehavior::Pass);
+    }
+
+    #[test]
+    fn caps_lock_screenshot_derives_suppress() {
+        let mut c = Config::new();
+        let spec = ShortcutSpec {
+            id: "sc-caps".to_string(),
+            name: Some("Screenshot".to_string()),
+            key: KeyIdentity { vk: 0x14, scan_code: 58, extended: false },
+            modifiers: vec![],
+            trigger: TriggerSpec { kind_raw: "single".to_string(), ..Default::default() },
+            behavior: "suppress".to_string(),
+            remap_to: 0,
+            enabled: true,
+            suppress_key: None,
+            key_behavior: None,
+        };
+        c.apply_shortcuts(&[spec]);
+        assert_eq!(c.behavior_for(0x14), KeyBehavior::Suppress);
+        assert_eq!(c.rules().len(), 1);
+        assert_eq!(c.rules()[0].vk, 0x14);
+    }
+
+    #[test]
+    fn disabled_shortcut_not_installed() {
+        let mut c = Config::new();
+        let spec = ShortcutSpec {
+            id: "sc-caps".to_string(),
+            name: Some("Screenshot".to_string()),
+            key: KeyIdentity { vk: 0x14, scan_code: 58, extended: false },
+            modifiers: vec![],
+            trigger: TriggerSpec { kind_raw: "single".to_string(), ..Default::default() },
+            behavior: "suppress".to_string(),
+            remap_to: 0,
+            enabled: false,
+            suppress_key: None,
+            key_behavior: None,
+        };
+        c.apply_shortcuts(&[spec]);
+        assert_eq!(c.behavior_for(0x14), KeyBehavior::Pass);
+        assert_eq!(c.rules().len(), 0);
+    }
+
+    #[test]
+    fn combo_shortcuts_pass_but_still_route() {
+        let mut c = Config::new();
+        let spec = ShortcutSpec {
+            id: "sc-k".to_string(),
+            name: Some("Command palette".to_string()),
+            key: KeyIdentity { vk: 0x4B, scan_code: 0, extended: false },
+            modifiers: vec![MOD_BIT_CTRL],
+            trigger: TriggerSpec { kind_raw: "single".to_string(), ..Default::default() },
+            behavior: "pass".to_string(),
+            remap_to: 0,
+            enabled: true,
+            suppress_key: None,
+            key_behavior: None,
+        };
+        c.apply_shortcuts(&[spec]);
+        assert_eq!(c.behavior_for(0x4B), KeyBehavior::Pass);
+        assert_eq!(c.rules().len(), 1);
+        assert_eq!(c.rules()[0].required_mods, MOD_BIT_CTRL);
     }
 }

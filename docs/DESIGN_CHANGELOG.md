@@ -1,5 +1,41 @@
 # Design Changelog
 
+## 2026-08-12 — Shortcut Conflict Engine, Generic Typing Protection, Always on Top Modifier Fix & Popup Bounds
+
+* **Central Shortcut Conflict Engine (`src/lib/conflict.ts`)**:
+  - Implemented unified conflict analysis checking for exact duplicates, gesture overlaps (`single` vs `double`/`triple`/`hold`, `double` vs `triple`), risky bare printable single keys, and Windows reserved combinations.
+  - Added smart alternative shortcut recommendation generator proposing safe, non-conflicting modifier chords (e.g. `Ctrl+Shift+<Key>`, `Alt+Shift+<Key>`, `Ctrl+Alt+<Key>`).
+  - Added live inline conflict warning and error banners in `CreateShortcut.tsx` with 1-click alternative selection.
+  - Updated Recommended Presets so Always on Top and Open App default to safe modifier combinations (`Ctrl+Shift+T` and `Ctrl+Shift+O`).
+* **Popup Window Dimensions & Measurement (`PopupShell.tsx`, `popup-position.ts`, `tokens.css`)**:
+  - Increased popup width from 440px to 540px (min: 480px, max: 580px, max height: 600px).
+  - Integrated `useLayoutEffect` DOM content measurement in `PopupShell.tsx` and dynamic bounds updates in `electron/popup-window.ts` to prevent vertical clipping of action lists.
+* **Native Rust Modifier Mapping & Typing Burst Extension (`native/keyflow-input`)**:
+  - Fixed modifier VK to bitmask folding in `config.rs` so chords like `Ctrl+Shift+C` (VKs 17 and 16) map correctly to `MOD_BIT_CTRL | MOD_BIT_SHIFT` (5) in the native trigger engine.
+  - Extended typing protection to suppress standalone printable single-key shortcuts during active typing bursts, preventing accidental activations while typing words like `office` or `coffee`.
+  - Modifier combinations (`Ctrl+Shift+C`) and non-printable keys (`CapsLock`, `Escape`, `F1-F24`) remain 100% immediate.
+  - Added 46 unit tests in Rust and 173 automated tests in Node.js.
+
+* **Popup Window Polish & Layout**:
+  - Configured `transparent: true, backgroundColor: "#00000000"` and `hasShadow: false` on the popup BrowserWindow to eliminate blank background canvas around the palette.
+  - Set `.popup-window-root` padding and margin to 0 for pixel-perfect content bounding.
+  - Fixed search input placeholder character encoding from literal `\u2026` to real ellipsis `…`.
+  - Scaled item height and padding for a compact command palette feel with responsive internal scroll.
+* **Centralized Typography Scaling (`--font-scale`)**:
+  - Added `--font-scale` token across `tokens.css`: `small` (92%), `default`/`normal` (100%), `large` (110%), `xlarge` (122%).
+  - Derived all typography role sizes using `calc(N * var(--font-scale, 1))`.
+  - Added user-facing `Text size` selector in Settings → Appearance with live synchronized preview in main window and popup.
+* **Centralized Motion System**:
+  - Defined standard motion tokens: `--motion-fast` (100ms), `--motion-default` (160ms), `--motion-slow` (220ms), and `--ease-desktop` (`cubic-bezier(0.16, 1, 0.3, 1)`).
+  - Added page-enter subtle fade-in transition (`fadeIn`) to main content area.
+  - Implemented strict `prefers-reduced-motion` and `.reduce-motion` instant transitions.
+* **Native Rust Typing Protection**:
+  - Implemented idle-gap burst detection in `native/keyflow-input` (`keymap.rs`, `config.rs`, `trigger.rs`, `protocol.rs`).
+  - Distinguishes printable typing stream keys (`A-Z`, `0-9`, OEM symbols) from dedicated function keys (`CapsLock`, `Escape`, `F1-F24`, modifiers).
+  - Rapid printable key entry suppresses multi-tap accumulation to prevent false triggers (e.g. typing words like `coffee` will never trigger `FF`).
+  - Added user configurable `Typing protection` setting (`Balanced (400ms)`, `Strict (650ms)`, `Off (Raw gestures)`).
+  - Dedicated non-printable keys (`CapsLock` screenshot) and modifier combos (`Ctrl+Shift+K`) remain completely immediate and unaffected.
+
 ## 2026-08-12 — Full Application UI Redesign (v2 Modern Native Desktop)
 
 * **Design Tokens (`src/design/tokens.css`)**:
