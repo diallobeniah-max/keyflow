@@ -5257,6 +5257,245 @@ body {
   padding: var(--space-8);
 }
 
+.notes-save-location-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--type-caption-size);
+  color: var(--color-text-muted);
+  padding: var(--space-0) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color var(--motion-fast), border-color var(--motion-fast);
+}
+
+.notes-save-location-btn:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-accent);
+}
+
+.notes-highlight-match {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border-radius: var(--radius-xs);
+  padding: var(--space-0) var(--space-1);
+}
+
+/* Slash Command Palette */
+.slash-command-palette {
+  position: absolute;
+  z-index: 1000;
+  width: 320px;
+  max-height: 380px;
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popup);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.slash-palette-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+}
+
+.slash-prefix-badge {
+  font-family: var(--font-family-mono);
+  font-weight: 700;
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  padding: var(--space-0) var(--space-1);
+  border-radius: var(--radius-xs);
+}
+
+.slash-query-display {
+  font-size: var(--type-small-size);
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.slash-count-pill {
+  font-size: var(--type-caption-size);
+  color: var(--color-text-muted);
+  background: var(--color-bg-input);
+  padding: var(--space-0) var(--space-1);
+  border-radius: var(--radius-pill);
+}
+
+.slash-palette-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-1);
+}
+
+.slash-palette-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2);
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  color: var(--color-text-primary);
+  transition: background var(--motion-fast), color var(--motion-fast);
+}
+
+.slash-palette-item.is-selected {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.slash-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-input);
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.slash-palette-item.is-selected .slash-item-icon {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+.slash-item-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.slash-item-label {
+  font-size: var(--type-small-size);
+  font-weight: 600;
+}
+
+.slash-item-hint {
+  font-size: var(--type-caption-size);
+  color: var(--color-text-muted);
+}
+
+.slash-item-category {
+  font-size: var(--type-caption-size);
+  color: var(--color-text-muted);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  padding: var(--space-0) var(--space-1);
+  flex-shrink: 0;
+}
+
+.slash-palette-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5);
+  color: var(--color-text-muted);
+  font-size: var(--type-small-size);
+}
+
+.slash-palette-footer {
+  padding: var(--space-1) var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+}
+
+/* Rich element blocks in note */
+.note-todo-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1) 0;
+}
+
+.note-callout {
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-bg-surface);
+  padding: var(--space-2) var(--space-3);
+  margin: var(--space-2) 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--color-text-primary);
+}
+
+.note-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-2) 0;
+}
+
+.note-table th,
+.note-table td {
+  border: 1px solid var(--color-border-default);
+  padding: var(--space-1) var(--space-2);
+  text-align: left;
+}
+
+.note-table th {
+  background: var(--color-bg-surface);
+  font-weight: 600;
+}
+
+.note-dropdown {
+  margin: var(--space-2) 0;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+}
+
+.note-dropdown summary {
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--color-text-primary);
+}
+
+.note-embedded-image {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-subtle);
+  margin: var(--space-2) 0;
+}
+
+.note-embedded-video {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  margin: var(--space-2) 0;
+}
+
+.note-file-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-accent);
+  text-decoration: none;
+  font-size: var(--type-small-size);
+  margin: var(--space-1) 0;
+}
+
 /* ==========================================================================
    Drag Corner Switcher V2 — active zone picker
    ========================================================================== */

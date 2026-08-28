@@ -204,6 +204,8 @@ export const ICON_COLOR_PALETTE = [
   { id: "slate", label: "Slate", value: "#a0a8b3" },
 ];
 
-export function Icon({ name, size = 20, className, strokeWidth = 1.8, style }: { name: string; size?: number; className?: string; strokeWidth?: number; style?: React.CSSProperties }) {
+export type IconName = string;
+
+export function Icon({ name, size = 20, className, strokeWidth = 1.8, style }: { name: IconName; size?: number; className?: string; strokeWidth?: number; style?: React.CSSProperties }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} style={style} aria-hidden="true">{P[name] ?? P.window}</svg>;
 }

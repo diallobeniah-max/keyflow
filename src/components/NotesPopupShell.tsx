@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Icon } from "./Icon";
+import { SlashCommandPalette } from "./notes/SlashCommandPalette";
+import { SLASH_COMMANDS, SlashCommand } from "../lib/notesSlashCommands";
 
 export interface Note {
   id: string;
@@ -19,20 +21,15 @@ const DEFAULT_WELCOME_NOTE: Note = {
 
 <h3>⚡ Key Features</h3>
 <ul>
-  <li><b>Rich Formatting:</b> Bold, italic, underline, strikethrough, headings, lists, quotes, and code blocks.</li>
+  <li><b>Raycast Slash Commands:</b> Type <code>/</code> at the start of a line or after a space to insert headings, lists, tables, callouts, and more.</li>
+  <li><b>Custom Save Location:</b> Click the folder pill in the top header to set your custom notes folder on disk.</li>
   <li><b>Instant Autosave:</b> Never lose your thoughts with continuous debounced saving.</li>
   <li><b>Quick Access:</b> Trigger instantly with your configured shortcut or Hyper Key.</li>
   <li><b>1-Click Copy:</b> Quickly export or copy notes directly to your clipboard.</li>
 </ul>
 
-<h3>🎯 Quick Checklist</h3>
-<ul>
-  <li>Review active keyboard &amp; mouse shortcut triggers</li>
-  <li>Pin important notes to keep them at the top</li>
-  <li>Try the new Raycast-style command palette (<code>Hyper + Space</code>)</li>
-</ul>
-
-<p><i>Press <b>Ctrl+N</b> or click <b>+ New Note</b> in the toolbar above to start typing your own note!</i></p>`,
+<h3>🎯 Try Slash Commands</h3>
+<p>Type <code>/h1</code> for a heading, <code>/todo</code> for interactive checklists, <code>/callout</code> for highlighted boxes, or <code>/table</code> for data grids!</p>`,
   createdAt: Date.now() - 3600000,
   updatedAt: Date.now(),
 };
@@ -63,6 +60,7 @@ export function NotesPopupShell() {
   const [activeNoteId, setActiveNoteId] = useState<string | null>("welcome-note");
   const [searchQuery, setSearchQuery] = useState("");
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
+  const [saveLocation, setSaveLocation] = useState<string>("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
@@ -70,6 +68,13 @@ export function NotesPopupShell() {
     return saved ? Math.min(420, Math.max(160, Number(saved))) : 220;
   });
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+
+  // Slash commands state
+  const [slashState, setSlashState] = useState<{
+    query: string;
+    position: { top: number; left: number };
+    range: Range;
+  } | null>(null);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -99,15 +104,21 @@ export function NotesPopupShell() {
     return notes.find((n) => n.id === activeNoteId) || notes[0] || null;
   }, [notes, activeNoteId]);
 
-  // Load notes on mount; if empty, seed welcome note
+  // Load storage location and notes on mount
   useEffect(() => {
+    if (window.electronAPI?.notes?.getSaveLocation) {
+      window.electronAPI.notes.getSaveLocation().then((loc: string) => {
+        if (loc) setSaveLocation(loc);
+      });
+    }
+
     if (window.electronAPI?.notes?.getAll) {
       window.electronAPI.notes.getAll().then((loaded: Note[]) => {
         if (loaded && loaded.length > 0) {
           setNotes(loaded);
           setActiveNoteId(loaded[0].id);
         } else {
-          // Seed the initial welcome note
+          // Seed initial welcome note
           const initial = [DEFAULT_WELCOME_NOTE];
           setNotes(initial);
           setActiveNoteId(DEFAULT_WELCOME_NOTE.id);
@@ -208,6 +219,95 @@ export function NotesPopupShell() {
       if (activeNoteId === id) {
         setActiveNoteId(remaining[0]?.id || null);
       }
+    }
+  };
+  const handleSelectSaveLocation = async () => {
+    if (window.electronAPI?.notes?.selectSaveLocation) {
+      const res = await window.electronAPI.notes.selectSaveLocation();
+      if (res && res.path) {
+        setSaveLocation(res.path);
+        if (res.notes && res.notes.length > 0) {
+          setNotes(res.notes);
+          setActiveNoteId(res.notes[0].id);
+        }
+        setSaveStatus("saved");
+      }
+    }
+  };
+
+  const checkSlashCommand = () => {
+    const sel = window.getSelection();
+    if (!sel || !sel.isCollapsed || !editorRef.current) {
+      setSlashState(null);
+      return;
+    }
+
+    const anchorNode = sel.anchorNode;
+    const anchorOffset = sel.anchorOffset;
+    if (!anchorNode || !editorRef.current.contains(anchorNode)) {
+      setSlashState(null);
+      return;
+    }
+
+    if (anchorNode.nodeType !== Node.TEXT_NODE) {
+      setSlashState(null);
+      return;
+    }
+
+    const text = anchorNode.textContent || "";
+    const beforeCaret = text.slice(0, anchorOffset);
+
+    // Match slash command pattern
+    const slashMatch = /(?:^|\s)\/([a-zA-Z0-9_-]*)$/.exec(beforeCaret);
+    if (!slashMatch) {
+      setSlashState(null);
+      return;
+    }
+
+    // Reject URLs / disk paths / word boundaries
+    if (/(?:https?:\/\/|file:\/\/|[A-Za-z]:\/)/.test(beforeCaret)) {
+      setSlashState(null);
+      return;
+    }
+
+    const query = slashMatch[1];
+    const slashIndex = beforeCaret.lastIndexOf("/" + query);
+    if (slashIndex === -1) {
+      setSlashState(null);
+      return;
+    }
+
+    try {
+      const range = document.createRange();
+      range.setStart(anchorNode, slashIndex);
+      range.setEnd(anchorNode, anchorOffset);
+
+      const rect = range.getBoundingClientRect();
+      let top = rect.bottom + 6;
+      let left = rect.left;
+
+      if (top + 340 > window.innerHeight) {
+        top = Math.max(10, rect.top - 350);
+      }
+
+      setSlashState({
+        query,
+        position: { top, left },
+        range,
+      });
+    } catch {
+      setSlashState(null);
+    }
+  };
+
+  const handleSelectSlashCommand = async (cmd: SlashCommand) => {
+    if (!slashState || !editorRef.current) return;
+    const currentRange = slashState.range;
+    setSlashState(null);
+    await cmd.execute(editorRef.current, currentRange);
+    if (editorRef.current) {
+      triggerAutosave(undefined, editorRef.current.innerHTML);
+      editorRef.current.focus();
     }
   };
 
@@ -326,6 +426,16 @@ export function NotesPopupShell() {
 
         {/* Right Header Actions & Window Controls */}
         <div className="notes-header-right no-drag-region">
+          <button
+            type="button"
+            className="notes-save-location-btn no-drag-region"
+            title={`Notes Storage Directory:\n${saveLocation || "Default KeyFlow AppData Storage"}\nClick to change folder`}
+            onClick={handleSelectSaveLocation}
+          >
+            <Icon name="folder" size={13} />
+            <span>{saveLocation ? saveLocation.split(/[/\\]/).pop() || "Folder" : "Storage Folder"}</span>
+          </button>
+
           <button
             type="button"
             className={"btn btn-subtle btn-sm notes-copy-btn" + (copied ? " is-copied" : "")}
@@ -706,13 +816,26 @@ export function NotesPopupShell() {
                 ref={editorRef}
                 contentEditable
                 className="notes-editor-content"
-                data-placeholder="Start typing your note here…"
+                data-placeholder="Start typing your note here… (Type / for commands)"
                 onInput={() => {
                   if (editorRef.current) {
                     triggerAutosave(undefined, editorRef.current.innerHTML);
                   }
+                  checkSlashCommand();
                 }}
+                onKeyUp={() => checkSlashCommand()}
+                onClick={() => checkSlashCommand()}
               />
+
+              {slashState && (
+                <SlashCommandPalette
+                  commands={SLASH_COMMANDS}
+                  query={slashState.query}
+                  position={slashState.position}
+                  onSelect={handleSelectSlashCommand}
+                  onClose={() => setSlashState(null)}
+                />
+              )}
             </>
           ) : (
             <div className="notes-empty-state">

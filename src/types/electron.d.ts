@@ -111,6 +111,7 @@ interface NotesItem {
   id: string;
   title: string;
   content: string;
+  pinned?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -121,6 +122,10 @@ interface NotesAPI {
   delete: (id: string) => Promise<NotesItem[]>;
   close: () => Promise<void>;
   toggle: () => Promise<void>;
+  getSaveLocation?: () => Promise<string>;
+  selectSaveLocation?: () => Promise<{ path: string; notes: NotesItem[] } | null>;
+  setSaveLocation?: (dirPath: string) => Promise<{ path: string; notes: NotesItem[] }>;
+  pickFile?: (options: { type?: "image" | "video" | "file" }) => Promise<string | null>;
   minimize?: () => Promise<void>;
   maximize?: () => Promise<void>;
 }
