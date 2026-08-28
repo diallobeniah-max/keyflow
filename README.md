@@ -1,105 +1,50 @@
-# KeyFlow
+# <div align="center">1️ KeyFlow</div>
 
-KeyFlow is a local-only Windows shortcut automation app. It lets you assign Tap Actions to keyboard keys and mouse buttons: single tap, double tap, triple tap, long press, combos, popup menus, app-specific profiles, and multi-action sequences.
+<div align="center">
 
-This repository is a **hybrid MVP**:
+**High-Performance Windows Desktop Automation, Tap Patterns, Native Shortcuts & Modular Control Deck**
 
-- React + TypeScript UI runs immediately in the browser through Vite.
-- Browser mode uses localStorage and a simulated shortcut engine.
-- `src-tauri` contains the Windows/Tauri Rust backend skeleton for the real desktop app.
-- No external APIs or cloud services are required.
-
-## Run browser mode
-
-```powershell
-cd keyflow
-npm install
-npm run dev
-```
-
-Open the local URL Vite prints. KeyFlow's configured browser-mode URL is:
-
-```text
-http://127.0.0.1:1420
-```
-
-Use **Test shortcuts** on the dashboard to simulate tap, double-tap, triple-tap, and hold triggers.
-
-## Run real desktop mode later
-
-Install these first:
-
-1. Node.js LTS
-2. Rust
-3. Microsoft Visual Studio Build Tools with Desktop development with C++
-4. Microsoft Edge WebView2 Runtime
-
-Then run:
-
-```powershell
-npm install
-npm run tauri:dev
-```
-
-Build installer:
-
-```powershell
-npm run tauri:build
-```
-
-The Windows installer will be created inside `src-tauri/target/release/bundle/`.
-
-## Privacy
-
-KeyFlow is designed to be local-only. The shortcut engine only evaluates configured keys and does not save typed words. Browser mode cannot do true global hooks. The real Windows hook code is isolated in `src-tauri/src/hooks.rs` and should only forward configured key events into the engine.
-
-## Storage
-
-Browser mode stores data in:
-
-```text
-localStorage key: keyflow:state
-```
-
-Desktop mode is designed to store JSON in:
-
-```text
-%APPDATA%/keyflow/keyflow-state.json
-```
-
-## Current MVP features
-
-- Premium modern dashboard
-- Shortcut list, search, filters, favorites, conflict warnings
-- Create/Edit shortcut builder
-- Visual keyboard page
-- Action library
-- Profiles page
-- Full settings page
-- Floating popup menu
-- Local JSON/localStorage persistence
-- Simulated shortcut engine
-- Sample demo shortcuts
-- Dark/light/system theme
-- Import/export-ready data model
-- Tauri/Rust backend skeleton
-
-## Known limitations
-
-- Browser mode cannot listen globally outside the app window.
-- Browser mode cannot control real Windows apps, media keys, windows, or mouse button 4/5 globally.
-- The Rust backend is scaffolded and documented for Windows implementation, but must be compiled and tested on a Windows machine.
-
-## Roadmap
-
-- Complete Windows `WH_KEYBOARD_LL` and `WH_MOUSE_LL` hook implementation.
-- Add a real floating Tauri popup window.
-- Add real tray controls and startup registration.
-- Add password-field pause detection using Windows UI Automation.
-- Add sequence editor with drag-and-drop.
-- Add import/export files from the UI.
-
-
-## v0.3 refresh
-
-This build includes the premium cloud-blue redesign, custom dropdowns, full-width visual keyboard, mouse-button shortcut creation, Hyper Key settings/examples, media playback actions, and brightness shortcut actions.
+[Q[X��ۗJ΋��[Y˜�Y[˚[�ؘY�K�[X��ۋMˌK�KM������Y[X��ۉ������܏]�]JWJ΋��[X��ۚ�˛ܙ��B��ԝ\�J΋��[Y˜�Y[˚[�ؘY�Kԝ\�S�]]�W�����[��[�KQPMN����\�\�	������܏]�]JWJ΋����˜�\�[[�˛ܙ��B��ԙXX�J΋��[Y˜�Y[˚[�ؘY�KԙXX�LNM�QQ������\�XX�	������܏X�X��WJ΋�ܙXX��]��B���\T�ܚ\J΋��[Y˜�Y[˚[�ؘY�K�\T�ܚ\MK��L�M�͏����]\\�ܚ\	������܏]�]JWJ΋����˝\\�ܚ\[�˛ܙ��B���\��J΋��[Y˜�Y[˚[�ؘY�K�\��L͍�L�\��YLL�NO����[��K��ɛ�����܏]�]JWJ΋�ۛ�Z�˛ܙ��B���]�ܛWJ΋��[Y˜�Y[˚[�ؘY�K�]�ܛKU�[�����L	L��LKL�����]�[���ɛ�����܏]�]JWJ΋��ZXܛ��ٝ���K��[����B���^Q���\�H��[[ۛK�\��][[Y]�H�[����\�����X�]�]H�Z]H�܈Y�[��Y�^X��\�[�[�\�H]]�X][ۋ�]Z\��HY�\�YY�]]�H�\�[�][��[�H�]H[�\��\K��[����LH�Y[�[��\�Y�۝���[�\�����]����KKB�����]\ΈL	H��X�[ۈ�XYH͍�\��[��\���]]�H�\�����[X��ۈˊ��[����LKћY[�RH�\����Y\[�[��Y\���<'�'�Y�Y��	��X]\�\����<'��K��]]�H�\�\�H	�\[��[�H
+�\��^Y���Z[�]
+B�H\]\��Έ�[��H\�X�H\�\H\ۙ��\���\][�Z�[�Y�Y\���X���[��\]Y[��H^X�][ۋ��HYX�]Y\\��^N�\��[�H\�X�[�^H
+K�ˈ[�Y��\�����L�X��
+H[��H[�]�\��[��
+�[
+��[�
+��Y�\\�[�Y�Y\��]�\���ۙ�X���H�Z[S�[�]]���^H���\�\��[ێ�Y�\�X�\�[ۈ�^H�\�\��[ۈ�]�[�[��X��Y[�[�^HXZ�Y�H\�[���X�K]\܈�X�[ۜ��]�]����[��ܙ[�\�H\[�˂�H[Y\��[��H�\\�ΈYX�]Y�Y�]HYX�[�\�H
+\�����܈�Y�H[�JH[��\�[��[�\��^X��\��]�\��]����Y���KKB�����<'�H���^X�\�T�[H��Y��\
+��
+��	��ؘ[�Y��\��B�H�\���][����[X[�[]N�][��\�^X�]HX�[ۜ��X\���\�[H���[��[��\��H�ܚ\��][��[��^��H�X\����H�\��Z^�X�HX�[ۈY[�\Έܛ�\[��\��Z^�H�\X�[ۜ��][�S��\�[H�]Y�ܚ^�YX�ۈ�[X�܈[��X��܈X��[�[]K���KKB�����<'��Hˈ��][���Y\��\��[���
+\H��\���X\�R[��\�Y
+B�H��[Y[\���[��Έ�\��HXX���\�[H�Y��X�Y��۝���
+Z[�[Z^�KX^[Z^�K�^[����JK��H�\�^�X�H�YX�\���Y��X�H�\�X�[�]\�
+���\�\�YX�\�\�\�^�\�
+H�]��[�ܘY�H\��\�[��K��H�X��ܛX][�����\��XY[���
+K�����K��][X�[�\�[�K��Z�]��Y�\������][�\�[�]�Y\���]�\�ۜ�]�H�^]ܘ\[�˂�H]]�X]X�]]��]�N�]�H�]\�[[�X�]܋[��[��X\��[�X\���ۈ^ܝ���KKB�����<'�����ܛ�\���]]�H�\�X[^�\��H[�\�X�]�H\�^H�[��\Έ�X[][YH�ܛ�\��ۙH��][�[ZX�[H^[�[��۝�X��]HX�]�][ۈ�Y\���\�X[H\�^H]\�X\�
+�
+K��H�\��H]ZX��^[�]�\�]Έ�]�K�[YK[�KX�X�����H\��ۘ[^�Y�ܛ�\��ۙ�Y�\�][ۜ�
+��X�]�]K][]\��[���X\��\��JK��H]Y[��YY�X�Έ�Z[Z[���[����H
+^H��[�ۈ�Y��\�
+H�܈�ܛ�\��\�\�HX�]�][ۜ˂��KKB�����<'�HK��T��^X��\��\��܈�]�Y�][ۈ	��ܙY[�[��H�T��]�Y�][ۈ[�N��۝��H[�\�H�\��܈\�X�H���H[�\��^X��\�\�[���X��]X��[\�][ۈ[��[��[\[�˂�H�\��H�YH�\��܎�[X�YY�]]�H�\��܈[�X�]܈
+��\�����
+H���[��X�]�H�]�Y�][ۈ�]K��H�ܙY[�[��YKSY��[\��\��\�KXX��[\�]Y�[�ܙY[�ݙ\�^H�܈]K[�Y�^YH��Y�ܝ���KKB�����<'����[����S�]]�H�ZY[�[X][ۈ�Z]B�H�[����LH�Y[�[�[ێ��[�\�^�Y�X�X�X�^�Y\��[��][ۜ�
+�X�X�X�^�Y\��M�K��JX
+H�܈Y�H�[��][ۜ��][���X��[�[�X��ܙ[ۜ�[��\��Y[���\�ܚY˂�HX��\��X�H[�[ێ��[�\ܝ�܈YYXH
+�Y�\��\�YX�Y[[�[ۊX[�H\�\���YX�K[[�[ۘ���K���KKB����8�&H�][���\�Y������\�\]Z\�]\H
+����K��ʊ���N܈Y�\�
+��X��[Y[�Y
+B�H
+���\����Z[�����\���	��\��
+�܈�Z[[���]]�H[�][\�B�HZXܛ��ٝ�[����L܈LB�����[��[][ۂ����\��[���ۙHH�\��]ܞB��]�ۙH΋���]X����K�X[ؙ[�XZ[X^��^Y��˙�]���^Y����[��[��H\[�[��Y\�H[��[����Z[H�]]�H�\�[�][\���H�[��]]�N��Z[�������[��[��[�]�[�Y[�����\��[���\�[X��ۈ
+��]H]�H]�[�Y[�[��\�ۛY[���H�[�[X��ێ�]��������\�Y�X�][ۈ	�\�[����\��[���[�\T�ܚ\\X�X���H�[�\X�X����[�[X��ۈ\T�ܚ\��\[][ۂ��H�[�[X��ێ���\[B����[��]H��X�[ۈ�Z[��H�[��Z[����[�\�Yۈ�\�[H��[��X��H�[�\�Yێ��X����[�]]�X]Y\��Z]H
+͍�[�]\��B���\��[S���ٚ[HP��[X[����HK]\�
+�]P�[][H�ܚ\�ʋ�\��Z���[X�Sؚ�X�Q^[���\�H�[�[YJH����KKB����8�&H�ڙX���X�\�B��^��^Y���e�8� �����\�Yۈ�\�[H[�\��]X�\�H�ZY[[�\e   ├℀ DESIGN_SYSTEM.md        # Color tokens, typography, and spacing scales
+������^;� �=5A=99Q}IU1L�����������M��ɕ��U$���������Ё�ͅ����ձ��*fR)x�(H$U5��4�dU�%T�U2��B2'&V����G2�Bv��F�r&W6����rwV�FVƖ�W0�H�^� �M%9}!91=�����������х�����ɕ���͔��������Ʌѥ������ѽ��)�^� ������ɽ���������������������������ɽ��������ɽ���̀��%A���������*fR)x�(H����G22Ɩ6F���ƖfV7�6�R�G&���Bv��&�6��'F7WG0��H�㸡 �]]�KZ[�]Z[\�����KY\�X�[ۘ[�[�\H��]]�H�\����\�e  ")x�(H��FW2�v��F�r�G22f��F��r��FW2g&�V�W72v��F�r��vW ��H)x�(H�W�v��F�r�G22&�67B�7G��R7�FƖv�B�Wv��F�p�H�^;� �ͽչ���̀�����������������Ց������������������*fR ���^� �����ɕ�ͥ�����������̀�����ѽ!�ѭ���ȁ�幅����͍ɥ�Ё����Ʌѥ��)�R� ����ѥٔ�(������R;� ����噱�ܵ����м(����������bc� ��Ɍ�(��������������R;� ��������̀���������Mё����ɽѽ��������������(��������������R;� ��������̀���������1�ܵ��ٕ��]�����́��剽�ɐ������͔������(��������������R;� ���ɥ���ȹ�̀������Q������ѕɸ��������ɔ��хє��������(��������������R;� ���Ʌ�}�ݥэ��ȹ�̀��5ձѤ�����ѽȁ�Ʌ����ɹ�ȁ�ݥэ���(��������������R;� �����ѕ�}���ͽȹ�̀��]�����́���ͽȁ�݅���������(��������������R� ���ɽѽ�����̀������)M=8�IA��ɽѽ����������ѥ��)�^� �͍ɥ��̼����������������������Q��Ё�եѕ̀����͕Ё����Ʌѽ��*fR)x�(H6�V6��FW6�v��7�7FV��֧22WF��FVBF��V��BFW6�v�'V�RfƖFF� ��H"��℀ gen-sounds.mjs          # Procedural feedback audio waveform generator
+��� ")x.(H��FW7B�֧223crWF��FVB&Vw&W76���bV�BFW7G0�xN(H7&2�2&V7B�G�U67&�BT�&V�FW&W ��H"��℀ components/             # Reusable UI components (AppSelect, Modals, Icon)
+���  "��℀ design/                 # tokens.css design system foundation
+��� ")x�(HƖ"�27F���2�6��fƖ7BFWFV7F����6WGF��w2��FW���H�㸡 Y�\���\���\��ܝ�]��][����ٚ[\���\¦e �^;� ��ѽɔ��������������������i��х����хє��ѽɔ�ݥѠ����ͥ�ѕ���*������ม \\���\T�ܚ\[�\��X�H�۝�X�eม X��Y�K���ۂ���KKB����<'� �]�X�H	���[Q�\��[���B��H
+���\����Y���[[Y]�J����^Q����\ۉ��[�]Hݙ\�H[�\��]���^\��[[[Y]�K[�[]X��܈�[[�H���[�˂�H
+���[X�]�H���[ۚ]ܚ[�ʊ��H�]]�H���[��[�HۛH]�[X]\��ۙ�Y�\�Y�^\�[��]�\��\\�\�܈�X�ܙ�\Y^��H
+����[\��\�[��J���[�][�����\�[��ٚ[\�\�H�]�Y^�\�]�[Hۈ[�\���[\��
+	PTUIK��^Y����
+K���KKB����<'��X�[��B��\��ڙX�\�X�[��Y[�\�HRUX�[��K�
