@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
 import { AppPage } from "../types";
 import { Icon } from "./Icon";
@@ -26,7 +26,32 @@ export function Sidebar() {
   const paused = useStore((s) => s.paused);
   const safeMode = useStore((s) => s.safeMode);
   const togglePaused = useStore((s) => s.togglePaused);
+  const sidebarWidth = useStore((s) => s.sidebarWidth);
+  const setSidebarWidth = useStore((s) => s.setSidebarWidth);
   const asideRef = useRef<HTMLElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const delta = moveEvent.clientX - startX;
+      setSidebarWidth(startWidth + delta);
+    };
+
+    const onMouseUp = () => {
+      setIsDragging(false);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
 
   const activeShortcutsCount = shortcuts.filter((s) => s.profileId === activeId && s.enabled).length;
 
@@ -82,9 +107,19 @@ export function Sidebar() {
     <aside
       ref={asideRef}
       tabIndex={-1}
-      className={"sidebar" + (collapsed ? " collapsed" : "") + isDrawer}
+      className={"sidebar" + (collapsed ? " collapsed" : "") + isDrawer + (isDragging ? " is-resizing" : "")}
+      style={!collapsed ? { width: sidebarWidth, flexBasis: sidebarWidth } : undefined}
       aria-label="Application navigation"
     >
+      {!collapsed && (
+        <div
+          className={"sidebar-resizer" + (isDragging ? " is-active" : "")}
+          onMouseDown={handleResizeStart}
+          title="Drag to resize sidebar width"
+          role="separator"
+          aria-orientation="vertical"
+        />
+      )}
       <div className="sidebar-top">
         <div className="sidebar-brand">
           {!collapsed && (

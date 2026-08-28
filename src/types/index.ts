@@ -171,15 +171,23 @@ export type ThemeMode = "dark" | "light" | "system";
 export type UIScale = "90" | "100" | "110" | "125";
 export type FontSize = "small" | "default" | "normal" | "large" | "xlarge";
 
+export type BackdropMaterial = "mica" | "acrylic" | "solid";
+export type HeaderAccentTint = "none" | "subtle" | "medium" | "glow";
+export type HeaderAccentFit = "full" | "compact" | "banner";
+
 export interface AppearanceSettings {
   theme: ThemeMode;
   accent: string;
+  topHighlightColor?: string;
   compactMode: boolean;
   reduceMotion: boolean;
   popupBlur: boolean;
   radiusIntensity: number;
   uiScale: UIScale;
   fontSize: FontSize;
+  backdropMaterial?: BackdropMaterial;
+  headerAccentTint?: HeaderAccentTint;
+  headerAccentFit?: HeaderAccentFit;
 }
 
 export interface HyperKeyConfig {

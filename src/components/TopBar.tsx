@@ -32,8 +32,13 @@ export function TopBar() {
       ? "system"
       : "dark";
 
+  const tint = appearance.headerAccentTint ?? "subtle";
+  const fit = appearance.headerAccentFit ?? "full";
+  const tintClass = tint !== "none" ? ` topbar-tint-${tint} topbar-fit-${fit}` : "";
+
   return (
-    <header className="topbar">
+    <header className={`topbar${tintClass}`}>
+      {tint !== "none" && <div className="topbar-accent-glow" aria-hidden="true" />}
       <div className="topbar-left">
         <button
           ref={hamburgerRef}

@@ -277,3 +277,24 @@
   --popup-surface-border: var(--color-border-default);
   --popup-surface-opacity: 0.96;
 }
+
+/* Windows 11 Backdrop Material Tokens */
+[data-backdrop-material="mica"] {
+  --color-bg-sidebar: rgba(13, 14, 17, 0.78);
+  --color-bg-app: rgba(18, 19, 22, 0.88);
+}
+
+[data-backdrop-material="acrylic"] {
+  --color-bg-sidebar: rgba(13, 14, 17, 0.58);
+  --color-bg-app: rgba(18, 19, 22, 0.72);
+}
+
+[data-theme="light"][data-backdrop-material="mica"] {
+  --color-bg-sidebar: rgba(240, 243, 249, 0.80);
+  --color-bg-app: rgba(248, 249, 252, 0.90);
+}
+
+[data-theme="light"][data-backdrop-material="acrylic"] {
+  --color-bg-sidebar: rgba(240, 243, 249, 0.62);
+  --color-bg-app: rgba(248, 249, 252, 0.75);
+}

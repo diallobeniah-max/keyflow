@@ -22,6 +22,7 @@ interface StoreState {
   editingId: string | null;
   pendingKey: { key: string; mouse?: boolean } | null;
   sidebarCollapsed: boolean;
+  sidebarWidth: number;
   drawerOpen: boolean;
   paused: boolean;
   safeMode: boolean;
@@ -48,6 +49,7 @@ interface StoreState {
   setPendingKey: (key: string, mouse?: boolean) => void;
   clearPendingKey: () => void;
   toggleSidebar: () => void;
+  setSidebarWidth: (w: number) => void;
   setPaused: (b: boolean) => void;
   togglePaused: () => void;
   setSafeMode: (b: boolean) => void;
@@ -176,6 +178,9 @@ export const useStore = create<StoreState>((set, get) => ({
   editingId: null,
   pendingKey: null,
   sidebarCollapsed: false,
+  sidebarWidth: typeof localStorage !== "undefined" && localStorage.getItem("keyflow:sidebar-width")
+    ? Math.max(160, Math.min(380, Number(localStorage.getItem("keyflow:sidebar-width")))) || 220
+    : 220,
   drawerOpen: false,
   paused: false,
   safeMode: false,
@@ -212,6 +217,9 @@ export const useStore = create<StoreState>((set, get) => ({
     root.setAttribute("data-theme", theme);
     root.setAttribute("data-font-size", a.fontSize);
     root.setAttribute("data-radius", a.radiusIntensity < 0.85 ? "compact" : "relaxed");
+    root.setAttribute("data-backdrop-material", a.backdropMaterial ?? "mica");
+    root.setAttribute("data-header-tint", a.headerAccentTint ?? "subtle");
+    root.setAttribute("data-header-fit", a.headerAccentFit ?? "full");
     root.classList.toggle("reduce-motion", a.reduceMotion);
     root.classList.toggle("compact", a.compactMode);
     root.style.setProperty("--ui-scale", ({ "90": "0.9", "100": "1", "110": "1.1", "125": "1.25" } as Record<string, string>)[a.uiScale] ?? "1");
@@ -241,6 +249,11 @@ export const useStore = create<StoreState>((set, get) => ({
   setPendingKey: (key, mouse) => set({ pendingKey: { key, mouse } }),
   clearPendingKey: () => set({ pendingKey: null }),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+  setSidebarWidth: (w) => {
+    const clamped = Math.max(160, Math.min(380, Math.round(w)));
+    try { localStorage.setItem("keyflow:sidebar-width", String(clamped)); } catch (_) {}
+    set({ sidebarWidth: clamped });
+  },
   setPaused: (b) => set({ paused: b }),
   togglePaused: () => set((s) => ({ paused: !s.paused })),
   setSafeMode: (b) => {

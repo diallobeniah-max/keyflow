@@ -29,12 +29,16 @@ export function createDefaultSettings(): Settings {
     appearance: {
       theme: "dark",
       accent: "#4F7CFF",
+      topHighlightColor: "#6A91FF",
       compactMode: false,
       reduceMotion: false,
       popupBlur: true,
       radiusIntensity: 1,
       uiScale: "100",
       fontSize: "default",
+      backdropMaterial: "mica",
+      headerAccentTint: "subtle",
+      headerAccentFit: "full",
     },
     shortcuts: {
       globalPause: "Ctrl+Shift+P",

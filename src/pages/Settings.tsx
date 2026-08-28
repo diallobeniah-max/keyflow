@@ -526,6 +526,46 @@ export function Settings() {
                   />
                 </div>
               </SettingsRow>
+              <SettingsRow id="row-app-material" title="Backdrop material" desc="Windows 11 dynamic material effects (inspired by Files App)">
+                <div className="w-180">
+                  <AppSelect
+                    value={settings.appearance.backdropMaterial ?? "mica"}
+                    onChange={(v) => patch("appearance", { backdropMaterial: v as any })}
+                    options={[
+                      { value: "mica", label: "Mica (Wallpaper tint)" },
+                      { value: "acrylic", label: "Acrylic (Frosted blur)" },
+                      { value: "solid", label: "Solid (Classic opaque)" },
+                    ]}
+                  />
+                </div>
+              </SettingsRow>
+              <SettingsRow id="row-app-tint" title="Header accent tint" desc="Apply a fitted accent wash across the top bar header box">
+                <div className="w-180">
+                  <AppSelect
+                    value={settings.appearance.headerAccentTint ?? "subtle"}
+                    onChange={(v) => patch("appearance", { headerAccentTint: v as any })}
+                    options={[
+                      { value: "subtle", label: "Subtle (Soft wash)" },
+                      { value: "medium", label: "Medium (Gradient)" },
+                      { value: "glow", label: "Luminous Glow" },
+                      { value: "none", label: "None (Neutral)" },
+                    ]}
+                  />
+                </div>
+              </SettingsRow>
+              <SettingsRow id="row-app-fit" title="Header tint fit" desc="Select the size and shape of the header accent box">
+                <div className="w-180">
+                  <AppSelect
+                    value={settings.appearance.headerAccentFit ?? "full"}
+                    onChange={(v) => patch("appearance", { headerAccentFit: v as any })}
+                    options={[
+                      { value: "full", label: "Full box (Expanded)" },
+                      { value: "compact", label: "Compact (Fitted pod)" },
+                      { value: "banner", label: "Top banner strip" },
+                    ]}
+                  />
+                </div>
+              </SettingsRow>
               <SettingsRow id="row-app-motion" title="Reduce motion" desc="Minimize transitions and animations across the app">
                 <Toggle
                   label="Reduce motion"

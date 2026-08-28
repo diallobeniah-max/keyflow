@@ -1,5 +1,22 @@
 # Design Changelog
 
+## 2026-08-28 — Resizable Sidebar, Top Bar Accent Tint & Windows 11 Mica / Acrylic Effects
+
+* **Resizable Sidebar Divider (`Sidebar.tsx`, `useStore.ts`, `index.css`)**:
+  - Added interactive draggable splitter handle (`.sidebar-resizer`) on the right boundary of the main navigation sidebar.
+  - Supports smooth cursor dragging (`col-resize`), hover/active accent glow line, minimum width of `160px`, maximum width of `380px`, and local storage persistence.
+  - Seamlessly maintains the rounded top-left corner on the main workspace canvas without layout glitches.
+
+* **Top Bar Header Accent Tint System (`TopBar.tsx`, `Settings.tsx`, `index.css`)**:
+  - Implemented dynamic accent wash and glow overlay (`.topbar-accent-glow`) in the top horizontal bar box.
+  - Added customizable **Header Accent Tint** intensity (`Subtle`, `Medium`, `Luminous Glow`, `None`) and **Tint Fit** mode (`Full box`, `Compact pod`, `Top banner strip`) in Appearance settings.
+
+* **Windows 11 Mica & Acrylic Backdrop Material Effects (`tokens.css`, `index.css`, `Settings.tsx`)**:
+  - Inspired by the Windows **Files** app (`files-community/files`), added **Backdrop Material** appearance controls:
+    - **Mica**: Dynamic desktop wallpaper tint harmonizing with the Windows 11 environment.
+    - **Acrylic**: Frosted glass translucent material with hardware-accelerated backdrop blur (`blur(24px) saturate(160%)`) and luminous surface depth.
+    - **Solid**: Traditional opaque desktop surface.
+
 ## 2026-08-28 — Windows-Native Fluid Animation Suite
 
 * **Windows 11 Fluent Motion & Keyframes (`tokens.css`, `index.css`, `App.tsx`, `Settings.tsx`, `CreateShortcut.tsx`, `ui.tsx`)**:
