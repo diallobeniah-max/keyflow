@@ -1,6 +1,6 @@
-import { ModifierKey, Shortcut } from "../types";
+import type { ModifierKey, Shortcut } from "../types/index.ts";
 import { useStore } from "../store/useStore";
-import { ACTION_META } from "./constants";
+import { ACTION_META } from "./constants.ts";
 import { runActions } from "./actions";
 
 function modsFromEvent(e: KeyboardEvent | MouseEvent): ModifierKey[] {

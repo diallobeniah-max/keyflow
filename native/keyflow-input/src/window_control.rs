@@ -253,9 +253,11 @@ pub fn run_window_topmost_cli(args: &[String]) -> std::process::ExitCode {
         }
     }
 
+    use std::io::Write;
     let result = execute_topmost(mode, color, highlight, sound);
     let json = serde_json::to_string(&result).unwrap_or_else(|_| r#"{"ok":false}"#.to_string());
-    println!("{json}");
+    let _ = writeln!(std::io::stdout(), "{json}");
+    let _ = std::io::stdout().flush();
 
     if result.ok {
         std::process::ExitCode::SUCCESS

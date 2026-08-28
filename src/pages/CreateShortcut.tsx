@@ -2,15 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { Action, ModifierKey, Shortcut, TriggerType } from "../types";
 import { useStore } from "../store/useStore";
 import { uid } from "../store/sampleData";
-import { ACTION_META, MOUSE_BUTTONS, TRIGGER_META } from "../lib/constants";
-import { analyzeShortcutConflicts, formatShortcutLabel } from "../lib/conflict";
+import { ACTION_META, MOUSE_BUTTONS, REMAP_TARGETS, TRIGGER_META } from "../lib/constants";
+import { analyzeShortcutConflicts, allTapGesturesTaken, formatShortcutLabel, getGestureAvailability } from "../lib/conflict";
 import { getEngine } from "../lib/engine";
 import { resolveShortcutBehavior } from "../lib/defaults";
 import { ActionListEditor } from "../components/ActionEditor";
 import { SimpleActionPicker } from "../components/SimpleActionPicker";
+import { AppPicker } from "../components/AppPicker";
 import { KeyCapture } from "../components/KeyCapture";
-import { Button, Card, Field, Input, PageIntro, Select, Slider, Toggle } from "../components/ui";
+import { Button, Card, Field, Input, PageHeader, Select, Slider, Toggle } from "../components/ui";
 import { Icon } from "../components/Icon";
+import { runActions } from "../lib/actions";
 
 interface RecommendedPreset {
   id: string;
@@ -84,6 +86,7 @@ function defaultBlankShortcut(profileId: string, pending?: { key: string; mouse?
 
 function simulateShortcut(s: Shortcut) {
   const e = getEngine();
+  if (s.trigger === "remap") return; // remap is a native per-key behavior, not a gesture
   if (s.trigger === "double") {
     e.simulateTap(s.key, s.modifiers);
     setTimeout(() => e.simulateTap(s.key, s.modifiers), 70);
@@ -156,6 +159,22 @@ export function CreateShortcut() {
   );
   const hasError = conflictReport.hasBlockingConflict;
 
+  const gestureAvailability = useMemo(
+    () =>
+      getGestureAvailability(
+        { key: draft.key, modifiers: draft.modifiers, appScope: draft.appScope, profileId: draft.profileId },
+        data.shortcuts,
+        { currentShortcutId: editingId ?? undefined, activeProfileId: active }
+      ),
+    [draft.key, draft.modifiers, draft.appScope, draft.profileId, data.shortcuts, editingId, active]
+  );
+  const allTapGesturesUsed = allTapGesturesTaken(
+    { key: draft.key, modifiers: draft.modifiers, appScope: draft.appScope, profileId: draft.profileId },
+    data.shortcuts,
+    { currentShortcutId: editingId ?? undefined, activeProfileId: active }
+  );
+  const isTapTrigger = draft.trigger === "single" || draft.trigger === "double" || draft.trigger === "triple";
+
   const set = (p: Partial<Shortcut>) => setDraft((d) => ({ ...d, ...p }));
   const setTiming = (k: keyof Shortcut["timing"], v: number) =>
     setDraft((d) => ({ ...d, timing: { ...d.timing, [k]: v } }));
@@ -173,7 +192,7 @@ export function CreateShortcut() {
     let modifiers = preset.defaultModifiers ?? [];
     let trigger = preset.defaultTrigger;
 
-    // Pre-check conflicts so preset does not collide with existing shortcuts
+    // Pre-check conflicts so the preset does not collide with existing shortcuts.
     const candidateTest: Partial<Shortcut> = {
       id: editingId ?? "preset-test",
       key,
@@ -213,8 +232,11 @@ export function CreateShortcut() {
     const finalShortcut: Shortcut = {
       ...draft,
       name: draft.name?.trim() ? draft.name.trim() : deriveFriendlyName(draft),
-      keyBehavior: draft.keyBehavior ?? (draft.suppressKey ? "suppress" : resolveShortcutBehavior(draft)),
-      suppressKey: draft.suppressKey ?? (resolveShortcutBehavior(draft) === "suppress"),
+      keyBehavior:
+        draft.trigger === "remap"
+          ? "remap"
+          : (draft.keyBehavior ?? (draft.suppressKey ? "suppress" : resolveShortcutBehavior(draft))),
+      suppressKey: draft.trigger === "remap" ? false : draft.suppressKey ?? (resolveShortcutBehavior(draft) === "suppress"),
     };
     if (existing) {
       update(finalShortcut);
@@ -233,10 +255,11 @@ export function CreateShortcut() {
 
   return (
     <div className="content">
-      <PageIntro
+      <PageHeader
         eyebrow={existing ? "EDITOR" : "BUILDER"}
         title={existing ? "Edit Shortcut" : "Create Shortcut"}
-        description="Pick a recommended shortcut or assign any custom key and trigger in seconds."
+        description="Choose a key or mouse button, select a trigger pattern, add actions, test it, and save."
+        usage="Pick a key combination, set the activation gesture, add your actions, and save."
       >
         <Button variant="secondary" icon="play" onClick={() => simulateShortcut(draft)}>
           Test
@@ -244,7 +267,7 @@ export function CreateShortcut() {
         <Button variant="primary" icon="check" disabled={hasError} onClick={save}>
           {existing ? "Save changes" : "Create shortcut"}
         </Button>
-      </PageIntro>
+      </PageHeader>
 
       <div className="col gap-md max-readable">
         {/* Recommended Presets */}
@@ -348,6 +371,7 @@ export function CreateShortcut() {
                 />
               ) : (
                 <KeyCapture
+                  mode={existing ? "edit" : "create"}
                   value={draft.key}
                   modifiers={draft.modifiers}
                   onChangeKey={(key) => set({ key, mouse: key.startsWith("MB") })}
@@ -363,11 +387,87 @@ export function CreateShortcut() {
                 options={[
                   { value: "single", label: "Tap (single press)" },
                   { value: "double", label: "Double tap (two quick presses)" },
+                  { value: "triple", label: "Triple tap (three quick presses)" },
                   { value: "hold", label: "Hold (press and hold)" },
+                  { value: "remap", label: "Remap key to another key" },
                 ]}
               />
             </Field>
+
+            {draft.trigger === "remap" && (
+              <Field label="Remap to" hint="The replacement key pressed when this shortcut key is used">
+                <Select
+                  value={draft.remapTo ?? ""}
+                  onChange={(v) => {
+                    set({ remapTo: v });
+                    updatePrimaryAction({
+                      id: primaryAction.id,
+                      type: "remapKey",
+                      payload: { remapTarget: v },
+                    });
+                  }}
+                  options={REMAP_TARGETS}
+                />
+              </Field>
+            )}
+
+            <AppPicker value={draft.appScope} onChange={(appScope) => set({ appScope })} />
           </div>
+
+          {/* Scope-aware gesture reuse — "already used" keys are fully usable here.
+              Shows which tap gestures are still free in the CURRENT scope, so a
+              captured key that exists elsewhere is never a capture blocker. */}
+          {gestureAvailability.length > 0 && !draft.mouse && (
+            <div className="gesture-availability mt-sm">
+              <div className="gesture-availability-head">
+                <span className="muted tiny">
+                  {isTapTrigger ? "Free tap gestures for this key in the current app scope:" : "Tap gestures available for this key in the current app scope:"}
+                </span>
+              </div>
+              <div className="row gap-xs wrap mt-xs">
+                {gestureAvailability.map((g) => {
+                  const isCurrent = draft.trigger === g.trigger;
+                  const label =
+                    g.trigger === "single" ? "Tap" : g.trigger === "double" ? "Double tap" : "Triple tap";
+                  if (!g.available) {
+                    return (
+                      <span key={g.trigger} className="gesture-chip is-taken" title={`Already assigned here: ${g.existingName}`}>
+                        <Icon name="lock" size={12} />
+                        {label} taken
+                      </span>
+                    );
+                  }
+                  return (
+                    <button
+                      key={g.trigger}
+                      type="button"
+                      className={"gesture-chip" + (isCurrent ? " is-current" : "")}
+                      aria-pressed={isCurrent}
+                      onClick={() => set({ trigger: g.trigger })}
+                    >
+                      <Icon name="check" size={12} />
+                      {label} free
+                    </button>
+                  );
+                })}
+              </div>
+              {allTapGesturesUsed && (
+                <div className="alert-banner alert-warning mt-xs">
+                  <div className="alert-header">
+                    <Icon name="shield" size={16} />
+                    <span>
+                      All tap gestures for {draft.key} are already assigned {draft.appScope ? "here" : "in General"}.
+                    </span>
+                  </div>
+                  <div className="alert-actions mt-xs">
+                    <Button size="sm" variant="ghost" onClick={() => setPage("shortcuts")}>
+                      Edit existing shortcuts
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Inline Conflict / Warning Banner */}
           {conflictReport.hasBlockingConflict && (
@@ -453,7 +553,7 @@ export function CreateShortcut() {
           </div>
 
           {advancedOpen && (
-            <div className="col gap-md advanced-drawer mt-sm">
+            <div className="col gap-md advanced-drawer mt-sm anim-accordion-enter">
               <div className="grid cols-2 gap-md">
                 <Field label="Shortcut name" hint="Leave blank to auto-generate from action">
                   <Input
@@ -571,9 +671,22 @@ export function CreateShortcut() {
             <Button variant="ghost" onClick={() => setPage("shortcuts")}>
               Cancel
             </Button>
-            <Button variant="primary" icon="check" disabled={hasError} onClick={save}>
-              {existing ? "Save changes" : "Create shortcut"}
-            </Button>
+            <div className="row gap-sm">
+              <Button
+                variant="secondary"
+                icon="play"
+                onClick={() => {
+                  void runActions(draft.actions);
+                  useStore.getState().toast(`Testing: ${deriveFriendlyName(draft)}`, "success");
+                }}
+                title="Test this shortcut action right now"
+              >
+                Test action now
+              </Button>
+              <Button variant="primary" icon="check" disabled={hasError} onClick={save}>
+                {existing ? "Save changes" : "Create shortcut"}
+              </Button>
+            </div>
           </div>
         </Card>
       </div>

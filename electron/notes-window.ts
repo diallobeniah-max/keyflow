@@ -1,6 +1,10 @@
 import { app, BrowserWindow, ipcMain, screen } from "electron";
 import { existsSync, readFileSync, writeFileSync } from "fs";
-import { join } from "path";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export interface NoteItem {
   id: string;
@@ -78,14 +82,15 @@ class NotesWindowService {
     const iconPath = candidates.find((p) => existsSync(p));
 
     this.window = new BrowserWindow({
-      width: 680,
-      height: 540,
-      minWidth: 480,
-      minHeight: 380,
+      width: 720,
+      height: 560,
+      minWidth: 420,
+      minHeight: 320,
       frame: false,
-      transparent: true,
-      backgroundColor: "#00000000",
+      resizable: true,
       show: false,
+      backgroundColor: "#0d1117",
+      paintWhenInitiallyHidden: true,
       alwaysOnTop: true,
       skipTaskbar: false,
       icon: iconPath,
@@ -98,11 +103,16 @@ class NotesWindowService {
     });
 
     const isDev = !app.isPackaged;
-    if (isDev && process.env.VITE_DEV_SERVER_URL) {
-      this.window.loadURL(`${process.env.VITE_DEV_SERVER_URL}?window=notes`);
+    const devUrl = process.env.KEYFLOW_DEV_SERVER_URL || process.env.VITE_DEV_SERVER_URL;
+    if (isDev && devUrl) {
+      this.window.loadURL(`${devUrl}?window=notes`);
     } else {
       this.window.loadFile(join(__dirname, "../dist/index.html"), { search: "?window=notes" });
     }
+
+    this.window.once("ready-to-show", () => {
+      // Pre-render is complete; the next toggle() will show without flash
+    });
 
     this.window.on("closed", () => {
       this.window = null;
@@ -125,9 +135,23 @@ class NotesWindowService {
       const x = Math.max(bounds.x + 20, Math.min(cursor.x - Math.round(w / 2), bounds.x + bounds.width - w - 20));
       const y = Math.max(bounds.y + 20, Math.min(cursor.y - 40, bounds.y + bounds.height - h - 20));
 
-      win.setPosition(x, y);
-      win.show();
-      win.focus();
+      win.setPosition(x, y, false);
+
+      if (win.webContents.isLoading()) {
+        win.once("ready-to-show", () => {
+          win.showInactive();
+          win.moveTop();
+          setTimeout(() => {
+            if (win && !win.isDestroyed()) win.focus();
+          }, 50);
+        });
+      } else {
+        win.showInactive();
+        win.moveTop();
+        setTimeout(() => {
+          if (win && !win.isDestroyed()) win.focus();
+        }, 50);
+      }
     }
   }
 
@@ -143,6 +167,20 @@ class NotesWindowService {
     ipcMain.handle("notes:delete", (_e, id: string) => this.deleteNote(id));
     ipcMain.handle("notes:close", () => this.hide());
     ipcMain.handle("notes:toggle", () => this.toggle());
+    ipcMain.handle("notes:minimize", () => {
+      if (this.window && !this.window.isDestroyed()) {
+        this.window.minimize();
+      }
+    });
+    ipcMain.handle("notes:maximize", () => {
+      if (this.window && !this.window.isDestroyed()) {
+        if (this.window.isMaximized()) {
+          this.window.unmaximize();
+        } else {
+          this.window.maximize();
+        }
+      }
+    });
   }
 }
 

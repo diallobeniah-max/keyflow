@@ -9,20 +9,8 @@ interface NavItem {
   page: AppPage;
   label: string;
   icon: string;
+  badge?: number;
 }
-
-const NAV_MAIN: NavItem[] = [
-  { page: "dashboard", label: "Overview", icon: "dashboard" },
-  { page: "shortcuts", label: "Shortcuts", icon: "shortcuts" },
-  { page: "create", label: "Create", icon: "create" },
-  { page: "visual", label: "Keyboard Map", icon: "visual" },
-];
-
-const NAV_MANAGE: NavItem[] = [
-  { page: "profiles", label: "Profiles", icon: "profiles" },
-  { page: "library", label: "Action Library", icon: "library" },
-  { page: "settings", label: "Settings", icon: "settings" },
-];
 
 export function Sidebar() {
   const current = useStore((s) => s.currentPage);
@@ -32,12 +20,28 @@ export function Sidebar() {
   const drawerOpen = useStore((s) => s.drawerOpen);
   const setDrawerOpen = useStore((s) => s.setDrawerOpen);
   const profiles = useStore((s) => s.data.profiles);
+  const shortcuts = useStore((s) => s.data.shortcuts);
   const activeId = useStore((s) => s.activeProfileId);
   const setActive = useStore((s) => s.setActiveProfile);
   const paused = useStore((s) => s.paused);
   const safeMode = useStore((s) => s.safeMode);
   const togglePaused = useStore((s) => s.togglePaused);
   const asideRef = useRef<HTMLElement>(null);
+
+  const activeShortcutsCount = shortcuts.filter((s) => s.profileId === activeId && s.enabled).length;
+
+  const NAV_MAIN: NavItem[] = [
+    { page: "dashboard", label: "Overview", icon: "dashboard" },
+    { page: "shortcuts", label: "Shortcuts", icon: "shortcuts", badge: activeShortcutsCount },
+    { page: "create", label: "Create", icon: "create" },
+    { page: "visual", label: "Keyboard Map", icon: "visual" },
+  ];
+
+  const NAV_MANAGE: NavItem[] = [
+    { page: "profiles", label: "Profiles", icon: "profiles", badge: profiles.length },
+    { page: "library", label: "Action Library", icon: "library" },
+    { page: "settings", label: "Settings", icon: "settings" },
+  ];
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -86,7 +90,11 @@ export function Sidebar() {
           {!collapsed && (
             <div className="sidebar-brand-title">
               <span className="brand-logo-dot" />
-              <span>KeyFlow</span>
+              <span className="brand-lockup">
+                <span className="brand-name">KeyFlow</span>
+                <span className="brand-subtitle">CONTROL DECK</span>
+              </span>
+              <span className="brand-version-tag">v0.3</span>
             </div>
           )}
           <IconButton
@@ -98,7 +106,7 @@ export function Sidebar() {
         </div>
 
         <nav className="nav-group">
-          {!collapsed && <div className="nav-group-label">SHORTCUTS</div>}
+          {!collapsed && <div className="nav-group-label">OPERATE</div>}
           <div className="nav-list">
             {NAV_MAIN.map((n) => {
               const isActive = current === n.page;
@@ -112,7 +120,14 @@ export function Sidebar() {
                   aria-current={isActive ? "page" : undefined}
                 >
                   <Icon name={n.icon} size={17} />
-                  {!collapsed && <span className="nav-item-label">{n.label}</span>}
+                  {!collapsed && (
+                    <>
+                      <span className="nav-item-label">{n.label}</span>
+                      {typeof n.badge === "number" && n.badge > 0 && (
+                        <span className="nav-item-badge">{n.badge}</span>
+                      )}
+                    </>
+                  )}
                 </button>
               );
             })}
@@ -134,7 +149,14 @@ export function Sidebar() {
                   aria-current={isActive ? "page" : undefined}
                 >
                   <Icon name={n.icon} size={17} />
-                  {!collapsed && <span className="nav-item-label">{n.label}</span>}
+                  {!collapsed && (
+                    <>
+                      <span className="nav-item-label">{n.label}</span>
+                      {typeof n.badge === "number" && n.badge > 0 && (
+                        <span className="nav-item-badge">{n.badge}</span>
+                      )}
+                    </>
+                  )}
                 </button>
               );
             })}
@@ -145,7 +167,7 @@ export function Sidebar() {
       <div className="sidebar-foot">
         {!collapsed && (
           <div className="sidebar-profile-box">
-            <div className="sidebar-profile-label">PROFILE</div>
+            <div className="sidebar-profile-label">ACTIVE PROFILE</div>
             <AppSelect
               label=""
               value={activeId}
@@ -157,11 +179,11 @@ export function Sidebar() {
 
         <button
           type="button"
-          className={"btn sidebar-pause-btn" + (paused || safeMode ? " is-paused" : "")}
+          className={"btn sidebar-pause-btn" + (paused || safeMode ? " is-paused" : " is-active-engine")}
           onClick={togglePaused}
           title={paused ? "Resume KeyFlow input hook" : "Pause KeyFlow input hook"}
         >
-          <Icon name={paused ? "play" : "pause"} size={16} />
+          <Icon name={paused ? "play" : "pause"} size={15} />
           {!collapsed && <span>{safeMode ? "Safe Mode" : paused ? "Resume Engine" : "Pause Engine"}</span>}
         </button>
       </div>

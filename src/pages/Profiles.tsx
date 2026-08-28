@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useStore } from "../store/useStore";
 import { uid } from "../store/sampleData";
 import { AppRule, Profile } from "../types";
-import { Button, Card, Field, IconButton, Input, Modal, PageIntro, Select } from "../components/ui";
+import { Button, Card, Field, IconButton, Input, Modal, PageHeader, Select } from "../components/ui";
 import { Icon } from "../components/Icon";
 
 function newProfile(): Profile {
@@ -33,23 +33,25 @@ export function Profiles() {
 
   return (
     <div className="content">
-      <PageIntro
+      <PageHeader
         eyebrow="WORKSPACES"
         title="Profiles"
-        description="Create contextual shortcut sets for Coding, Gaming, Design, Browsing, or Productivity. Assign app rules to switch automatically."
+        description="Create shortcut collections for different activities and switch them manually or by active application."
+        usage="Click a profile to edit its settings, assign application rules, or switch the active profile."
       >
         <Button variant="primary" icon="create" onClick={() => setEditing(newProfile())}>
           New profile
         </Button>
-      </PageIntro>
+      </PageHeader>
 
       <div className="grid cols-2 gap-md">
-        {data.profiles.map((p) => {
+        {data.profiles.map((p, idx) => {
           const count = data.shortcuts.filter((s) => s.profileId === p.id).length;
           const isCurrent = active === p.id;
+          const staggerClass = `anim-stagger-${Math.min(6, (idx % 6) + 1)}`;
 
           return (
-            <Card key={p.id} hover>
+            <Card key={p.id} hover className={`anim-card-enter ${staggerClass}`}>
               <div className="spread mb-md">
                 <div className="row gap-sm">
                   <div className={"stat-icon" + (isCurrent ? " chip-accent" : "")}>

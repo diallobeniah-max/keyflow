@@ -1,7 +1,7 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { useStore } from "../store/useStore";
 import { Icon } from "./Icon";
-import { IconButton, Input } from "./ui";
+import { IconButton } from "./ui";
 
 const TITLES: Record<string, string> = {
   dashboard: "Overview",
@@ -15,6 +15,7 @@ const TITLES: Record<string, string> = {
 
 export function TopBar() {
   const page = useStore((s) => s.currentPage);
+  const setPage = useStore((s) => s.setPage);
   const paused = useStore((s) => s.paused);
   const safeMode = useStore((s) => s.safeMode);
   const focusedApp = useStore((s) => s.focusedApp);
@@ -43,24 +44,43 @@ export function TopBar() {
         >
           <Icon name={drawerOpen ? "close" : "shortcuts"} size={18} />
         </button>
-        <h1 className="topbar-title">{TITLES[page] ?? "KeyFlow"}</h1>
+
+        <div className="topbar-breadcrumbs">
+          <span className="topbar-section-crumb">CONTROL DECK</span>
+          <span className="topbar-crumb-sep">/</span>
+          <h1 className="topbar-title">{TITLES[page] ?? "KeyFlow"}</h1>
+        </div>
       </div>
 
       <div className="topbar-actions">
         {focusedApp && focusedApp !== "keyflow.exe" && (
           <span className="topbar-chip hide-mobile" title={`Active foreground application: ${focusedApp}`}>
             <Icon name="window" size={13} />
-            <span>{focusedApp}</span>
+            <span className="topbar-chip-text">{focusedApp}</span>
           </span>
         )}
 
         <span
-          className={"topbar-status-pill" + (paused || safeMode ? " is-paused" : " is-active")}
+          className={"topbar-status-pill" + (safeMode ? " is-safe-mode" : paused ? " is-paused" : " is-active")}
           title={safeMode ? "Safe Mode active" : paused ? "KeyFlow is paused" : "KeyFlow is actively listening for gestures"}
         >
           <span className="status-dot" />
           <span>{safeMode ? "Safe Mode" : paused ? "Paused" : "Active"}</span>
         </span>
+
+        {page !== "create" && (
+          <button
+            type="button"
+            className="btn btn-primary btn-sm hide-mobile topbar-quick-create"
+            onClick={() => {
+              useStore.getState().setEditing(null);
+              setPage("create");
+            }}
+          >
+            <Icon name="create" size={14} />
+            <span>New Shortcut</span>
+          </button>
+        )}
 
         <IconButton
           name={appearance.theme === "light" ? "sun" : appearance.theme === "dark" ? "moon" : "monitor"}

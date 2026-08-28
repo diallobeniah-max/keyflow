@@ -29,8 +29,10 @@ export const ACTION_META: Record<ActionType, { label: string; icon: string; colo
   closeWindow: { label: "Close window", icon: "winClose", color: "#4F7CFF", category: "Window" },
   moveWindow: { label: "Move window", icon: "arrowRight", color: "#5D8DFF", category: "Window" },
   alwaysOnTop: { label: "Toggle always-on-top", icon: "pinTop", color: "#5D8DFF", category: "Window" },
+  toggleWasdNavigation: { label: "WASD Navigation Mode", icon: "arrows", color: "#5D8DFF", category: "Navigation" },
   notesPopup: { label: "Notes Popup", icon: "file", color: "#4F7CFF", category: "Productivity" },
   delay: { label: "Delay / wait", icon: "pause", color: "#7EA2FF", category: "Flow" },
+  remapKey: { label: "Remap key", icon: "swap", color: "#5D8DFF", category: "Input" },
 };
 
 export const TRIGGER_META: Record<TriggerType, { label: string; desc: string; icon: string }> = {
@@ -42,16 +44,36 @@ export const TRIGGER_META: Record<TriggerType, { label: string; desc: string; ic
   combo: { label: "Key combo", desc: "Trigger with modifier(s) + key", icon: "command" },
   tapThenHold: { label: "Tap then hold", desc: "Tap once, then hold", icon: "key" },
   sequence: { label: "Sequence", desc: "Trigger after a repeated sequence", icon: "command" },
+  remap: { label: "Remap key", desc: "Redirect this key to another key", icon: "swap" },
 };
 
 export const RISKY_KEYS = ["Escape", "Enter", "Tab", "Backspace", "Space", "Ctrl", "Alt", "Shift", "Win", "Delete"];
 export const LETTER_KEYS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 export const NUMBER_KEYS = "1234567890".split("");
 export const FUNCTION_KEYS = Array.from({ length: 12 }, (_, i) => `F${i + 1}`);
+export const FUNCTION_KEYS_EXTENDED = Array.from({ length: 24 }, (_, i) => `F${i + 1}`);
 export const NUMPAD_KEYS = Array.from({ length: 10 }, (_, i) => `Num${i}`);
 export const ARROW_KEYS = ["Up", "Down", "Left", "Right"];
 export const SYSTEM_KEYS = ["Escape", "Tab", "CapsLock", "Shift", "Ctrl", "Alt", "Space", "Enter", "Backspace", "Delete"];
 export const MEDIA_KEYS = ["PlayPause", "NextTrack", "PrevTrack", "Stop", "Mute", "VolumeUp", "VolumeDown"];
+export const REMAP_TARGETS = [
+  { value: "Tab", label: "Tab" },
+  { value: "Enter", label: "Enter" },
+  { value: "Escape", label: "Escape" },
+  { value: "Backspace", label: "Backspace" },
+  { value: "Space", label: "Space" },
+  { value: "Delete", label: "Delete" },
+  { value: "CapsLock", label: "Caps Lock" },
+  { value: "Home", label: "Home" },
+  { value: "End", label: "End" },
+  { value: "PageUp", label: "Page Up" },
+  { value: "PageDown", label: "Page Down" },
+  { value: "Up", label: "Arrow Up" },
+  { value: "Down", label: "Arrow Down" },
+  { value: "Left", label: "Arrow Left" },
+  { value: "Right", label: "Arrow Right" },
+  ...FUNCTION_KEYS_EXTENDED.map((k) => ({ value: k, label: k })),
+];
 export const MOUSE_BUTTONS = [
   { value: "MB1", label: "Mouse Left" },
   { value: "MB2", label: "Mouse Right" },
@@ -97,3 +119,24 @@ export const HIGHLIGHT_PRESETS = [
   { value: "#E65B65", label: "Rose" },
   { value: "#A855F7", label: "Purple" },
 ];
+
+export const HOT_CORNER_ACTIONS = [
+  { value: "none", label: "None" },
+  { value: "taskView", label: "Open Task view" },
+  { value: "start", label: "Open Start" },
+  { value: "search", label: "Open search" },
+  { value: "desktop", label: "Go to desktop" },
+  { value: "quickSettings", label: "Open quick settings" },
+  { value: "previousDesktop", label: "Previous desktop" },
+  { value: "nextDesktop", label: "Next desktop" },
+] as const;
+
+export const SCREEN_TINT_PRESETS = [
+  { value: "warm", label: "Warm amber", color: "#F2C078" },
+  { value: "rose", label: "Soft rose", color: "#D99AB7" },
+  { value: "yellow", label: "Soft yellow", color: "#F2E58A" },
+  { value: "blue", label: "Cool blue", color: "#9FC7ED" },
+  { value: "mint", label: "Mint", color: "#A8D8C0" },
+  { value: "neutral", label: "Neutral gray", color: "#BDBDBD" },
+] as const;
+export const SCREEN_TINT_DEFAULT_COLOR = SCREEN_TINT_PRESETS[0].color;

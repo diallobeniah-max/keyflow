@@ -15,8 +15,44 @@ pub fn modifier_bit(vk: u32) -> u32 {
 pub const F12_VK: u32 = 0x7B;
 pub const EMERGENCY_BYPASS_MASK: u32 = 0b0111; // Ctrl+Alt+Shift all down (Win excluded)
 
+/// Human-readable modifier mask for diagnostics, e.g. "ctrl,alt,win".
+pub fn mods_display(m: u32) -> String {
+    let mut parts: Vec<&str> = Vec::new();
+    if m & 0b0001 != 0 {
+        parts.push("ctrl");
+    }
+    if m & 0b0010 != 0 {
+        parts.push("alt");
+    }
+    if m & 0b0100 != 0 {
+        parts.push("shift");
+    }
+    if m & 0b1000 != 0 {
+        parts.push("win");
+    }
+    parts.join(",")
+}
+
 pub fn is_f12(vk: u32) -> bool {
     vk == F12_VK
+}
+
+/// Canonical extended-key classification for remap target injection. Extended
+/// keys need KEYEVENTF_EXTENDEDKEY so Windows resolves them to the right
+/// physical key (arrows, PageUp/Down, Home/End, Insert/Delete, Right Ctrl/Alt,
+/// Numpad Enter, Numpad Divide). Kept in sync with electron/win-vk.ts
+/// `isExtendedVk`.
+pub fn is_extended_vk(vk: u32) -> bool {
+    match vk {
+        0x21..=0x28 => true, // PageUp, PageDown, End, Home, Left, Up, Right, Down
+        0x2D | 0x2E => true, // Insert, Delete
+        0x36 => true,        // Numpad Divide
+        0x6D => true,        // Numpad Subtract
+        0x90 => true,        // NumLock
+        0x93 => true,        // Select Media
+        0xA3 | 0xA5 => true, // Right Ctrl, Right Alt
+        _ => false,
+    }
 }
 
 /// Returns true if this virtual key code represents a standard printable or
@@ -140,5 +176,29 @@ mod tests {
         assert!(!is_printable_vk(0x1B)); // Escape
         assert!(!is_printable_vk(0x70)); // F1
         assert!(!is_printable_vk(0x25)); // Left arrow
+    }
+
+    #[test]
+    fn extended_vk_classification() {
+        // Arrows and nav cluster are extended keys.
+        assert!(is_extended_vk(0x25)); // Left
+        assert!(is_extended_vk(0x26)); // Up
+        assert!(is_extended_vk(0x27)); // Right
+        assert!(is_extended_vk(0x28)); // Down
+        assert!(is_extended_vk(0x21)); // PageUp
+        assert!(is_extended_vk(0x22)); // PageDown
+        assert!(is_extended_vk(0x23)); // End
+        assert!(is_extended_vk(0x24)); // Home
+        assert!(is_extended_vk(0x2D)); // Insert
+        assert!(is_extended_vk(0x2E)); // Delete
+        assert!(is_extended_vk(0xA3)); // Right Ctrl
+        assert!(is_extended_vk(0xA5)); // Right Alt
+
+        // Plain keys are NOT extended.
+        assert!(!is_extended_vk(0x09)); // Tab
+        assert!(!is_extended_vk(0x31)); // '1'
+        assert!(!is_extended_vk(0x41)); // 'A'
+        assert!(!is_extended_vk(0x14)); // CapsLock
+        assert!(!is_extended_vk(0xAD)); // Volume Mute
     }
 }

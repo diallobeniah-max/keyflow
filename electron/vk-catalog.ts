@@ -1,3 +1,5 @@
+import { keyToVk } from "./win-vk.js";
+
 /**
  * Central VK -> KeyFlow key-name catalog for the native input engine.
  *
@@ -72,15 +74,5 @@ function normalize(name: string): string {
 
 /** Reverse lookup: KeyFlow key name -> VK. Used to build native config. */
 export function keyNameToVk(name: string): number | undefined {
-  const n = normalize(name);
-  if (!n) return undefined;
-  if (n.length === 1) {
-    if (/[a-z]/.test(n)) return 0x41 + n.charCodeAt(0) - 97;
-    if (/[0-9]/.test(n)) return 0x30 + n.charCodeAt(0) - 48;
-  }
-  if (n === "numenter") return 0x0d;
-  for (const [vk, nm] of Object.entries(VK_NAMES)) {
-    if (normalize(nm) === n) return Number(vk);
-  }
-  return undefined;
+  return keyToVk(name);
 }

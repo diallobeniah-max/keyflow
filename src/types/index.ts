@@ -8,7 +8,8 @@ export type TriggerType =
   | "hold"
   | "combo"
   | "tapThenHold"
-  | "sequence";
+  | "sequence"
+  | "remap";
 
 export type ActionType =
   | "openApp"
@@ -40,7 +41,9 @@ export type ActionType =
   | "moveWindow"
   | "alwaysOnTop"
   | "notesPopup"
-  | "delay";
+  | "toggleWasdNavigation"
+  | "delay"
+  | "remapKey";
 
 export interface ActionPayload {
   path?: string;
@@ -67,6 +70,8 @@ export interface ActionPayload {
   highlightColor?: string;
   borderThickness?: "thin" | "medium" | "thick" | "custom";
   sound?: boolean;
+  /** Remap target key name (remapKey action / TriggerType "remap"). */
+  remapTarget?: string;
 }
 
 export interface Action {
@@ -84,6 +89,10 @@ export interface PopupItem {
   category?: string;
   pinned?: boolean;
   hint?: string;
+  /** Activation key (single character) when explicit; defaults to position 1-9. */
+  key?: string;
+  /** Disabled items are kept in the config but hidden from the popup. */
+  enabled?: boolean;
 }
 
 export interface ShortcutCondition {
@@ -115,10 +124,20 @@ export interface Shortcut {
   /** Original key behavior: passThrough (default), suppress, disable, or remap. */
   keyBehavior?: "passThrough" | "suppress" | "disable" | "remap";
   remapTo?: string;
+  /** App-specific scope (executable identity), or undefined = Everywhere. */
+  appScope?: AppScope;
   createdAt: number;
   lastUsed?: number;
   useCount?: number;
   favorite?: boolean;
+}
+
+/** An app-specific scope. Matching uses ONLY the normalized executable path. */
+export interface AppScope {
+  scopeType: "executable";
+  executablePath: string;
+  processName?: string;
+  displayName?: string;
 }
 
 export interface AppRule {
@@ -166,6 +185,7 @@ export interface AppearanceSettings {
 export interface HyperKeyConfig {
   enabled: boolean;
   key: string;
+  includeShift?: boolean;
   tapActionId?: string;
   suppressOriginal?: boolean;
 }
@@ -173,6 +193,8 @@ export interface HyperKeyConfig {
 export interface ShortcutSettings {
   globalPause: string;
   emergencySafe: string;
+  /** Enable the in-window searchable command registry shortcut. */
+  commandPaletteEnabled: boolean;
   defaultDoubleTap: number;
   defaultTripleTap: number;
   defaultHold: number;
@@ -197,9 +219,15 @@ export interface PopupSettings {
   showNumbers: boolean;
   search: boolean;
   closeAfterAction: boolean;
+  closeOnBlur?: boolean;
   animationSpeed: number;
   opacity: number;
   maxItems: number;
+  /**
+   * Editable popup menu contents (the menu shown when a showPopup action has
+   * no per-shortcut override). Seeded from the default menu on first run.
+   */
+  items?: PopupItem[];
 }
 
 export interface ProfilesSettings {
@@ -238,6 +266,87 @@ export interface WindowControlSettings {
   showFloatingPin: boolean;
 }
 
+/** Hot-zone bitmask values (mirror the native engine; ZONE_TR = 2 = default). */
+export const DRAG_ZONE_TOP_LEFT = 0x01;
+export const DRAG_ZONE_TOP_RIGHT = 0x02;
+export const DRAG_ZONE_BOTTOM_LEFT = 0x04;
+export const DRAG_ZONE_BOTTOM_RIGHT = 0x08;
+export const DRAG_ZONE_TOP = 0x10;
+export const DRAG_ZONE_LEFT = 0x20;
+export const DRAG_ZONE_RIGHT = 0x40;
+export const DRAG_ZONE_BOTTOM = 0x80;
+
+export type DragZonePreset = "topRight" | "allCorners" | "allEdges" | "all" | "custom";
+
+export interface DragSwitcherSettings {
+  enabled: boolean;
+  /** Enabled hot-zone bitmask. */
+  zones: number;
+  /** Activation dwell in ms; 0 = Instant. */
+  activationMs: number;
+  hoverMs: number;
+  cornerSize: number;
+  preset: DragZonePreset;
+}
+
+export type HotCornerPosition = "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
+export type HotCornerBuiltinAction =
+  | "none"
+  | "taskView"
+  | "start"
+  | "search"
+  | "desktop"
+  | "quickSettings"
+  | "previousDesktop"
+  | "nextDesktop";
+
+export type HotCornerAction =
+  | { type: "builtin"; action: HotCornerBuiltinAction }
+  | { type: "shortcut"; shortcutId: string };
+
+export interface HotCornersCustomPreset {
+  id: string;
+  name: string;
+  icon?: string;
+  color?: string;
+  corners: Record<HotCornerPosition, HotCornerAction>;
+}
+
+export interface HotCornersSettings {
+  enabled: boolean;
+  activationMs: number;
+  cooldownMs: number;
+  cornerSize: number;
+  soundEnabled?: boolean;
+  corners: Record<HotCornerPosition, HotCornerAction>;
+  customPresets?: HotCornersCustomPreset[];
+}
+
+export type ScreenTintPreset = "warm" | "rose" | "yellow" | "blue" | "mint" | "neutral" | "custom";
+
+export interface ScreenTintSettings {
+  enabled: boolean;
+  color: string;
+  strength: number;
+  preset: ScreenTintPreset;
+}
+
+export type SoundPack = "crystal" | "bubble" | "click" | "blip" | "marimba";
+
+export interface AudioSettings {
+  enabled: boolean;
+  volume: number;
+  soundPack: SoundPack;
+  playOnPopup: boolean;
+  playOnTopmost: boolean;
+  playOnNavigation: boolean;
+}
+
+export interface WasdNavigationSettings {
+  cursorSize: number;        // 16–64, default 32
+  customCursorPath?: string; // user-uploaded cursor image path (absolute)
+}
+
 export interface Settings {
   general: GeneralSettings;
   appearance: AppearanceSettings;
@@ -247,7 +356,12 @@ export interface Settings {
   privacy: PrivacySettings;
   data: DataSettings;
   advanced: AdvancedSettings;
+  audio?: AudioSettings;
   windowControl?: WindowControlSettings;
+  dragSwitcher?: DragSwitcherSettings;
+  hotCorners?: HotCornersSettings;
+  screenTint?: ScreenTintSettings;
+  wasdNavigation?: WasdNavigationSettings;
 }
 
 export interface RecentAction {

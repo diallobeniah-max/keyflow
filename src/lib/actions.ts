@@ -18,8 +18,9 @@ function popupPosition(settings: Settings): { x: number; y: number } {
 const ELECTRON_ACTION_TYPES = new Set<Action["type"]>([
   "openApp", "openFile", "openFolder", "openWebsite", "runCommand", "runPowershell", "runBatch",
   "pasteText", "typeText", "pressShortcut", "volumeControl", "mediaControl", "toggleMute",
-  "brightnessControl", "screenshot", "lockScreen", "openSettings", "showNotification", "copySelected",
+"brightnessControl", "screenshot", "lockScreen", "openSettings", "showNotification", "copySelected",
   "clipboardHistory", "minimizeWindow", "maximizeWindow", "closeWindow", "moveWindow", "alwaysOnTop",
+  "toggleWasdNavigation",
 ]);
 export async function runAction(action: Action): Promise<void> {
   const store = useStore.getState();
@@ -148,8 +149,9 @@ export async function runAction(action: Action): Promise<void> {
     case "minimizeWindow":
     case "maximizeWindow":
     case "closeWindow":
-    case "moveWindow":
+case "moveWindow":
     case "alwaysOnTop":
+    case "toggleWasdNavigation":
       store.toast(`${type} needs the Windows desktop build. Simulated now.`, "info");
       break;
   }

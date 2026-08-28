@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
 import { useStore } from "../store/useStore";
 import { KEYBOARD_ROWS, MOUSE_BUTTONS } from "../lib/constants";
-import { Button, Card, PageIntro } from "../components/ui";
+import { Button, Card, PageHeader } from "../components/ui";
 import { Icon } from "../components/Icon";
+import { isModifierHyperKeyName } from "../lib/defaults";
+import { formatTriggerLabel } from "../lib/conflict";
 import type { Shortcut } from "../types";
 
-function keyClass(k: string, isHyper: boolean) {
+function keyClass(k: string, isHyper: boolean, navOn: boolean) {
   const base = ["key-tile"];
   if (["Escape", "Tab", "CapsLock", "Shift", "Ctrl", "Alt", "Win", "Enter", "Backspace"].includes(k)) {
     base.push("key-rule");
@@ -15,12 +17,14 @@ function keyClass(k: string, isHyper: boolean) {
   if (["Space"].includes(k)) base.push("key-space");
   if (["Backspace", "CapsLock", "Enter", "Shift", "Tab"].includes(k)) base.push("key-wide");
   if (isHyper) base.push("key-hyper");
+  if (navOn && ["W", "A", "S", "D"].includes(k)) base.push("key-nav-active");
   return base.join(" ");
 }
 
 export function VisualKeyboard() {
   const data = useStore((s) => s.data);
   const active = useStore((s) => s.activeProfileId);
+  const wasdActive = useStore((s) => s.wasdNavigationActive);
   const setPage = useStore((s) => s.setPage);
   const setPending = useStore((s) => s.setPendingKey);
   const setEditing = useStore((s) => s.setEditing);
@@ -75,15 +79,16 @@ export function VisualKeyboard() {
 
   return (
     <div className="content max-readable">
-      <PageIntro
+      <PageHeader
         eyebrow="MAP"
-        title="Keyboard & Mouse Map"
-        description="Interactive visual representation of your keyboard and mouse shortcuts. Click or hover any assigned keycap to inspect, edit, or delete actions."
+        title="Visual Keyboard"
+        description="Select a keyboard key or mouse button to see its assignments or create a new shortcut."
+        usage="Click or hover any keycap to inspect its assigned actions, edit shortcuts, or map a new key."
       >
         <Button variant="primary" icon="create" onClick={() => openCreate("F")}>
           Create shortcut
         </Button>
-      </PageIntro>
+      </PageHeader>
 
       <div className="col gap-md">
         {/* Visual Keyboard Board */}
@@ -100,6 +105,12 @@ export function VisualKeyboard() {
                 <span className="chip chip-accent">
                   <Icon name="zap" size={13} />
                   <span>Hyper Key ({hyperKeyName})</span>
+                </span>
+              )}
+              {wasdActive && (
+                <span className="chip chip-accent">
+                  <Icon name="arrows" size={13} />
+                  <span>WASD Active</span>
                 </span>
               )}
               <span className="chip chip-subtle">
@@ -120,7 +131,7 @@ export function VisualKeyboard() {
                     <div key={k + idx} className="key-tile-wrap" style={{ position: "relative" }}>
                       <button
                         type="button"
-                        className={keyClass(k, isHyper) + (count ? " assigned" : "") + (isHovered ? " is-focused" : "")}
+                        className={keyClass(k, isHyper, wasdActive) + (count ? " assigned" : "") + (isHovered ? " is-focused" : "")}
                         onClick={() => {
                           if (count > 0) {
                             setPopoverKey(popoverKey === k ? null : k);
@@ -325,9 +336,11 @@ export function VisualKeyboard() {
                   <span>Configured Hyper Key</span>
                 </div>
                 <p className="tiny muted no-margin">
-                  {hyperKeyConfig?.tapActionId
-                    ? `Tap alone: ${hyperKeyConfig.tapActionId} | Acts as custom modifier when held.`
-                    : "Acts as custom native modifier key when held with other keys."}
+                  {isModifierHyperKeyName(hyperKeyName)
+                    ? `Acts as ${hyperKeyConfig?.includeShift ? "Ctrl + Alt + Shift + Win" : "Ctrl + Alt + Win"} while held. Quick Press is not available for modifier keys.`
+                    : hyperKeyConfig?.tapActionId
+                      ? `Tap alone: ${hyperKeyConfig.tapActionId} | Acts as custom modifier when held.`
+                      : "Acts as custom native modifier key when held with other keys."}
                 </p>
               </div>
             )}
@@ -340,7 +353,7 @@ export function VisualKeyboard() {
                     <div className="col gap-xxs">
                       <div className="row align-center gap-xs">
                         <span className="font-medium text-main">{s.name || s.key}</span>
-                        <span className="chip chip-subtle tiny">{s.trigger}</span>
+                        <span className="chip chip-subtle tiny">{formatTriggerLabel(s)}</span>
                       </div>
                       <span className="muted tiny">Action: {actionType}</span>
                     </div>

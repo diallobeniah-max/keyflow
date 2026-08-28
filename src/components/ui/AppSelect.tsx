@@ -7,6 +7,7 @@ export interface AppSelectOption {
   value: string;
   label: string;
   disabled?: boolean;
+  isHeader?: boolean;
 }
 
 export interface AppSelectProps {
@@ -31,7 +32,7 @@ export interface AppSelectProps {
 function getEnabledIndex(options: AppSelectOption[], start: number, direction: 1 | -1): number {
   let index = start;
   while (index >= 0 && index < options.length) {
-    if (!options[index].disabled) return index;
+    if (!options[index].disabled && !options[index].isHeader) return index;
     index += direction;
   }
   return start;
@@ -39,6 +40,21 @@ function getEnabledIndex(options: AppSelectOption[], start: number, direction: 1
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function matchesOptionValue(optionValue: string, targetValue: string): boolean {
+  if (optionValue === targetValue) return true;
+  if (!optionValue || !targetValue) return false;
+  const o = optionValue.toLowerCase().replace(/[\s\-_]/g, "");
+  const t = targetValue.toLowerCase().replace(/[\s\-_]/g, "");
+  if (o === t) return true;
+  const altGroup = ["altright", "rightalt", "ralt", "altgr"];
+  if (altGroup.includes(o) && altGroup.includes(t)) return true;
+  const ctrlGroup = ["controlright", "rightctrl", "rctrl"];
+  if (ctrlGroup.includes(o) && ctrlGroup.includes(t)) return true;
+  const appGroup = ["apps", "menu", "application"];
+  if (appGroup.includes(o) && appGroup.includes(t)) return true;
+  return false;
 }
 
 export function AppSelect({
@@ -70,9 +86,9 @@ export function AppSelect({
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<CSSProperties>();
-  const [activeIndex, setActiveIndex] = useState(() => Math.max(0, options.findIndex((option) => option.value === value)));
 
-  const selectedIndex = options.findIndex((option) => option.value === value);
+  const selectedIndex = options.findIndex((option) => matchesOptionValue(option.value, value));
+  const [activeIndex, setActiveIndex] = useState(() => Math.max(0, selectedIndex));
   const selected = selectedIndex >= 0 ? options[selectedIndex] : undefined;
   const activeDescendant = open && activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined;
   const describedByIds = [describedBy, ariaDescribedBy, error ? errorId : undefined].filter(Boolean).join(" ") || undefined;
@@ -99,7 +115,8 @@ export function AppSelect({
     if (!trigger) return;
     const rect = trigger.getBoundingClientRect();
     const viewportInset = 8;
-    const width = Math.min(rect.width, Math.max(1, window.innerWidth - viewportInset * 2));
+    const minMenuWidth = Math.max(rect.width, 240);
+    const width = Math.min(minMenuWidth, Math.max(1, window.innerWidth - viewportInset * 2));
     const left = clamp(rect.left, viewportInset, Math.max(viewportInset, window.innerWidth - width - viewportInset));
     const below = Math.max(1, window.innerHeight - rect.bottom - viewportInset);
     const above = Math.max(1, rect.top - viewportInset);
@@ -162,7 +179,7 @@ export function AppSelect({
   }, [open]);
 
   const choose = (option: AppSelectOption) => {
-    if (option.disabled || readOnly) return;
+    if (option.disabled || option.isHeader || readOnly) return;
     onChange(option.value);
     close(true);
   };
@@ -170,7 +187,7 @@ export function AppSelect({
   const move = (direction: 1 | -1) => {
     const current = activeIndex >= 0 ? activeIndex : selectedIndex;
     const next = getEnabledIndex(options, current + direction, direction);
-    if (next >= 0 && next < options.length && !options[next].disabled) {
+    if (next >= 0 && next < options.length && !options[next].disabled && !options[next].isHeader) {
       setActiveIndex(next);
       optionRefs.current[next]?.focus();
       optionRefs.current[next]?.scrollIntoView({ block: "nearest" });
@@ -236,25 +253,34 @@ export function AppSelect({
       aria-label={labelledByIds ? undefined : accessibleLabel}
       style={menuStyle}
     >
-      {options.map((option, index) => (
-        <button
-          key={option.value}
-          ref={(element) => { optionRefs.current[index] = element; }}
-          id={`${listboxId}-option-${index}`}
-          type="button"
-          className={["app-select__option", option.value === value ? "is-selected" : "", index === activeIndex ? "is-active" : ""].filter(Boolean).join(" ")}
-          role="option"
-          aria-selected={option.value === value}
-          aria-disabled={option.disabled || undefined}
-          disabled={option.disabled}
-          onClick={() => choose(option)}
-          onKeyDown={handleOptionKeyDown}
-          onMouseEnter={() => setActiveIndex(index)}
-        >
-          <span className="app-select__option-label">{option.label}</span>
-          {option.value === value && <Icon name="check" size={16} />}
-        </button>
-      ))}
+      {options.map((option, index) => {
+        if (option.isHeader) {
+          return (
+            <div key={`header-${index}-${option.value}`} className="app-select__group-header" role="presentation">
+              {option.label}
+            </div>
+          );
+        }
+        return (
+          <button
+            key={option.value}
+            ref={(element) => { optionRefs.current[index] = element; }}
+            id={`${listboxId}-option-${index}`}
+            type="button"
+            className={["app-select__option", option.value === value ? "is-selected" : "", index === activeIndex ? "is-active" : ""].filter(Boolean).join(" ")}
+            role="option"
+            aria-selected={option.value === value}
+            aria-disabled={option.disabled || undefined}
+            disabled={option.disabled}
+            onClick={() => choose(option)}
+            onKeyDown={handleOptionKeyDown}
+            onMouseEnter={() => setActiveIndex(index)}
+          >
+            <span className="app-select__option-label">{option.label}</span>
+            {option.value === value && <Icon name="check" size={15} />}
+          </button>
+        );
+      })}
     </div>,
     document.body,
   ) : null;

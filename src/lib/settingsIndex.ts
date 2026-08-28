@@ -9,9 +9,13 @@ export interface SettingSearchItem {
   category:
     | "general"
     | "shortcuts"
+    | "hotCorners"
     | "alwaysOnTop"
+    | "wasd"
     | "popup"
+    | "audio"
     | "appearance"
+    | "screenTint"
     | "privacy"
     | "data"
     | "advanced"
@@ -92,6 +96,15 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
     anchorId: "row-sc-emergency",
   },
   {
+    id: "sc-command-palette",
+    title: "Command Palette",
+    category: "shortcuts",
+    categoryLabel: "Shortcuts & Gestures",
+    description: "Open the searchable command registry with Ctrl+K",
+    keywords: ["command", "palette", "registry", "ctrl k", "search", "navigation", "quick actions"],
+    anchorId: "row-sc-command-palette",
+  },
+  {
     id: "sc-double-tap",
     title: "Double tap threshold",
     category: "shortcuts",
@@ -139,11 +152,11 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
   },
   {
     id: "sc-hyper-tap",
-    title: "Tap Hyper Key Action",
+    title: "Quick Press",
     category: "shortcuts",
     categoryLabel: "Shortcuts & Gestures",
-    description: "Action triggered when the Hyper key is pressed and released alone",
-    keywords: ["hyper tap", "tap action", "hyper alone", "solo press", "single tap"],
+    description: "Action triggered when the Hyper key is pressed and released alone (Caps Lock / function-key Hyper keys only)",
+    keywords: ["quick press", "hyper tap", "tap action", "hyper alone", "solo press", "single tap"],
     anchorId: "row-sc-hyper-tap",
   },
   {
@@ -232,6 +245,28 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
     anchorId: "row-pop-close",
   },
 
+  // WASD Navigation
+  {
+    id: "wasd-cursor-size",
+    title: "Cursor size",
+    category: "wasd",
+    categoryLabel: "WASD Navigation",
+    description: "Adjust mouse pointer size when WASD navigation mode is active",
+    keywords: ["cursor", "size", "mouse", "pointer", "wasd", "scale", "blue cursor"],
+    synonyms: ["pointer size", "cursor scale", "mouse size"],
+    anchorId: "row-wasd-size",
+  },
+  {
+    id: "wasd-custom-cursor",
+    title: "Custom cursor image",
+    category: "wasd",
+    categoryLabel: "WASD Navigation",
+    description: "Choose a custom mouse pointer file (.cur, .png, .ico) for navigation mode",
+    keywords: ["custom cursor", "mouse icon", "upload cursor", "pointer image", "browse cursor"],
+    synonyms: ["change cursor", "cursor file"],
+    anchorId: "row-wasd-custom",
+  },
+
   // Appearance
   {
     id: "app-theme",
@@ -254,6 +289,44 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
     anchorId: "row-app-fontsize",
   },
   {
+    id: "hot-corners",
+    title: "Hot Corners",
+    category: "hotCorners",
+    categoryLabel: "Hot Corners",
+    description: "Trigger built-in actions or configured KeyFlow shortcuts from any display corner",
+    keywords: ["hot corners", "drag corner", "mouse corner", "charmy", "task view", "start", "search", "desktop", "quick settings", "monitor"],
+    synonyms: ["corner actions", "screen corners"],
+    anchorId: "row-hot-enable",
+  },
+  {
+    id: "hot-corner-actions",
+    title: "Corner actions",
+    category: "hotCorners",
+    categoryLabel: "Hot Corners",
+    description: "Assign a different action or shortcut to each corner",
+    keywords: ["top left", "top right", "bottom left", "bottom right", "assign", "bind", "shortcut"],
+    anchorId: "row-hot-corners",
+  },
+  {
+    id: "app-compact",
+    title: "Compact workspace",
+    category: "appearance",
+    categoryLabel: "Appearance",
+    description: "Tighten panels and reduce empty space when KeyFlow is snapped to a side of the screen",
+    keywords: ["compact", "responsive", "snap", "left", "right", "fit", "density", "layout"],
+    synonyms: ["narrow window", "side by side", "screen alignment"],
+    anchorId: "row-app-compact",
+  },
+  {
+    id: "app-scale",
+    title: "Interface scale",
+    category: "appearance",
+    categoryLabel: "Appearance",
+    description: "Scale the KeyFlow workspace to fit comfortably beside another window",
+    keywords: ["scale", "zoom", "resize", "snap", "window", "fit", "90", "100", "110", "125"],
+    anchorId: "row-app-scale",
+  },
+  {
     id: "app-accent",
     title: "Accent color",
     category: "appearance",
@@ -271,6 +344,25 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
     description: "Minimize transitions and animations across the app",
     keywords: ["motion", "reduce motion", "animation", "disable animations", "transition"],
     anchorId: "row-app-motion",
+  },
+  {
+    id: "screen-tint",
+    title: "Screen Tint",
+    category: "screenTint",
+    categoryLabel: "Screen Tint",
+    description: "Show a color overlay across every connected display with adjustable strength",
+    keywords: ["screen tint", "dim", "overlay", "eye strain", "warm screen", "color overlay", "brightness"],
+    synonyms: ["screen dimmer", "display tint"],
+    anchorId: "row-tint-enable",
+  },
+  {
+    id: "screen-tint-strength",
+    title: "Tint strength",
+    category: "screenTint",
+    categoryLabel: "Screen Tint",
+    description: "Adjust the opacity of the system-wide tint overlay",
+    keywords: ["tint amount", "opacity", "intensity", "strength", "screen color"],
+    anchorId: "row-tint-strength",
   },
 
   // Privacy & Safety
@@ -358,6 +450,24 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
     description: "Optimize input dispatcher for minimum CPU latency",
     keywords: ["performance", "latency", "fast", "cpu", "optimization"],
     anchorId: "row-adv-perf",
+  },
+  {
+    id: "adv-system",
+    title: "System",
+    category: "advanced",
+    categoryLabel: "Advanced",
+    description: "Native input engine, configuration sync, and keyboard source status",
+    keywords: ["system", "engine", "native", "sync", "backend", "keyboard source"],
+    anchorId: "row-adv-system",
+  },
+  {
+    id: "adv-diag",
+    title: "Input diagnostics",
+    category: "advanced",
+    categoryLabel: "Advanced",
+    description: "Inspect native engine, Hyper key, and configured rule status",
+    keywords: ["diagnostics", "input", "engine status", "hyper key", "rules"],
+    anchorId: "row-adv-diag",
   },
 
   // About

@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useStore } from "../store/useStore";
 import { getEngine } from "../lib/engine";
 import { Shortcut } from "../types";
-import { ACTION_META, TRIGGER_META } from "../lib/constants";
+import { ACTION_META } from "../lib/constants";
+import { formatTriggerLabel } from "../lib/conflict";
 import { Button, KeycapBadge, Modal, SettingsRow, Toggle } from "./ui";
 import { Icon } from "./Icon";
 
@@ -10,6 +11,7 @@ function triggerShortcut(s: Shortcut) {
   const e = getEngine();
   const k = s.key;
   const m = s.modifiers;
+  if (s.trigger === "remap") return; // remap is a native per-key behavior, not a gesture
   if (s.trigger === "double") {
     e.simulateTap(k, m);
     setTimeout(() => e.simulateTap(k, m), 70);
@@ -67,7 +69,7 @@ export function Simulator({ open, onClose }: { open: boolean; onClose: () => voi
             ) : (
               list.map((s) => {
                 const meta = s.actions[0] ? ACTION_META[s.actions[0].type] : ACTION_META.openApp;
-                const triggerLabel = TRIGGER_META[s.trigger]?.label ?? s.trigger;
+                const triggerLabel = formatTriggerLabel(s);
 
                 return (
                   <div key={s.id} className="shortcut-row">
@@ -86,7 +88,7 @@ export function Simulator({ open, onClose }: { open: boolean; onClose: () => voi
                       variant="secondary"
                       size="sm"
                       icon="play"
-                      disabled={!s.enabled}
+                      disabled={!s.enabled || s.trigger === "remap"}
                       onClick={() => triggerShortcut(s)}
                     >
                       Trigger

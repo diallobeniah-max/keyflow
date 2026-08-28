@@ -26,12 +26,64 @@ interface ActionAPI {
   run: (action: any) => Promise<ActionResult>;
 }
 
+interface NativeStatus {
+  backend: string;
+  engineStatus: string;
+  configSynced: boolean;
+  requestedVersion: number;
+  ackedVersion: number;
+  ruleCount: number;
+  hyperEnabled: boolean;
+  hyperVk: number;
+  includeShift: boolean;
+  extendedAccess: boolean;
+}
+
+interface NativeAppInfo {
+  executablePath: string;
+  processName?: string;
+  displayName?: string;
+  icon?: string;
+}
+
+interface NativeCapturedKey {
+  type: "capturedKey";
+  vk: number;
+  scanCode: number;
+  extended: boolean;
+  name: string;
+}
+
 interface InputAPI {
   updateShortcuts: (entries: any[], context?: any) => Promise<void>;
   setPaused: (paused: boolean) => Promise<void>;
+  setDragSwitcher: (config: { enabled: boolean; zones: number; activationMs: number; hoverMs: number; cornerSize: number }) => Promise<boolean>;
   getStatus: () => Promise<string>;
   getSuppression: () => Promise<{ available: boolean; status: string; backend: string }>;
+  getNativeStatus: () => Promise<NativeStatus>;
+  listApps: () => Promise<NativeAppInfo[]>;
+  getActiveApp: () => Promise<NativeAppInfo | null>;
+  browseExe: () => Promise<string | null>;
+  getWasdNavigationState: () => Promise<boolean>;
+  setWasdCursorConfig?: (config: { size: number; customPath?: string }) => Promise<boolean>;
+  browseCursorFile?: () => Promise<string | null>;
+  onWasdNavigationState: (callback: (active: boolean) => void) => () => void;
   onTriggered: (callback: (shortcut: any, results?: any[]) => void) => () => void;
+  beginCapture?: () => Promise<boolean>;
+  cancelCapture?: () => Promise<boolean>;
+  onCapturedKey?: (callback: (key: NativeCapturedKey) => void) => () => void;
+  onCaptureCancelled?: (callback: () => void) => () => void;
+  logCapture?: (line: string) => void;
+}
+
+interface HotCornersAPI {
+  configure: (config: any, shortcuts: any[]) => Promise<boolean>;
+  onTriggered: (callback: (data: { corner: string; shortcutId?: string }) => void) => () => void;
+}
+
+interface ScreenTintAPI {
+  update: (config: { enabled: boolean; color: string; strength: number }) => Promise<boolean>;
+  onUpdate: (callback: (config: { enabled: boolean; color: string; strength: number }) => void) => () => void;
 }
 
 interface PopupData {
@@ -69,6 +121,39 @@ interface NotesAPI {
   delete: (id: string) => Promise<NotesItem[]>;
   close: () => Promise<void>;
   toggle: () => Promise<void>;
+  minimize?: () => Promise<void>;
+  maximize?: () => Promise<void>;
+}
+
+interface DragSwitcherWindowEntry {
+  hwnd: string;
+  title: string;
+  app: string;
+  icon?: string;
+}
+
+interface DragSwitcherData {
+  monitorIndex: number;
+  monitorLeft: number;
+  monitorTop: number;
+  monitorRight: number;
+  monitorBottom: number;
+  workLeft: number;
+  workTop: number;
+  workRight: number;
+  workBottom: number;
+  cursorX: number;
+  cursorY: number;
+  sourceHwnd: string;
+  hoverDwellMs: number;
+  windows: DragSwitcherWindowEntry[];
+}
+
+interface DragSwitcherAPI {
+  activate: (hwnd: string) => Promise<boolean>;
+  onData: (callback: (data: DragSwitcherData) => void) => () => void;
+  onMove: (callback: (data: { x: number; y: number }) => void) => () => void;
+  onHide: (callback: (data: { reason: string }) => void) => () => void;
 }
 
 interface ElectronAPI {
@@ -76,7 +161,10 @@ interface ElectronAPI {
   appInfo: AppInfo;
   actions: ActionAPI;
   input: InputAPI;
+  hotCorners?: HotCornersAPI;
+  screenTint?: ScreenTintAPI;
   popup: PopupAPI;
+  dragSwitcher?: DragSwitcherAPI;
   notes?: NotesAPI;
 }
 

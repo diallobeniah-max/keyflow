@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { Action, ActionType, PopupItem } from "../types";
 import { ACTION_META, WINDOWS_SETTINGS } from "../lib/constants";
 import { useStore } from "../store/useStore";
 import { uid } from "../store/sampleData";
-import { Button, Field, IconButton, Input, Select, Textarea } from "./ui";
+import { findDuplicatePopupKeys, effectivePopupKey } from "../lib/popup-items";
+import { Button, Field, IconButton, Input, Select, Textarea, Toggle } from "./ui";
 import { Icon } from "./Icon";
+import { IconPickerModal } from "./ui/IconPickerModal";
 
 function defaultAction(type: ActionType = "openApp"): Action { return { id: uid("act"), type, payload: {} }; }
 const ACTION_OPTIONS = Object.keys(ACTION_META).map((t)=>({ value:t, label:ACTION_META[t as ActionType].label }));
@@ -39,8 +42,79 @@ function ActionRow({ a, index, total, onChange, onRemove, onMove, depth }: { a:A
   </div></div>;
 }
 
-function PopupItemsEditor({ items, onChange }: { items:PopupItem[]; onChange:(i:PopupItem[])=>void }) {
-  const add=()=>onChange([...items,{id:uid("pop"),label:"New item",icon:"command",category:"General",actions:[defaultAction("showNotification")]}]);
-  const update=(i:number,it:PopupItem)=>onChange(items.map((x,idx)=>idx===i?it:x)); const remove=(i:number)=>onChange(items.filter((_,idx)=>idx!==i));
-  return <div className="popup-editor"><div className="muted tiny">Popup menu items</div>{items.map((it,i)=><div key={it.id} className="popup-edit-item"><div className="grid cols-3"><Input value={it.label} placeholder="Label" onChange={(e)=>update(i,{...it,label:e.target.value})}/><Input value={it.category??""} placeholder="Category" onChange={(e)=>update(i,{...it,category:e.target.value})}/><Input value={it.icon??"command"} placeholder="Icon" onChange={(e)=>update(i,{...it,icon:e.target.value})}/></div><ActionListEditor actions={it.actions} onChange={(list)=>update(i,{...it,actions:list})} depth={2}/><Button variant="ghost" size="sm" icon="trash" onClick={()=>remove(i)}>Remove item</Button></div>)}<Button variant="secondary" size="sm" icon="create" onClick={add}>Add item</Button></div>;
+export function PopupItemsEditor({ items, onChange, title = "Popup menu items" }: { items: PopupItem[]; onChange: (i: PopupItem[])=>void; title?: string }) {
+  const duplicates = findDuplicatePopupKeys(items);
+  const [editingIconIdx, setEditingIconIdx] = useState<number | null>(null);
+
+  const add=()=>{
+    const used = new Set(items.map((it, i) => effectivePopupKey(it, i)));
+    let n = items.length + 1;
+    while (used.has(String(n))) n += 1;
+    onChange([...items,{id:uid("pop"),label:"New item",icon:"command",category:"General",key:n>9?"":String(n),enabled:true,actions:[defaultAction("showNotification")]}]);
+  };
+  const update=(i:number,it:PopupItem)=>onChange(items.map((x,idx)=>idx===i?it:x));
+  const remove=(i:number)=>onChange(items.filter((_,idx)=>idx!==i));
+  const move=(i:number,dir:-1|1)=>{ const j=i+dir; if(j<0||j>=items.length) return; const c=items.slice(); [c[i],c[j]]=[c[j],c[i]]; onChange(c); };
+  return (
+    <div className="popup-editor">
+      <div className="muted tiny">{title}</div>
+      {duplicates.length>0&&<div className="tiny warn-text">Duplicate activation keys: {duplicates.join(", ")} — the first item wins</div>}
+      {items.map((it,i)=>{ const dup=!!it.key&&it.key.trim().length===1&&duplicates.includes(it.key.trim());
+        return (
+          <div key={it.id} className="popup-edit-item">
+            <div className="row spread">
+              <div className="row tiny-gap">
+                <Toggle checked={it.enabled!==false} onChange={(v)=>update(i,{...it,enabled:v})} ariaLabel={it.enabled===false?"Item hidden":"Item shown"}/>
+                <span className="muted tiny">{it.enabled===false?"Hidden":"Shown"}</span>
+              </div>
+              <div className="row tiny-gap">
+                <IconButton name="chevronUp" onClick={()=>move(i,-1)} disabled={i===0} ariaLabel="Move item up"/>
+                <IconButton name="chevronDown" onClick={()=>move(i,1)} disabled={i===items.length-1} ariaLabel="Move item down"/>
+                <IconButton name="trash" onClick={()=>remove(i)} ariaLabel="Remove item"/>
+              </div>
+            </div>
+            <div className="grid cols-3">
+              <Field label="Key" hint={dup?"Conflicts with another item":undefined}>
+                <Input value={it.key??""} maxLength={1} placeholder={String(i+1)} className={dup?"input-error":""} aria-label="Activation key" onChange={(e)=>update(i,{...it,key:e.target.value.trim()||undefined})}/>
+              </Field>
+              <Field label="Label">
+                <Input value={it.label} placeholder="Label" onChange={(e)=>update(i,{...it,label:e.target.value})}/>
+              </Field>
+              <Field label="Category">
+                <Input value={it.category??""} placeholder="Category" onChange={(e)=>update(i,{...it,category:e.target.value})}/>
+              </Field>
+            </div>
+            <Field label="Icon">
+              <div className="row gap-xs">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm row gap-xs"
+                  onClick={() => setEditingIconIdx(i)}
+                  title="Choose Icon"
+                >
+                  <Icon name={it.icon || "command"} size={16} />
+                  <span>{it.icon || "Choose icon..."}</span>
+                </button>
+              </div>
+            </Field>
+            <ActionListEditor actions={it.actions} onChange={(list)=>update(i,{...it,actions:list})} depth={2}/>
+          </div>
+        );
+      })}
+      <Button variant="secondary" size="sm" icon="create" onClick={add}>Add item</Button>
+
+      {editingIconIdx !== null && items[editingIconIdx] && (
+        <IconPickerModal
+          isOpen={true}
+          onClose={() => setEditingIconIdx(null)}
+          selectedIcon={items[editingIconIdx].icon || "command"}
+          onSelect={(iconName) => {
+            update(editingIconIdx, { ...items[editingIconIdx], icon: iconName });
+            setEditingIconIdx(null);
+          }}
+          title={`Icon for ${items[editingIconIdx].label || "Popup Item"}`}
+        />
+      )}
+    </div>
+  );
 }

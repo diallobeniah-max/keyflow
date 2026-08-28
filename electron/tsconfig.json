@@ -13,6 +13,6 @@
     "declaration": false,
     "sourceMap": true
   },
-  "include": ["main.ts", "window-state.ts", "input/*.ts", "vk-catalog.ts", "native-input-helper.ts", "action-router.ts"],
+  "include": ["*.ts", "input/*.ts"],
   "exclude": ["preload.ts"]
 }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildNativeShortcutConfig, shortcutBehavior } from "../dist-electron/suppression-config.js";
+import { buildNativeShortcutConfig, buildNativeHyperSpec, shortcutBehavior } from "../dist-electron/suppression-config.js";
 
 const timing = { tapInterval: 100, holdDuration: 300, delay: 0, cooldown: 0 };
 
@@ -61,12 +61,12 @@ test("the CapsLock screenshot shortcut round-trips to the exact Rust-compatible 
   assert.equal(msg.shortcuts[0].enabled, true);
 });
 
-test("modifier combos are preserved as VK modifier list", () => {
+test("modifier combos are preserved as canonical modifier list", () => {
   const specs = buildNativeShortcutConfig(
     [shortcut("ctrl-k", "K", { modifiers: ["Ctrl"], trigger: "single", keyBehavior: "passThrough" })],
     {},
   );
-  assert.deepEqual(specs[0].modifiers, [0x11]);
+  assert.deepEqual(specs[0].modifiers, ["ctrl"]);
   assert.equal(specs[0].behavior, "pass");
 });
 
@@ -105,4 +105,51 @@ test("paused and safe mode produce an empty native config (fail open)", () => {
   const entry = shortcut("c", "CapsLock", { keyBehavior: "suppress" });
   assert.equal(buildNativeShortcutConfig([entry], { paused: true }).length, 0);
   assert.equal(buildNativeShortcutConfig([entry], { safeMode: true }).length, 0);
+});
+
+test("exact configure wire JSON carries hyperKey with the Rust contract field names", () => {
+  const hyperSpec = buildNativeHyperSpec(
+    {
+      hyperKeyConfig: { enabled: true, key: "AltRight", includeShift: false, tapActionId: "showPopup", suppressOriginal: true },
+    },
+    [],
+  );
+  assert.notEqual(hyperSpec, null);
+  // This object is exactly what NativeInputHelper.sendConfigure sends:
+  const msg = {
+    type: "configure",
+    version: 1,
+    configVersion: 3,
+    shortcuts: [],
+    hyperKey: hyperSpec ?? undefined,
+  };
+  const json = JSON.stringify(msg);
+  assert.ok(json.includes('"hyperKey"'), "configure must contain the hyperKey property");
+  assert.ok(json.includes('"enabled":true'), "hyperKey.enabled must serialize as true");
+  assert.ok(json.includes('"vk":165'), "hyperKey.vk must be 165 (Right Alt)");
+  assert.ok(json.includes('"includeShift":false'), "hyperKey.includeShift must serialize");
+  assert.ok(!json.includes("tapActionId"), "modifier Hyper keys (Right Alt) must NOT serialize a tapActionId");
+  assert.ok(json.includes('"suppressOriginal":true'), "hyperKey.suppressOriginal must serialize");
+  // No snake_case leakage that Rust (serde camelCase on fields) could mis-handle.
+  assert.ok(!json.includes('"physicalVk"'), "must use vk, not physicalVk");
+  assert.ok(!json.includes('"tap_action_id"'), "must use tapActionId, not tap_action_id");
+});
+
+test("non-modifier Hyper key still resolves synthetic tap id on the wire", () => {
+  const hyperSpec = buildNativeHyperSpec(
+    {
+      hyperKeyConfig: { enabled: true, key: "CapsLock", includeShift: false, tapActionId: "showPopup", suppressOriginal: true },
+    },
+    [],
+  );
+  assert.notEqual(hyperSpec, null);
+  const json = JSON.stringify({
+    type: "configure",
+    version: 1,
+    configVersion: 3,
+    shortcuts: [],
+    hyperKey: hyperSpec,
+  });
+  assert.ok(json.includes('"vk":20'), "hyperKey.vk must be 20 (Caps Lock)");
+  assert.ok(json.includes('"tapActionId":"__keyflow_hyper_tap__"'), "non-modifier hyperKey.tapActionId must resolve to the synthetic id");
 });

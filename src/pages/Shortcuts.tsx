@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { useStore } from "../store/useStore";
 import { ACTION_META, TRIGGER_META } from "../lib/constants";
-import { detectConflicts } from "../lib/conflict";
+import { analyzeShortcutConflicts, detectConflicts, formatTriggerLabel } from "../lib/conflict";
+import { formatScopeLabel } from "../lib/app-scope";
 import { ActionType, TriggerType } from "../types";
-import { Button, Card, EmptyState, Field, IconButton, Input, KeycapBadge, PageIntro, Select, Toggle } from "../components/ui";
+import { Button, Card, EmptyState, Field, IconButton, Input, KeycapBadge, PageHeader, Select, Toggle } from "../components/ui";
 import { Icon } from "../components/Icon";
 
 export function Shortcuts() {
@@ -16,6 +17,7 @@ export function Shortcuts() {
   const duplicateShortcut = useStore((s) => s.duplicateShortcut);
   const toggleFavorite = useStore((s) => s.toggleFavoriteShortcut);
   const setPending = useStore((s) => s.setPendingKey);
+  const wasdNavActive = useStore((s) => s.wasdNavigationActive);
 
   const [q, setQ] = useState(globalSearch);
   const [profile, setProfile] = useState("all");
@@ -36,7 +38,8 @@ export function Shortcuts() {
         (s) =>
           s.name.toLowerCase().includes(query) ||
           s.key.toLowerCase().includes(query) ||
-          s.actions.some((a) => a.type.toLowerCase().includes(query))
+          s.actions.some((a) => a.type.toLowerCase().includes(query)) ||
+          formatScopeLabel(s.appScope).toLowerCase().includes(query)
       );
     }
     if (profile !== "all") list = list.filter((s) => s.profileId === profile);
@@ -60,19 +63,20 @@ export function Shortcuts() {
 
   return (
     <div className="content">
-      <PageIntro
+      <PageHeader
         eyebrow="AUTOMATIONS"
         title="Shortcuts"
-        description="Search, organize, edit, and toggle all keyboard and mouse shortcuts across your profiles."
+        description="Create, search, test, enable, disable, and manage all keyboard and mouse shortcuts."
+        usage="Filter by profile or trigger type, click any shortcut to edit, or use the toggle to enable/disable."
       >
         <Button variant="primary" icon="create" onClick={create}>
           New shortcut
         </Button>
-      </PageIntro>
+      </PageHeader>
 
       {/* Filter & Search Bar */}
       <Card className="mb-md">
-        <div className="grid cols-4 gap-sm">
+        <div className="grid cols-4 gap-sm mb-sm">
           <Field label="Search">
             <Input
               placeholder="Search shortcuts…"
@@ -122,6 +126,49 @@ export function Shortcuts() {
             />
           </Field>
         </div>
+
+        {/* Quick Filter Tags (Vorssaint Toolkit Style) */}
+        <div className="row gap-xs wrap pt-sm border-top-subtle">
+          <button
+            type="button"
+            className={`chip ${trigger === "all" && !q ? "chip-accent" : "chip-subtle"}`}
+            onClick={() => { setTrigger("all"); setQ(""); }}
+          >
+            <span>All ({data.shortcuts.length})</span>
+          </button>
+          <button
+            type="button"
+            className={`chip ${trigger === "double" ? "chip-accent" : "chip-subtle"}`}
+            onClick={() => setTrigger(trigger === "double" ? "all" : "double")}
+          >
+            <Icon name="sparkles" size={11} />
+            <span>Double Tap</span>
+          </button>
+          <button
+            type="button"
+            className={`chip ${trigger === "hold" ? "chip-accent" : "chip-subtle"}`}
+            onClick={() => setTrigger(trigger === "hold" ? "all" : "hold")}
+          >
+            <Icon name="clock" size={11} />
+            <span>Hold</span>
+          </button>
+          <button
+            type="button"
+            className={`chip ${trigger === "combo" ? "chip-accent" : "chip-subtle"}`}
+            onClick={() => setTrigger(trigger === "combo" ? "all" : "combo")}
+          >
+            <Icon name="keyboard" size={11} />
+            <span>Combos</span>
+          </button>
+          <button
+            type="button"
+            className={`chip ${trigger === "remap" ? "chip-accent" : "chip-subtle"}`}
+            onClick={() => setTrigger(trigger === "remap" ? "all" : "remap")}
+          >
+            <Icon name="repeat" size={11} />
+            <span>Remaps</span>
+          </button>
+        </div>
       </Card>
 
       {/* Shortcuts Native Table List */}
@@ -150,16 +197,18 @@ export function Shortcuts() {
             }
           />
         ) : (
-          filtered.map((s) => {
+          filtered.map((s, idx) => {
             const firstAction = s.actions[0];
             const meta = firstAction ? ACTION_META[firstAction.type] : ACTION_META.openApp;
             const profileName = data.profiles.find((p) => p.id === s.profileId)?.name ?? "Default";
+            const isNavToggle = s.actions.some((a) => a.type === "toggleWasdNavigation");
             const conflicts = detectConflicts(s, data.shortcuts, data.settings);
             const err = conflicts.find((c) => c.level === "error");
             const warn = conflicts.find((c) => c.level === "warning");
+            const staggerClass = `anim-stagger-${Math.min(6, (idx % 6) + 1)}`;
 
             return (
-              <div key={s.id} className="shortcut-row">
+              <div key={s.id} className={`shortcut-row anim-card-enter ${staggerClass}`}>
                 <div className="shortcut-row-left">
                   <div className="shortcut-row-key">
                     <KeycapBadge keys={[...s.modifiers, s.key]} mouse={s.mouse} size="md" />
@@ -168,10 +217,17 @@ export function Shortcuts() {
                   <div className="shortcut-row-info">
                     <div className="shortcut-row-title">
                       <span>{s.name || meta.label}</span>
+                      {isNavToggle && wasdNavActive && <span className="chip chip-accent tiny">Active</span>}
                       {s.favorite && <Icon name="star" size={13} />}
                     </div>
                     <div className="shortcut-row-meta">
-                      <span className="chip chip-subtle">{TRIGGER_META[s.trigger]?.label ?? s.trigger}</span>
+                      <span className="chip chip-subtle">{formatTriggerLabel(s)}</span>
+                      {s.appScope && (
+                        <span className="chip chip-subtle" title={`Works in ${formatScopeLabel(s.appScope)} only`}>
+                          <Icon name="window" size={11} />
+                          <span>{formatScopeLabel(s.appScope)}</span>
+                        </span>
+                      )}
                       <span className="chip chip-subtle">
                         <Icon name={meta.icon} size={11} />
                         <span>{meta.label}</span>

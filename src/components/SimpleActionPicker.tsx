@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Action, ActionType } from "../types";
-import { ACTION_META, HIGHLIGHT_PRESETS } from "../lib/constants";
+import { ACTION_META, HIGHLIGHT_PRESETS, REMAP_TARGETS } from "../lib/constants";
 import { Field, Input, Select, Textarea } from "./ui";
 import { Icon } from "./Icon";
 
@@ -16,6 +16,7 @@ export const PRIMARY_ACTIONS: PrimaryActionDef[] = [
   { type: "screenshot", label: "Screenshot", desc: "Windows snipping tool or full capture", icon: "screenshot", category: "System" },
   { type: "notesPopup", label: "Notes Popup", desc: "Open floating rich-text desktop notepad", icon: "file", category: "Productivity" },
   { type: "alwaysOnTop", label: "Always on Top", desc: "Pin or toggle active window on top", icon: "pinTop", category: "Window" },
+  { type: "toggleWasdNavigation", label: "WASD Navigation Mode", desc: "Use W, A, S and D as arrow keys", icon: "arrows", category: "Navigation" },
   { type: "openApp", label: "Open app", desc: "Launch an application by name or path", icon: "window", category: "Launch" },
   { type: "showPopup", label: "Popup menu", desc: "Show a quick action menu", icon: "popup", category: "Flow" },
   { type: "pasteText", label: "Paste text", desc: "Paste snippets or templates", icon: "clipboard", category: "Text" },
@@ -25,6 +26,7 @@ export const PRIMARY_ACTIONS: PrimaryActionDef[] = [
   { type: "brightnessControl", label: "Brightness", desc: "Screen brightness up or down", icon: "sun", category: "System" },
   { type: "openWebsite", label: "Open website", desc: "Open a URL in default browser", icon: "globe", category: "Launch" },
   { type: "pressShortcut", label: "Press shortcut", desc: "Send another key combo", icon: "command", category: "Input" },
+  { type: "remapKey", label: "Remap key", desc: "Redirect this key to another key", icon: "swap", category: "Input" },
 ];
 
 export function SimpleActionPicker({
@@ -260,6 +262,16 @@ export function SimpleActionPicker({
               value={action.payload.shortcut ?? ""}
               placeholder="e.g. Ctrl+C, Win+V, Alt+Tab"
               onChange={(e) => setPayload({ shortcut: e.target.value })}
+            />
+          </Field>
+        )}
+
+        {currentType === "remapKey" && (
+          <Field label="Replacement key" hint="Pressed whenever this shortcut key is used">
+            <Select
+              value={action.payload.remapTarget ?? ""}
+              onChange={(v) => setPayload({ remapTarget: v })}
+              options={REMAP_TARGETS}
             />
           </Field>
         )}

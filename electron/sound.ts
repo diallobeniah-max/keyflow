@@ -1,87 +1,65 @@
 /**
  * KeyFlow Sound Player (Electron main process)
  *
- * Plays custom WAV assets for system feedback events (e.g. Always on Top toggle).
- * Uses PowerShell's System.Media.SoundPlayer which is built into every modern
- * Windows installation — no third-party audio dependencies required.
+ * Plays custom WAV assets for system feedback events (Always on Top toggle,
+ * WASD Navigation Mode on/off). Uses PowerShell's System.Media.SoundPlayer
+ * which is built into every modern Windows installation — no third-party audio
+ * dependencies required.
  *
- * .Play() is asynchronous and non-blocking; it returns before the sound finishes,
- * so the keyboard hook is never stalled waiting for audio playback.
+ * The playback must run with .PlaySync() inside the child process: .Play() is
+ * asynchronous, so the detached PowerShell child would exit before the audio
+ * finished and the sound would be cut off. PlaySync blocks only the detached
+ * child (never the Electron main thread) until the WAV finishes.
  *
- * Asset resolution order (dev → production):
- *   1. Vite dev-server public/sounds/  (via Vite's public dir served at /)
- *   2. Next to the Electron app executable (asar-unpacked or resources/)
- *   3. Adjacent to the main process bundle (dist-electron/)
+ * Asset resolution is delegated to the pure module ./sound-paths.js so Node
+ * tests can verify dev vs packaged path logic without importing Electron.
  */
 
-import { existsSync } from "fs";
-import { join, resolve } from "path";
 import { spawn } from "child_process";
+import { dirname } from "path";
+import { fileURLToPath } from "url";
 import { app } from "electron";
+import { feedbackSoundName, resolveSoundPath, SoundName } from "./sound-paths.js";
 
-type SoundName = "topmost-on" | "topmost-off";
+export type { SoundName } from "./sound-paths.js";
+export { feedbackSoundName } from "./sound-paths.js";
 
-/**
- * Resolve the absolute path to a bundled sound asset.
- * Returns null if the file cannot be found on this machine.
- */
-function resolveSoundPath(name: SoundName): string | null {
-  const filename = `${name}.wav`;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-  const candidates: string[] = [];
-
-  // Dev: Vite serves public/ from project root
-  const appPath =
-    typeof app?.getAppPath === "function" ? app.getAppPath() : process.cwd();
-
-  candidates.push(join(appPath, "public", "sounds", filename));
-  candidates.push(join(process.cwd(), "public", "sounds", filename));
-
-  // Production: next to keyflow-input.exe in resources/
-  if (typeof process.resourcesPath === "string") {
-    candidates.push(join(process.resourcesPath, "sounds", filename));
-    candidates.push(join(process.resourcesPath, filename));
-  }
-
-  // Adjacent to Electron bundle (dist-electron/)
-  candidates.push(join(appPath, "sounds", filename));
-  candidates.push(resolve(__dirname ?? appPath, "..", "sounds", filename));
-
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-  }
-
-  return null;
+function resolveSoundPathForName(name: SoundName): string | null {
+  const appPath = typeof app?.getAppPath === "function" ? app.getAppPath() : process.cwd();
+  return resolveSoundPath(name, {
+    appPath,
+    cwd: process.cwd(),
+    resourcesPath: typeof process.resourcesPath === "string" ? process.resourcesPath : undefined,
+    bundleDir: __dirname,
+  });
 }
 
 /**
- * Play a named KeyFlow sound asynchronously.
- *
- * Uses PowerShell System.Media.SoundPlayer.Play() which returns immediately
- * while audio continues in the background — the keyboard hook is never blocked.
- *
- * Silent no-op when the WAV file cannot be located.
+ * Play a named KeyFlow sound. Exactly one sound per call; missing assets fail
+ * closed with a log line instead of throwing.
  */
 export function playKeyFlowSound(name: SoundName): void {
-  const soundPath = resolveSoundPath(name);
+  const soundPath = resolveSoundPathForName(name);
   if (!soundPath) {
-    // File not found — silently skip rather than logging every call
+    console.warn(`[sound] name=${name} result=error error=asset-not-found`);
     return;
   }
 
   // Escape backslashes and single-quotes for the PowerShell string literal.
   const escapedPath = soundPath.replace(/'/g, "''");
+  const script = `(New-Object System.Media.SoundPlayer '${escapedPath}').PlaySync()`;
 
-  const script = `(New-Object System.Media.SoundPlayer '${escapedPath}').Play()`;
-
+  console.log(`[sound] name=${name} path=${soundPath} result=playing`);
   const child = spawn(
     "powershell.exe",
     ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script],
     { detached: true, stdio: "ignore", windowsHide: true },
   );
-
-  // Unref so the child process does not prevent Node from exiting
+  child.on("error", (err) => console.error(`[sound] name=${name} result=error error=${err.message}`));
+  // Unref so the child process does not prevent Node from exiting; PlaySync
+  // keeps it alive only long enough to finish the audio.
   child.unref();
 }

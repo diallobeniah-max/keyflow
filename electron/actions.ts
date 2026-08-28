@@ -7,6 +7,8 @@ import { screenshotBaseName } from "./screenshot-modes.js";
 import { ELECTRON_DESKTOP_ACTIONS } from "./action-routing.js";
 import { toggleWindowTopmost } from "./window-control.js";
 import { notesService } from "./notes-window.js";
+import { NavigationModeController } from "./navigation-mode.js";
+import { mediaKeyPlan, volumeKeyPlan, MediaKeyPlan } from "./media-keys.js";
 
 export interface ActionResult {
   ok: boolean;
@@ -70,15 +72,59 @@ VIRTUAL_KEYS["Num+"] = 0x6b;
 VIRTUAL_KEYS["Num-"] = 0x6d;
 VIRTUAL_KEYS["Num/"] = 0x6f;
 
-function sendKeys(keys: string): Promise<void> {
+type NativeKeyInjector = (vk: number, extended: boolean, down: boolean) => Promise<boolean>;
+
+/**
+ * Native SendInput injection bridge (wired by main.ts to the native helper).
+ * Keys and shortcuts go through here for instant, zero-delay hardware execution.
+ * Falls back to PowerShell keybd_event when no bridge is wired.
+ */
+let nativeKeyInjector: NativeKeyInjector | null = null;
+
+export function setNativeKeyInjector(injector: NativeKeyInjector | null): void {
+  nativeKeyInjector = injector;
+}
+
+function isExtendedVk(vk: number): boolean {
+  return (
+    vk === 0x5b || // LWin
+    vk === 0x5c || // RWin
+    vk === 0xa3 || // RCtrl
+    vk === 0xa5 || // RAlt
+    vk === 0x5d || // Apps
+    (vk >= 0x21 && vk <= 0x28) || // PageUp, PageDown, End, Home, Left, Up, Right, Down
+    vk === 0x2d || // Insert
+    vk === 0x2e || // Delete
+    vk === 0x6f || // Num/
+    (vk >= 0xad && vk <= 0xb3) // Media keys
+  );
+}
+
+async function sendKeys(keys: string): Promise<void> {
   const parts = keys.split("+").map((part) => part.trim()).filter(Boolean);
   const main = parts.pop() ?? "";
   const mainKey = VIRTUAL_KEYS[main] ?? VIRTUAL_KEYS[main.toUpperCase()];
-  const modifiers = parts.map((part) => VIRTUAL_KEYS[part] ?? VIRTUAL_KEYS[part[0]?.toUpperCase() ?? ""]).filter((key): key is number => typeof key === "number");
+  const modifiers = parts
+    .map((part) => VIRTUAL_KEYS[part] ?? VIRTUAL_KEYS[part[0]?.toUpperCase() ?? ""])
+    .filter((key): key is number => typeof key === "number");
+
   if (mainKey === undefined) throw new Error(`Unsupported shortcut key: ${main}`);
-  const down = modifiers.map((key) => `[NativeKeyboard]::keybd_event(${key},0,0,[UIntPtr]::Zero);`).join(" ");
-  const up = modifiers.slice().reverse().map((key) => `[NativeKeyboard]::keybd_event(${key},0,2,[UIntPtr]::Zero);`).join(" ");
-  const script = `Add-Type -TypeDefinition @'\nusing System; using System.Runtime.InteropServices; public static class NativeKeyboard { [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo); }\n'@; ${down} [NativeKeyboard]::keybd_event(${mainKey},0,0,[UIntPtr]::Zero); [NativeKeyboard]::keybd_event(${mainKey},0,2,[UIntPtr]::Zero); ${up}`;
+
+  if (nativeKeyInjector) {
+    for (const mod of modifiers) {
+      await nativeKeyInjector(mod, isExtendedVk(mod), true);
+    }
+    await nativeKeyInjector(mainKey, isExtendedVk(mainKey), true);
+    await nativeKeyInjector(mainKey, isExtendedVk(mainKey), false);
+    for (const mod of modifiers.slice().reverse()) {
+      await nativeKeyInjector(mod, isExtendedVk(mod), false);
+    }
+    return;
+  }
+
+  const down = modifiers.map((key) => `[NativeKeyboard]::keybd_event(${key},0,${isExtendedVk(key) ? 1 : 0},[UIntPtr]::Zero);`).join(" ");
+  const up = modifiers.slice().reverse().map((key) => `[NativeKeyboard]::keybd_event(${key},0,${isExtendedVk(key) ? 3 : 2},[UIntPtr]::Zero);`).join(" ");
+  const script = `if (-not ([System.Management.Automation.PSTypeName]'NativeKeyboard').Type) { Add-Type -TypeDefinition @'\nusing System; using System.Runtime.InteropServices; public static class NativeKeyboard { [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo); }\n'@ }; ${down} [NativeKeyboard]::keybd_event(${mainKey},0,${isExtendedVk(mainKey) ? 1 : 0},[UIntPtr]::Zero); [NativeKeyboard]::keybd_event(${mainKey},0,${isExtendedVk(mainKey) ? 3 : 2},[UIntPtr]::Zero); ${up}`;
   return powershell(script);
 }
 
@@ -135,6 +181,31 @@ async function captureFullscreenToClipboard(): Promise<void> {
   clipboard.writeImage(source.thumbnail);
 }
 
+let navigationModeController: NavigationModeController | null = null;
+
+export function setNavigationModeController(controller: NavigationModeController | null): void {
+  navigationModeController = controller;
+}
+
+async function sendMediaVk(plan: MediaKeyPlan): Promise<void> {
+  const hex = `0x${(plan.vk ?? 0).toString(16).toUpperCase()}`;
+  console.log(`[media-control] command=${plan.command}`);
+  console.log(`[media-control] vk=${hex}`);
+  if (nativeKeyInjector) {
+    const downOk = await nativeKeyInjector(plan.vk, plan.extended, true);
+    console.log(`[media-control] send down=true result=${downOk}`);
+    const upOk = await nativeKeyInjector(plan.vk, plan.extended, false);
+    console.log(`[media-control] send up=true result=${upOk}`);
+    if (downOk && upOk) {
+      console.log("[media-control] completed=true");
+      return;
+    }
+    console.log(`[media-control] native SendInput failed (down=${downOk} up=${upOk}) — falling back to keybd_event`);
+  }
+  await sendKeys(plan.key);
+  console.log("[media-control] completed=true (keybd_event fallback)");
+}
+
 export async function runDesktopAction(action: any, mainWindow: BrowserWindow | null): Promise<ActionResult> {
   const payload = action.payload ?? {};
   const actionType = String(action?.type ?? "unknown");
@@ -158,14 +229,12 @@ export async function runDesktopAction(action: any, mainWindow: BrowserWindow | 
         break;
       case "pressShortcut": await sendKeys(payload.shortcut ?? ""); break;
       case "volumeControl": {
-        const key = payload.volume === "down" ? "VolumeDown" : payload.volume === "mute" || payload.volume === "toggle" ? "VolumeMute" : "VolumeUp";
-        await sendKeys(key);
+        await sendMediaVk(volumeKeyPlan(String(payload.volume ?? "up")));
         break;
       }
-      case "toggleMute": await sendKeys("VolumeMute"); break;
+      case "toggleMute": await sendMediaVk(volumeKeyPlan("mute", "toggleMute")); break;
       case "mediaControl": {
-        const key = payload.media === "next" ? "NextTrack" : payload.media === "prev" ? "PrevTrack" : payload.media === "stop" ? "Stop" : "PlayPause";
-        await sendKeys(key);
+        await sendMediaVk(mediaKeyPlan(payload.media ?? "playpause"));
         break;
       }
       case "brightnessControl": {
@@ -198,6 +267,10 @@ export async function runDesktopAction(action: any, mainWindow: BrowserWindow | 
         break;
       case "showPopup":
         break;
+      case "toggleWasdNavigation": {
+        if (!navigationModeController) return { ok: false, action: actionType, error: "Navigation mode unavailable" };
+        return navigationModeController.toggle();
+      }
       case "notesPopup":
         notesService.toggle();
         break;

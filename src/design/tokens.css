@@ -1,5 +1,5 @@
 /*
- * KeyFlow Design Tokens (v2 — Modern Native Desktop)
+ * KeyFlow Design Tokens (v3 — Control Deck)
  * Permanent runtime design system tokens.
  */
 
@@ -20,37 +20,38 @@
 }
 
 :root {
-  /* Color Palette — Calm, deep dark desktop palette */
-  --color-bg-app: #0d1117;
-  --color-bg-sidebar: #090d13;
-  --color-bg-surface: #131922;
-  --color-bg-surface-elevated: #18202c;
-  --color-bg-hover: #1e2736;
-  --color-bg-selected: #223249;
-  --color-bg-input: #121822;
+  /* Color Palette — graphite control-deck surfaces with KeyFlow blue signals */
+  --color-bg-app: #121316;
+  --color-bg-sidebar: #0d0e11;
+  --color-bg-surface: #181a1f;
+  --color-bg-surface-elevated: #20232a;
+  --color-bg-hover: #262932;
+  --color-bg-selected: #2e323d;
+  --color-bg-input: #14161a;
 
-  --color-border-subtle: #1c2533;
-  --color-border-default: #263346;
-  --color-border-strong: #37475e;
+  --color-border-subtle: #22252c;
+  --color-border-default: #2f333c;
+  --color-border-strong: #424754;
 
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
-  --color-text-disabled: #475569;
+  --color-text-primary: #f3f4f6;
+  --color-text-secondary: #9ca3af;
+  --color-text-muted: #6b7280;
+  --color-text-disabled: #4b5563;
   --color-text-on-accent: #ffffff;
 
-  /* KeyFlow Signature Calm Blue */
-  --color-accent: #3b82f6;
-  --color-accent-hover: #60a5fa;
-  --color-accent-pressed: #2563eb;
-  --color-accent-soft: rgba(59, 130, 246, 0.12);
-  --color-accent-border: rgba(59, 130, 246, 0.35);
+  /* KeyFlow blue action signal */
+  --color-accent: #4f7cff;
+  --color-accent-hover: #6a91ff;
+  --color-accent-pressed: #3f68df;
+  --color-accent-soft: rgba(79, 124, 255, 0.14);
+  --color-accent-border: rgba(79, 124, 255, 0.35);
+  --color-text-on-accent: #ffffff;
 
   /* Status Colors */
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
-  --color-info: #3b82f6;
+  --color-info: #9ca3af;
   --color-success-soft: rgba(16, 185, 129, 0.12);
   --color-warning-soft: rgba(245, 158, 11, 0.12);
   --color-danger-soft: rgba(239, 68, 68, 0.12);
@@ -213,14 +214,14 @@
   --card-padding: 16px 20px;
   --card-radius: var(--radius-lg);
 
-  /* Popup overlay specifics */
-  --popup-width: 540px;
-  --popup-min-width: 480px;
-  --popup-max-width: 580px;
+  /* Popup overlay specifics (Compact Sleek Spotlight Style) */
+  --popup-width: 440px;
+  --popup-min-width: 380px;
+  --popup-max-width: 480px;
   --popup-min-height: 140px;
-  --popup-max-height: 600px;
-  --popup-item-height: 48px;
-  --popup-list-max-height: 440px;
+  --popup-max-height: 520px;
+  --popup-item-height: 44px;
+  --popup-list-max-height: 400px;
   --popup-radius: var(--radius-lg);
   --popup-backdrop-blur: 24px;
   --popup-surface: var(--color-bg-surface-elevated);
@@ -231,41 +232,41 @@
   --popup-close-duration: 120ms;
 }
 
-/* Light theme overrides */
+/* Light theme overrides (crisp blue-and-paper control deck) */
 [data-theme="light"] {
-  --color-bg-app: #f8fafc;
-  --color-bg-sidebar: #f1f5f9;
+  --color-bg-app: #f9fafb;
+  --color-bg-sidebar: #f3f4f6;
   --color-bg-surface: #ffffff;
-  --color-bg-surface-elevated: #f8fafc;
-  --color-bg-hover: #eef2f6;
-  --color-bg-selected: #e0e7ff;
+  --color-bg-surface-elevated: #f9fafb;
+  --color-bg-hover: #f3f4f6;
+  --color-bg-selected: #e5e7eb;
   --color-bg-input: #ffffff;
 
-  --color-border-subtle: #e2e8f0;
-  --color-border-default: #cbd5e1;
-  --color-border-strong: #94a3b8;
+  --color-border-subtle: #e5e7eb;
+  --color-border-default: #d1d5db;
+  --color-border-strong: #9ca3af;
 
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-muted: #64748b;
-  --color-text-disabled: #94a3b8;
+  --color-text-primary: #111827;
+  --color-text-secondary: #4b5563;
+  --color-text-muted: #6b7280;
+  --color-text-disabled: #9ca3af;
   --color-text-on-accent: #ffffff;
 
-  --color-accent: #2563eb;
-  --color-accent-hover: #1d4ed8;
-  --color-accent-pressed: #1e40af;
-  --color-accent-soft: rgba(37, 99, 235, 0.09);
-  --color-accent-border: rgba(37, 99, 235, 0.30);
+  --color-accent: #416fe8;
+  --color-accent-hover: #315fd6;
+  --color-accent-pressed: #294fb8;
+  --color-accent-soft: rgba(65, 111, 232, 0.10);
+  --color-accent-border: rgba(65, 111, 232, 0.28);
 
   --color-success: #059669;
   --color-warning: #d97706;
   --color-danger: #dc2626;
-  --color-info: #2563eb;
+  --color-info: #6b7280;
   --color-success-soft: rgba(5, 150, 105, 0.10);
   --color-warning-soft: rgba(217, 119, 6, 0.10);
   --color-danger-soft: rgba(220, 38, 38, 0.10);
-  --color-overlay: rgba(15, 23, 42, 0.35);
-  --color-overlay-strong: rgba(15, 23, 42, 0.55);
+  --color-overlay: rgba(17, 24, 39, 0.35);
+  --color-overlay-strong: rgba(17, 24, 39, 0.55);
   --color-scrim-light: rgba(0, 0, 0, 0.02);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);

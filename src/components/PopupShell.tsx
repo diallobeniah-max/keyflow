@@ -47,6 +47,7 @@ function PopupMenu({
   onSetActive,
   onSelect,
   searchRef,
+  openTimeRef,
 }: {
   items: PopupItemData[];
   settings: PopupShellSettings;
@@ -56,24 +57,53 @@ function PopupMenu({
   onSetActive: (i: number) => void;
   onSelect: (item: PopupItemData) => void;
   searchRef: RefObject<HTMLInputElement>;
+  openTimeRef: RefObject<number>;
 }) {
   return (
     <>
       {settings.search !== false && (
-        <input
-          ref={searchRef}
-          aria-label="Search popup actions"
-          className="input popup-search no-drag-region"
-          placeholder="Search actions…"
-          value={q}
-          onChange={(e) => {
-            onSetQ(e.target.value);
-            onSetActive(0);
-          }}
-        />
+        <div className="popup-search-bar no-drag-region">
+          <Icon name="search" size={16} className="popup-search-icon" />
+          <input
+            ref={searchRef}
+            aria-label="Search popup actions"
+            className="input popup-search no-drag-region"
+            placeholder="Type a command or search actions…"
+            value={q}
+            onChange={(e) => {
+              // Ignore spurious character typed from the shortcut trigger key (e.g. T in Hyper+T)
+              if (openTimeRef.current && Date.now() - openTimeRef.current < 90 && e.target.value.length === 1) {
+                return;
+              }
+              onSetQ(e.target.value);
+              onSetActive(0);
+            }}
+          />
+          {q ? (
+            <button
+              type="button"
+              className="popup-search-clear"
+              onClick={() => {
+                onSetQ("");
+                onSetActive(0);
+                searchRef.current?.focus();
+              }}
+              title="Clear search"
+            >
+              <Icon name="close" size={12} />
+            </button>
+          ) : (
+            <kbd className="popup-search-hint">↵</kbd>
+          )}
+        </div>
       )}
       <div className="popup-list no-drag-region" role="listbox" aria-label="Popup actions">
-        {items.length === 0 && <div className="empty-text">No matching actions</div>}
+        {items.length === 0 && (
+          <div className="empty-text">
+            <Icon name="search" size={24} className="muted mb-xs" />
+            <div>No matching actions found</div>
+          </div>
+        )}
         {items.map((it, i) => (
           <button
             type="button"
@@ -90,14 +120,30 @@ function PopupMenu({
               </span>
             )}
             <span className="popup-copy">
-              <b>{it.label}</b>
-              {it.category && <small>{it.category}</small>}
+              <b className="popup-item-label">{it.label}</b>
+              {it.category && <span className="popup-item-category">{it.category}</span>}
             </span>
             {settings.showNumbers !== false && it.hint && (
               <kbd className="popup-num">{it.hint}</kbd>
             )}
           </button>
         ))}
+      </div>
+      <div className="popup-footer no-drag-region">
+        <span className="popup-footer-count">
+          {items.length} {items.length === 1 ? "action" : "actions"}
+        </span>
+        <div className="popup-footer-hints">
+          <span className="popup-footer-hint">
+            <kbd>↵</kbd> Select
+          </span>
+          <span className="popup-footer-hint">
+            <kbd>↑↓</kbd> Navigate
+          </span>
+          <span className="popup-footer-hint">
+            <kbd>Esc</kbd> Close
+          </span>
+        </div>
       </div>
     </>
   );
@@ -125,6 +171,7 @@ export function PopupShell() {
    * hide() or set phase=hidden.
    */
   const closeEpochRef = useRef(0);
+  const openTimeRef = useRef<number>(0);
 
   const setPhaseBoth = (p: Phase) => {
     phaseRef.current = p;
@@ -229,8 +276,18 @@ export function PopupShell() {
       closedRef.current = false;
       genRef.current = data?.gen ?? null;
 
-      const receivedItems = data?.items ?? [];
-      setItems(receivedItems);
+      const fallbackDefaults = [
+        { id: "pop-code", label: "Open VS Code", icon: "terminal", category: "Launch", hint: "1", enabled: true, actions: [{ id: "act-pop-code", type: "openApp", payload: { path: "code" } }] },
+        { id: "pop-docs", label: "Open Documents", icon: "folder", category: "Folders", hint: "2", enabled: true, actions: [{ id: "act-pop-docs", type: "openFolder", payload: { path: "%USERPROFILE%\\Documents" } }] },
+        { id: "pop-topmost", label: "Always on Top", icon: "pinTop", category: "Window", hint: "3", enabled: true, actions: [{ id: "act-top", type: "alwaysOnTop", payload: { topmostMode: "toggle", highlight: true, sound: true } }] },
+        { id: "pop-note", label: "Quick Note", icon: "file", category: "Tools", hint: "4", enabled: true, actions: [{ id: "act-note", type: "notesPopup", payload: {} }] },
+      ];
+
+      const rawItems = data?.items && data.items.length > 0
+        ? data.items
+        : (data?.settings?.items && data.settings.items.length > 0 ? data.settings.items : fallbackDefaults);
+
+      setItems(rawItems);
       setSettings(data?.settings ?? {});
       setTheme(data?.theme ?? "dark");
       setTitle(data?.title ?? "KeyFlow");
@@ -238,6 +295,7 @@ export function PopupShell() {
       setQ("");
       setActive(0);
       setPhaseBoth("preparing");
+      openTimeRef.current = Date.now();
 
       const fontSize = data?.settings?.appearance?.fontSize ?? "default";
       document.documentElement.setAttribute("data-font-size", fontSize);
@@ -245,9 +303,9 @@ export function PopupShell() {
       console.log(`[popup-renderer] opening gen=${genRef.current ?? "?"} epoch=${closeEpochRef.current}`);
 
       // Calculate initial estimated height for eager display to prevent pop-in delay
-      const itemCount = Math.min(receivedItems.length || 4, data?.settings?.maxItems ?? 8);
-      const estimatedHeight = Math.min(560, Math.max(160, 38 + 52 + (itemCount * 46) + 16));
-      const estimatedWidth = 540;
+      const itemCount = Math.min(rawItems.length || 4, data?.settings?.maxItems ?? 8);
+      const estimatedHeight = Math.min(520, Math.max(150, 38 + 48 + (itemCount * 44) + 16));
+      const estimatedWidth = 440;
 
       if (eapi?.popup?.reportContentSize) {
         console.log(`[popup-renderer] eager reportContentSize ${estimatedWidth}×${estimatedHeight} gen=${genRef.current ?? "?"}`);
@@ -390,6 +448,7 @@ export function PopupShell() {
           onSetActive={setActive}
           onSelect={(item) => select(item)}
           searchRef={searchRef}
+          openTimeRef={openTimeRef}
         />
       </div>
     </div>

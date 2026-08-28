@@ -1,13 +1,18 @@
 import { create } from "zustand";
 import { Action, AppPage, AppRule, PersistedState, PopupRequest, Profile, RecentAction, Settings, Shortcut } from "../types";
 import { createSampleState, uid } from "./sampleData";
-import { createDefaultSettings } from "../lib/defaults";
+import { createDefaultSettings, migrateHyperShortcuts, migrateHyperConfig, migratePopupMenuItems } from "../lib/defaults";
 import { tauriLoad, tauriSave } from "../lib/tauri";
 
 export interface Toast {
   id: string;
   message: string;
   kind: "info" | "success" | "warning" | "danger";
+}
+
+export interface SettingsFocusTarget {
+  category: string;
+  anchorId: string;
 }
 
 interface StoreState {
@@ -25,7 +30,9 @@ interface StoreState {
   popup: PopupRequest | null;
   toasts: Toast[];
   globalSearch: string;
+  settingsFocusTarget: SettingsFocusTarget | null;
   suppression: { available: boolean; status: string; backend: string } | null;
+  wasdNavigationActive: boolean;
 
   load: () => Promise<void>;
   persist: () => void;
@@ -35,6 +42,7 @@ interface StoreState {
 
   setPage: (p: AppPage) => void;
   setGlobalSearch: (q: string) => void;
+  setSettingsFocusTarget: (target: SettingsFocusTarget | null) => void;
   setEditing: (id: string | null) => void;
   setDrawerOpen: (b: boolean) => void;
   setPendingKey: (key: string, mouse?: boolean) => void;
@@ -70,6 +78,7 @@ interface StoreState {
   requestPopup: (req: PopupRequest) => void;
   closePopup: () => void;
   setSuppression: (s: { available: boolean; status: string; backend: string } | null) => void;
+  setWasdNavigationActive: (b: boolean) => void;
   toast: (message: string, kind?: Toast["kind"]) => void;
   removeToast: (id: string) => void;
   finishOnboarding: () => void;
@@ -133,17 +142,30 @@ function applyAccentColor(root: HTMLElement, accent: string): void {
 function mergeSettings(s: Partial<Settings> | undefined): Settings {
   const defaults = createDefaultSettings();
   if (!s) return defaults;
+  const mergedShortcuts = { ...defaults.shortcuts, ...s.shortcuts };
+  const defaultHotCorners = defaults.hotCorners!;
+  const defaultScreenTint = defaults.screenTint!;
+  mergedShortcuts.hyperKeyConfig = migrateHyperConfig(s.shortcuts?.hyperKeyConfig);
+  mergedShortcuts.hyperKey = mergedShortcuts.hyperKeyConfig.key;
+  mergedShortcuts.hyperKeyEnabled = mergedShortcuts.hyperKeyConfig.enabled;
+  mergedShortcuts.hyperKeyOutput = "Hyper";
   return {
     ...defaults,
     ...s,
     general: { ...defaults.general, ...s.general },
     appearance: { ...defaults.appearance, ...s.appearance },
-    shortcuts: { ...defaults.shortcuts, ...s.shortcuts },
+    shortcuts: mergedShortcuts,
     popup: { ...defaults.popup, ...s.popup },
     profiles: { ...defaults.profiles, ...s.profiles },
     privacy: { ...defaults.privacy, ...s.privacy },
     data: { ...defaults.data, ...s.data },
     advanced: { ...defaults.advanced, ...s.advanced },
+    hotCorners: {
+      ...defaultHotCorners,
+      ...s.hotCorners,
+      corners: { ...defaultHotCorners.corners, ...s.hotCorners?.corners },
+    },
+    screenTint: { ...defaultScreenTint, ...s.screenTint },
   };
 }
 
@@ -162,12 +184,18 @@ export const useStore = create<StoreState>((set, get) => ({
   popup: null,
   toasts: [],
   globalSearch: "",
+  settingsFocusTarget: null,
   suppression: null,
+  wasdNavigationActive: false,
 
   load: async () => {
     const raw = await tauriLoad();
     const state = raw ? (raw as PersistedState) : createSampleState();
     state.settings = mergeSettings(state.settings);
+    state.shortcuts = migrateHyperShortcuts(state.shortcuts);
+    if (raw && !(raw as any)?.settings?.popup?.items) {
+      state.settings = migratePopupMenuItems(state.settings, state.shortcuts);
+    }
     set({
       data: state,
       loaded: true,
@@ -207,6 +235,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
   setPage: (p) => set({ currentPage: p }),
   setGlobalSearch: (q) => set({ globalSearch: q }),
+  setSettingsFocusTarget: (target) => set({ settingsFocusTarget: target }),
   setEditing: (id) => set({ editingId: id }),
   setDrawerOpen: (b) => set({ drawerOpen: b }),
   setPendingKey: (key, mouse) => set({ pendingKey: { key, mouse } }),
@@ -269,6 +298,7 @@ export const useStore = create<StoreState>((set, get) => ({
   requestPopup: (req) => set({ popup: req }),
   closePopup: () => set({ popup: null }),
   setSuppression: (s) => set({ suppression: s }),
+  setWasdNavigationActive: (b) => set({ wasdNavigationActive: b }),
   toast: (message, kind = "info") => {
     const id = uid("toast");
     set((s) => ({ toasts: [...s.toasts, { id, message, kind }] }));

@@ -16,3 +16,5 @@ Thumbs.db
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
+output/
+.playwright-cli/

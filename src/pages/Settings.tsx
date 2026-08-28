@@ -11,16 +11,7 @@ import type { SettingSearchItem } from "../lib/settingsIndex";
 
 const DEFAULT_ACCENT = createDefaultSettings().appearance.accent;
 
-type SettingsSection =
-  | "general"
-  | "shortcuts"
-  | "alwaysOnTop"
-  | "popup"
-  | "appearance"
-  | "privacy"
-  | "data"
-  | "advanced"
-  | "about";
+type SettingsSection = SettingSearchItem["category"];
 
 interface SectionTab {
   id: SettingsSection;
@@ -191,7 +182,7 @@ export function Settings() {
         </nav>
 
         {/* Right Settings Content */}
-        <div className="settings-content">
+        <div key={activeSection} className="settings-content anim-tab-enter">
           {activeSection === "general" && (
             <SettingsGroup title="General Settings" icon="settings" desc="Core startup and background options">
               <SettingsRow id="row-gen-startup" title="Launch on Windows startup" desc="Start KeyFlow automatically when you log in to Windows">

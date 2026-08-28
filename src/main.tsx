@@ -8,10 +8,14 @@ import { initEngine, getEngine } from "./lib/engine";
 import { initNativeInput } from "./lib/native-input";
 
 const isPopup = window.location.search.includes("window=popup");
+const isDragSwitcher = window.location.search.includes("window=drag-switcher");
+const isScreenTint = window.location.search.includes("window=screen-tint");
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 
 if (isPopup) {
+  root.render(<React.StrictMode><App /></React.StrictMode>);
+} else if (isDragSwitcher || isScreenTint) {
   root.render(<React.StrictMode><App /></React.StrictMode>);
 } else {
   initEngine();
@@ -25,4 +29,9 @@ if (isPopup) {
       initNativeInput();
     }
   });
+}
+
+// Dev/test hook: expose the store for Playwright UI validation.
+if ((import.meta as any).env?.DEV) {
+  (window as any).__keyflowStore = useStore;
 }

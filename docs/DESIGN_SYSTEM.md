@@ -13,6 +13,9 @@ KeyFlow is a local-first Windows productivity tool for precise keyboard and mous
 * Crisp, tactile, and content-first
 * Precise, dependable, and high-signal
 * Consistent across settings, builders, lists, and popup workflows
+* Control-deck like: compact operational readouts, quiet graphite surfaces, and blue signal states that make the engine's status legible at a glance
+
+The current visual direction is a KeyFlow-owned interpretation of modular utility control centers: dense enough for power users, calm enough for daily use, and grounded in Windows desktop conventions. It may borrow the reference's information density and restrained panel language, but it does not reuse external branding, logos, or artwork.
 
 Use the KeyFlow Calm Blue accent family. Avoid generic AI SaaS styling, decorative loud gradients, excessive glass effects, and rounded card-in-card clutter. Surfaces should be solid, clean, and layered through restrained 1px hairline borders and natural soft elevation shadows.
 

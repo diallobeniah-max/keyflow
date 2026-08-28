@@ -3,7 +3,7 @@ export const ELECTRON_DESKTOP_ACTIONS = new Set([
   "pasteText", "typeText", "pressShortcut", "volumeControl", "mediaControl", "toggleMute",
   "brightnessControl", "screenshot", "lockScreen", "openSettings", "showNotification", "copySelected",
   "clipboardHistory", "minimizeWindow", "maximizeWindow", "closeWindow", "moveWindow", "alwaysOnTop",
-  "showPopup",
+  "showPopup", "toggleWasdNavigation",
 ]);
 
 export function routesToDesktop(actionType: string): boolean {

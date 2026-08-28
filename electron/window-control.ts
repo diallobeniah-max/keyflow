@@ -2,7 +2,7 @@ import { execFile } from "child_process";
 import { existsSync } from "fs";
 import { join } from "path";
 import { app } from "electron";
-import { playKeyFlowSound } from "./sound.js";
+import { playKeyFlowSound, feedbackSoundName } from "./sound.js";
 
 export interface WindowTopmostOptions {
   mode?: "toggle" | "pin" | "unpin";
@@ -23,15 +23,20 @@ export interface WindowTopmostResult {
 }
 
 function findNativeHelperBinary(): string | null {
+  const fromEnv = process.env.KEYFLOW_INPUT_HELPER;
+  if (fromEnv && existsSync(fromEnv)) return fromEnv;
+
   const candidates: string[] = [];
 
-  // Development paths
-  const appPath = typeof app?.getAppPath === "function" ? app.getAppPath() : process.cwd();
-  candidates.push(join(appPath, "native", "keyflow-input", "target", "release", "keyflow-input.exe"));
+  // Dev paths
   candidates.push(join(process.cwd(), "native", "keyflow-input", "target", "release", "keyflow-input.exe"));
+  if (typeof app?.getAppPath === "function") {
+    candidates.push(join(app.getAppPath(), "native", "keyflow-input", "target", "release", "keyflow-input.exe"));
+  }
 
   // Production paths
   if (typeof process.resourcesPath === "string") {
+    candidates.push(join(process.resourcesPath, "keyflow-input", "keyflow-input.exe"));
     candidates.push(join(process.resourcesPath, "keyflow-input.exe"));
     candidates.push(join(process.resourcesPath, "native", "keyflow-input.exe"));
   }
@@ -92,9 +97,9 @@ export function toggleWindowTopmost(options: WindowTopmostOptions = {}): Promise
 
       try {
         const parsed = JSON.parse(stdout.trim()) as WindowTopmostResult;
-        // Play custom KeyFlow sound on successful toggle (non-blocking)
+        // Play custom KeyFlow sound on successful toggle (exactly once)
         if (parsed.ok && sound) {
-          playKeyFlowSound(parsed.is_topmost ? "topmost-on" : "topmost-off");
+          playKeyFlowSound(feedbackSoundName("topmost", parsed.is_topmost));
         }
         resolve(parsed);
       } catch (parseErr) {

@@ -33,11 +33,12 @@ test("areTriggersConflicting identifies exact duplicates and gesture overlaps", 
   assert.deepEqual(areTriggersConflicting("hold", "hold"), { conflicting: true, exact: true });
   assert.deepEqual(areTriggersConflicting("hold", "longPress"), { conflicting: true, exact: true });
 
-  // Overlaps
-  assert.deepEqual(areTriggersConflicting("single", "double"), { conflicting: true, exact: false });
-  assert.deepEqual(areTriggersConflicting("double", "single"), { conflicting: true, exact: false });
-  assert.deepEqual(areTriggersConflicting("single", "triple"), { conflicting: true, exact: false });
-  assert.deepEqual(areTriggersConflicting("double", "triple"), { conflicting: true, exact: false });
+  // Distinct tap counts coexist (native engine arbitrates single/double/triple)
+  assert.deepEqual(areTriggersConflicting("single", "double"), { conflicting: false, exact: false });
+  assert.deepEqual(areTriggersConflicting("double", "single"), { conflicting: false, exact: false });
+  assert.deepEqual(areTriggersConflicting("single", "triple"), { conflicting: false, exact: false });
+  assert.deepEqual(areTriggersConflicting("double", "triple"), { conflicting: false, exact: false });
+  // Single still collides with hold-family timing
   assert.deepEqual(areTriggersConflicting("single", "tapThenHold"), { conflicting: true, exact: false });
 });
 
@@ -74,7 +75,7 @@ test("analyzeShortcutConflicts: detects exact duplicate in same profile", () => 
   assert.ok(report.conflicts[0].message.includes("CapsLock is already used"));
 });
 
-test("analyzeShortcutConflicts: detects single tap vs double tap gesture overlap", () => {
+test("analyzeShortcutConflicts: allows single tap alongside double tap on same key", () => {
   const existing = [
     {
       id: "sc-popup",
@@ -90,7 +91,8 @@ test("analyzeShortcutConflicts: detects single tap vs double tap gesture overlap
     },
   ];
 
-  // User attempts to create Single Tap F (e.g. Always on Top)
+  // User creates Single Tap F (e.g. Always on Top); the native engine
+  // arbitrates tap counts, so distinct gestures on one key are allowed.
   const candidate = {
     id: "sc-aot",
     name: "Always on Top",
@@ -102,12 +104,9 @@ test("analyzeShortcutConflicts: detects single tap vs double tap gesture overlap
   };
 
   const report = analyzeShortcutConflicts(candidate, existing);
-  assert.equal(report.hasBlockingConflict, true);
+  assert.equal(report.hasBlockingConflict, false);
   const conflict = report.conflicts.find((c) => c.type === "gesture_overlap");
-  assert.ok(conflict, "Must detect gesture overlap between single tap and double tap");
-  assert.ok(conflict.message.includes("Double tap"));
-  assert.ok(report.suggestions.length > 0, "Must provide non-conflicting suggested shortcuts");
-  assert.ok(report.suggestions.some((s) => s.label.includes("Ctrl") && s.label.includes("F")));
+  assert.ok(!conflict, "Single tap must not overlap double tap on the same key");
 });
 
 test("analyzeShortcutConflicts: allows different modifier chords on same key", () => {

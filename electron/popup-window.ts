@@ -95,7 +95,7 @@ export class PopupWindowManager {
   /** Position saved when the user drags the popup. In-memory per session. */
   private lastPosition: Point | null = null;
   /** Size at last finalizeAndShow, used as fallback on re-open. */
-  private lastSize: Size = { width: 540, height: 380 };
+  private lastSize: Size = { width: 440, height: 360 };
 
   private readonly devUrl: string;
   private readonly preloadPath: string;
@@ -473,8 +473,8 @@ export class PopupWindowManager {
     if (this.window && !this.window.isDestroyed()) return;
     const iconPath = join(this.appPath, "build/icon.ico");
     this.window = new BrowserWindow({
-      width: 540,
-      height: 380,
+      width: 440,
+      height: 360,
       show: false,
       frame: false,
       transparent: true,
@@ -542,8 +542,15 @@ export class PopupWindowManager {
       }
     });
 
-    // NOTE: blur auto-close is intentionally NOT registered.
-    // Popup closes only via: FF shortcut toggle, X button, Escape, action execution.
+    // Auto-close on blur when closeOnBlur setting is enabled
+    win.on("blur", () => {
+      if (this.snapshot.settings?.closeOnBlur !== false) {
+        if (this.phase === "open") {
+          console.log("[popup] auto-closing on blur (closeOnBlur enabled)");
+          this.hide();
+        }
+      }
+    });
 
     win.on("moved", () => {
       if (this.window && !this.window.isDestroyed()) {

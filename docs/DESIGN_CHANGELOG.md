@@ -1,5 +1,109 @@
 # Design Changelog
 
+## 2026-08-28 — Windows-Native Fluid Animation Suite
+
+* **Windows 11 Fluent Motion & Keyframes (`tokens.css`, `index.css`, `App.tsx`, `Settings.tsx`, `CreateShortcut.tsx`, `ui.tsx`)**:
+  - Implemented standard Windows-native motion curves (`cubic-bezier(0.16, 1, 0.3, 1)`) with dedicated utility classes: `.anim-page-enter`, `.anim-page-back`, `.anim-page-forward`, `.anim-tab-enter`, `.anim-modal-enter`, `.anim-modal-exit`, `.anim-dropdown-enter`, `.anim-accordion-enter`, `.anim-card-enter`, `.anim-badge-pop`, and `.anim-fade-in`.
+  - Added smooth page transitions to `Router()` in `App.tsx` (`.page-transition-wrap`), giving every main navigation view (Dashboard, Shortcuts, Create, Visual Keyboard, Library, Profiles, Settings) a crisp slide-and-fade entrance.
+  - Added tab transition animations (`.anim-tab-enter`) to `Settings.tsx` when switching between categories.
+  - Added smooth modal pop-in and backdrop fade animations across `Modal`, `Dialog`, `IconPickerModal`, `KeyPicker`, `AppPicker`, and `CommandPalette`.
+  - Added collapsible drawer animations (`.anim-accordion-enter`) in `CreateShortcut.tsx` when toggling Advanced Settings.
+  - Added staggered entrance cascades (`.anim-stagger-1` through `.anim-stagger-6`) to list items and grid cards across Shortcuts, Action Library, and Profiles.
+  - Added tactile `:active` micro-press feedback (`transform: scale(0.975)`) on buttons and interactive chips.
+  - Full support for `@media (prefers-reduced-motion: reduce)` and `.reduce-motion` class to disable animations for accessibility.
+
+## 2026-08-28 — Hot Corners Visualizer & Sound, Notes Popup Overhaul, and iOS-Style Icon Picker
+
+* **Hot Corners Visualizer & Audio Control (`Settings.tsx`, `tokens.css`, `index.css`)**:
+  - Added dedicated **Audio Feedback** toggle row to easily enable/disable the gesture chime.
+  - Implemented real-time **Interactive Corner Zone Overlays** (`.hot-corners-active-zone-preview`) appearing dynamically on the display monitor canvas when the activation area slider is adjusted, displaying exact pixel hit boundaries and fading out upon release.
+  - Added **Custom Layout Presets** with 1-click chip selectors and "+ Save Layout" dialog to save personalized corner configurations with custom names, icons, and color styles.
+
+* **Keep Notes Popup Window Overhaul (`NotesPopupShell.tsx`, `notes-window.ts`, `index.css`)**:
+  - Added interactive draggable splitter (`.notes-sidebar-resizer`) supporting smooth sidebar resizing with local storage persistence.
+  - Relocated "+ New Note" button to the bottom-left of the sidebar foot, freeing up 100% of the editor workspace.
+  - Upgraded formatting toolbar with responsive flex-wrapping and dynamic container width adaptation.
+  - Fixed frameless window control buttons (Minimize, Maximize, Close) with `-webkit-app-region: no-drag` and IPC calls.
+
+* **iOS-Style Categorized Icon Picker & Color Palette (`IconPickerModal.tsx`, `Icon.tsx`)**:
+  - Created reusable `IconPickerModal` with open-source icon groups (Productivity, Coding, Media, System, Health).
+  - Integrated 6-color token-backed accent swatches and real-time search filter across Hot Corner layouts and Action Editors.
+
+## 2026-08-28 — Ctrl+K Command Center
+
+* Added a renderer-local `Ctrl+K` command palette that searches navigation, quick actions, configured shortcuts, and the shared settings index.
+* Added keyboard-first execution with arrow-key navigation, Enter to run, Escape/click-away dismissal, and a searchable command registry with typo-tolerant matching.
+* Settings results now open their exact category, scroll to the matching row, focus its control, and briefly highlight the destination.
+* Added the `Command Palette` preference under **Shortcuts & Gestures**, using the existing settings persistence and design tokens.
+
+## 2026-08-26 — macOS & Raycast Inspired UI Modernization
+
+* **App Shell & Navigation**:
+  - `Sidebar.tsx`: Modern sectioned layout (**SHORTCUTS** and **WORKSPACE**), live shortcut count badges (`nav-item-badge`), active item highlight with inset glowing accent pill, brand version tag (`brand-version-tag`), and active profile selector in the sidebar footer.
+  - `TopBar.tsx`: Clean macOS breadcrumbs (`topbar-breadcrumbs`, `topbar-section-crumb`), active application chip (`topbar-chip`, `topbar-chip-text`), status pills for Active / Paused / Safe Mode (`topbar-status-pill`), and quick "+ New Shortcut" action.
+  - Standardized `PageHeader` across all main pages (Dashboard, Shortcuts, CreateShortcut, VisualKeyboard, ActionLibrary, Profiles, Settings) with documented purpose descriptions and usage instructions.
+
+* **Raycast-Style Command Palette (`PopupShell.tsx` & `PopupMenu.tsx`)**:
+  - Spotlight search bar with search icon, clear button, and return hint badge (`↵`).
+  - Action items with category chips (`popup-item-category`), title, and numeric hint badge (`popup-num`).
+  - Footer bar with action hints (`↵ Select`, `↑↓ Navigate`, `Esc Close`).
+
+* **Apple Notes / Bear-Style Floating Notepad (`NotesPopupShell.tsx` & `index.css`)**:
+  - macOS traffic-light window controls (`.mac-traffic-lights`) for smooth native feel.
+  - Auto-seeded rich "Welcome to KeyFlow Notes 📝" document on first run or empty state, immediately presenting a clean, formatted note ready to edit.
+  - Pinned notes feature (`📌 Pin`) keeping priority notes at the top of the sidebar.
+  - 1-Click "Copy Note" button with instant visual copied feedback state.
+  - Note metadata bar displaying formatted last modified date, word count, and character count.
+  - Rich formatting toolbar: Bold, Italic, Underline, Strikethrough, Headings (H1, H2, H3, ¶), Bullet & Numbered Lists, Blockquotes (`”`), Horizontal Dividers (`—`), Undo, and Redo.
+  - Keyboard shortcuts: `Ctrl+N` (New note with immediate title focus), `Ctrl+F` (Focus search input), `Esc` (Close window / clear search).
+  - Enhanced typography: readable 1.7 line height, syntax-highlighted code blocks, and styled blockquotes with accent border.
+  - Continuous debounced autosave with live status indicator pill.
+
+* **Design Tokens & CSS Refinements (`index.css`)**:
+  - Standardized hairline borders (`1px solid var(--color-border-subtle)`), soft elevated surfaces, and modern card elevation.
+
+## 2026-08-17 — Cycle 5: Live App Context, Gesture Availability, Key Picker & Drag Corner V2
+
+* **Live app context (Part A)**:
+  - Native `GetActiveApp` IPC (`native/keyflow-input/src/protocol.rs` `ActiveApp`/`GetActiveApp`, `electron/main.ts` `native:get-active-app`, `preload.ts` `input.getActiveApp`) resolves the foreground executable to a `NativeAppInfo`.
+  - New hook `src/lib/useActiveApp.ts` polls every 1500 ms + on window focus, feeding `focusedApp` into the app bar; `src/components/AppPicker.tsx` now shows a live "Running now" section (1 s refresh, diffed via `src/lib/app-scope.ts` `diffRunningApps`) above saved scopes, with a "Current" context chip for the focused app.
+  - New CSS classes: `.app-picker-section`, `.app-picker-section-title`, `.app-picker-live`, `.app-picker-saved-hint`, `.app-picker-current`.
+
+* **Scope-aware gesture availability (Part B)**:
+  - `src/lib/conflict.ts` adds `getGestureAvailability` + `allTapGesturesTaken`: reports which single/double/triple-tap gestures are free for a candidate key in the current app scope.
+  - `src/pages/CreateShortcut.tsx` shows gesture chips (free = selectable, taken = disabled) and a warning banner when all tap gestures are taken. New CSS classes: `.gesture-availability`, `.gesture-availability-head`, `.gesture-chip`, `.gesture-chip.is-current`, `.gesture-chip.is-taken`.
+
+* **Searchable complete key picker (Part C)**:
+  - New canonical renderer catalog `src/lib/keyCatalog.ts` (9 groups, alias search) + modal `src/components/KeyPicker.tsx` (search + grouped chips + arrow-key navigation), opened via "Browse…" in `KeyCapture`.
+  - `src/lib/constants.ts` adds `FUNCTION_KEYS_EXTENDED` (F1–F24) used by REMAP_TARGETS. New CSS classes: `.key-picker-search`, `.key-picker-list`, `.key-picker-group`, `.key-picker-chips`, `.key-picker-chip` (+`.is-selected`), `.key-picker-item` (+`.is-focused`), `.key-picker-cap`, `.key-picker-name`.
+
+* **Drag Corner Switcher V2 (Part D)**:
+  - Native engine (`drag_switcher.rs` V2 + new `raw_mouse.rs`) now observes the mouse via Raw Input (hidden `KeyFlowRawMouse` window, RIDEV_INPUTSINK) instead of WH_MOUSE_LL — the sole mouse source; position always from GetCursorPos.
+  - 8 hot zones (4 corners + 4 edges) as a bitmask with presets (Top Right / All Corners / All Edges / All), activation dwell (0 ms = Instant) and hover dwell; `[drag-v2]` forensic logs on transitions.
+  - `protocol.rs` `SetDragSwitcher` now carries `zones`/`activationMs`; `src/lib/drag-zones.ts` holds the renderer-side preset masks + `maskToPreset`; `src/pages/Settings.tsx` gains a Trigger area preset dropdown, a visual 3×3 zone picker (`drag-zone-picker`) with accent-blue active states, Activation speed and Switch window speed presets, all mirrored through `electron/native-input-helper.ts` + `electron/main.ts`.
+  - New CSS classes: `.drag-zone-picker`, `.drag-zone-monitor`, `.drag-zone` (+`.is-active`, `.dz-tl`…`.dz-br`).
+
+## 2026-08-15 — App-Specific Shortcuts ("Works In")
+
+* **App scope on shortcuts (`src/types/index.ts`, `src/lib/app-scope.ts`, `src/lib/conflict.ts`, `src/lib/native-input.ts`)**:
+  - Every shortcut can now be scoped to one app via `Shortcut.appScope` (`{ scopeType: "executable", executablePath, processName?, displayName? }`); absent scope = Everywhere.
+  - New pure-TS helper module `src/lib/app-scope.ts`: `normalizeExecutablePath` (lowercase, `/`→`\`, trim, strip NUL), `appScopeMatches`, `isScopeActive`, `appScopeKey`, `formatScopeLabel`, `filterRunningApps`, `scopeFromPickedApp`, `scopeFromBrowsePath`. Matching uses ONLY the normalized executable path — window titles never participate.
+  - `src/lib/conflict.ts` is scope-aware: same trigger in different apps or a global+app-specific override coexist; same app + same trigger still conflicts. Scope label is included in Shortcuts search.
+  - `native-input.ts` forwards `appScope` into the native engine sync.
+
+* **Native engine app-scoping (`native/keyflow-input`)**:
+  - Event-driven foreground tracking (`app_scope.rs`) via `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)`; each key event reads the cached foreground app by normalized executable path, fail-open when unresolved.
+  - Scoped behaviors routed to a `scoped` vector (`config.rs`); app-specific rule wins over the Everywhere rule for the same `(key, kind, mods)` with different-kind coexistence (`trigger.rs` shadowing).
+  - On foreground change: `remap::on_scope_change` releases held remapped targets no longer matching and swallows the physical key-up; gestures are reset only for keys with scoped rules. Remaps stay correct across rapid app switches.
+  - New `ListApps` IPC (`drag_switcher.rs`) exposes running windows' executable paths.
+
+* **Works In selector UI (`src/components/AppPicker.tsx`, `src/pages/CreateShortcut.tsx`, `src/index.css`)**:
+  - Segmented "Everywhere / Specific App" control under Step 1: Shortcut & Trigger. Choosing Specific App opens a modal listing running apps with icons + search, plus "Browse for application…" via a native file dialog (`native:browse-exe` IPC in `electron/main.ts`/`preload.ts`).
+  - Selected scope renders as a chip with a "Change app" button; cancel leaves the value untouched.
+  - Shortcuts list shows a `window`-icon chip with the app label for scoped shortcuts.
+
+* **New CSS classes**: `.app-scope-chip`, `.app-picker-list`, `.app-picker-item`, `.app-picker-icon`, `.app-picker-copy` (all tokens/spacing from the design system).
+
 ## 2026-08-13 — Custom Sounds, Accent Color Swatches, Hyper-First Popup, Source Switcher & Settings Layout Fix
 
 * **Custom KeyFlow Sound Assets (`public/sounds/`)**:
@@ -131,3 +235,16 @@
 * Added responsive, component, and accessibility rules for future page migrations.
 * Added the first shared `PageHeader` component; existing `PageIntro` remains a compatibility export until page-by-page migration.
 * Added the non-rewriting `npm run design:check` validation command.
+## 2026-08-28 — KeyFlow Control Deck visual rebuild
+
+* Reframed the renderer around a graphite utility-control visual language inspired by the compact, modular information architecture of the Vorssaint project, while retaining KeyFlow's Windows-native shell, blue action signal, and existing product identity.
+* Restyled the shared shell, navigation, top bar, cards, controls, settings groups, shortcut rows, keyboard map, popup surfaces, and responsive drawer through the existing token system.
+* Added a dashboard runtime signal strip for engine, profile, active-rule, and foreground-app state so the primary screen leads with live operational context.
+* Preserved Electron window controls, title-bar dragging, native input routing, profiles, shortcut data, popup behavior, pause, Safe Mode, and local storage.
+
+## 2026-08-28 — Hot Corners and Screen Tint preferences
+
+* Added a dedicated Hot Corners settings category with independent top-left, top-right, bottom-left, and bottom-right actions.
+* Added Charmy-inspired built-in corner actions, configurable dwell/cooldown timing, corner target sizing, and bindings to enabled KeyFlow shortcuts.
+* Added a dedicated Screen Tint category with all-display click-through overlay control, approved preset swatches, custom color input, and strength control.
+* Kept the existing Drag Corner Switcher separate because it is a drag-and-switch-window workflow rather than an idle pointer hover action.

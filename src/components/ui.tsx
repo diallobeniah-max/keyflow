@@ -497,7 +497,11 @@ export function SettingsGroup({
   return (
     <div className="settings-group">
       <div className="settings-group-header">
-        {icon && <Icon name={icon} size={18} className="settings-group-icon" />}
+        {icon && (
+          <div className="settings-group-icon-wrap">
+            <Icon name={icon} size={18} className="settings-group-icon" />
+          </div>
+        )}
         <div>
           <h3 className="settings-group-title">{title}</h3>
           {desc && <p className="settings-group-desc">{desc}</p>}
@@ -548,9 +552,9 @@ export function Modal({
 }) {
   if (!open) return null;
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
+    <div className="modal-backdrop anim-fade-in" onMouseDown={onClose}>
       <div
-        className="modal"
+        className="modal anim-modal-enter"
         style={width ? { width } : undefined}
         onMouseDown={(e) => e.stopPropagation()}
       >
@@ -626,3 +630,6 @@ export function ToastHost() {
     </div>
   );
 }
+
+export { PageHeader } from "./ui/PageHeader";
+export { IconPickerModal } from "./ui/IconPickerModal";

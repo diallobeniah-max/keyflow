@@ -5,7 +5,7 @@ import { uid } from "../store/sampleData";
 import { ACTION_META } from "../lib/constants";
 import { runAction } from "../lib/actions";
 import { ActionListEditor } from "../components/ActionEditor";
-import { Button, Card, EmptyState, Modal, PageIntro } from "../components/ui";
+import { Button, Card, EmptyState, Modal, PageHeader } from "../components/ui";
 import { Icon } from "../components/Icon";
 
 export function ActionLibrary() {
@@ -25,15 +25,16 @@ export function ActionLibrary() {
 
   return (
     <div className="content">
-      <PageIntro
+      <PageHeader
         eyebrow="REUSABLE COMPONENTS"
         title="Action Library"
-        description="Saved reusable action templates, URLs, text snippets, and commands ready to attach to shortcuts."
+        description="Save reusable actions, text snippets, websites, scripts, and automation steps."
+        usage="Create reusable action templates here to attach to shortcuts across multiple profiles."
       >
         <Button variant="primary" icon="create" onClick={() => setOpen(true)}>
           New action
         </Button>
-      </PageIntro>
+      </PageHeader>
 
       {library.length === 0 ? (
         <EmptyState
@@ -48,10 +49,11 @@ export function ActionLibrary() {
         />
       ) : (
         <div className="grid cols-3 gap-md">
-          {library.map((a) => {
+          {library.map((a, idx) => {
             const meta = ACTION_META[a.type];
+            const staggerClass = `anim-stagger-${Math.min(6, (idx % 6) + 1)}`;
             return (
-              <Card key={a.id} hover>
+              <Card key={a.id} hover className={`anim-card-enter ${staggerClass}`}>
                 <div className="spread mb-md">
                   <div className="row gap-sm">
                     <div className="stat-icon">

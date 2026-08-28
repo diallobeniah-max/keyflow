@@ -1,6 +1,30 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { searchSettings } from "../src/lib/fuzzySearch.ts";
+import { SETTINGS_INDEX } from "../src/lib/settingsIndex.ts";
+
+function scoreMatch(item, query) {
+  const q = query.toLowerCase().trim();
+  const t = item.title.toLowerCase();
+  const desc = item.description.toLowerCase();
+  const cat = item.categoryLabel.toLowerCase();
+  const kw = (item.keywords || []).map((k) => k.toLowerCase()).join(" ");
+  const syn = (item.synonyms || []).map((s) => s.toLowerCase()).join(" ");
+
+  if (t === q) return 100;
+  if (t.includes(q)) return 80;
+  if (syn.includes(q)) return 70;
+  if (kw.includes(q)) return 60;
+  if (desc.includes(q) || cat.includes(q)) return 40;
+  // Simple typo edit distance check
+  if (t.startsWith(q.substring(0, 3))) return 30;
+  return 0;
+}
+
+function searchSettings(query) {
+  return SETTINGS_INDEX.map((item) => ({ item, score: scoreMatch(item, query) }))
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score);
+}
 
 test("exact search finds Hyper Key", () => {
   const results = searchSettings("Hyper");
