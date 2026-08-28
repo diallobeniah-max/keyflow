@@ -46,8 +46,6 @@ export function TopBar() {
         </button>
 
         <div className="topbar-breadcrumbs">
-          <span className="topbar-section-crumb">CONTROL DECK</span>
-          <span className="topbar-crumb-sep">/</span>
           <h1 className="topbar-title">{TITLES[page] ?? "KeyFlow"}</h1>
         </div>
       </div>

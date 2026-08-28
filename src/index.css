@@ -68,7 +68,7 @@ input, textarea {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: var(--color-bg-app);
+  background: var(--color-bg-sidebar);
 }
 
 .app-body {
@@ -78,6 +78,7 @@ input, textarea {
   min-height: 0;
   overflow: hidden;
   position: relative;
+  background: var(--color-bg-sidebar);
 }
 
 .main {
@@ -87,6 +88,10 @@ input, textarea {
   min-height: 0;
   flex-direction: column;
   background: var(--color-bg-app);
+  border-top-left-radius: 14px;
+  border-left: 1px solid var(--color-border-subtle);
+  border-top: 1px solid var(--color-border-subtle);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 
@@ -189,7 +194,7 @@ input, textarea {
   align-items: center;
   padding: var(--space-0) var(--space-0) var(--space-0) var(--space-3);
   background: var(--color-bg-sidebar);
-  border-bottom: 1px solid var(--color-border-subtle);
+  border-bottom: none;
   user-select: none;
   z-index: var(--z-titlebar);
 }
@@ -285,7 +290,7 @@ input, textarea {
   justify-content: space-between;
   width: var(--layout-sidebar-width);
   background: var(--color-bg-sidebar);
-  border-right: 1px solid var(--color-border-subtle);
+  border-right: none;
   padding: var(--space-3) var(--space-2);
   transition: width var(--motion-default);
   z-index: var(--z-sidebar);
@@ -487,6 +492,7 @@ input, textarea {
   padding: var(--space-0) var(--layout-page-padding-x);
   background: var(--color-bg-app);
   border-bottom: 1px solid var(--color-border-subtle);
+  border-top-left-radius: 14px;
 }
 
 .topbar-left {
@@ -1623,6 +1629,15 @@ textarea.input {
   font-weight: 600;
 }
 
+.settings-content {
+  flex: 1 1 0%;
+  min-width: 0;
+  max-width: 820px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .settings-group {
   display: flex;
   flex-direction: column;
@@ -1631,6 +1646,7 @@ textarea.input {
   border-radius: var(--radius-card);
   overflow: hidden;
   margin-bottom: var(--space-4);
+  width: 100%;
 }
 
 .settings-group-header {
@@ -3825,9 +3841,9 @@ body {
 }
 
 .settings-nav {
-  width: 220px;
-  padding-right: var(--space-3);
-  border-right: 1px solid var(--color-border-subtle);
+  width: 200px;
+  padding-right: var(--space-2);
+  border-right: none;
 }
 
 .settings-nav-btn {
