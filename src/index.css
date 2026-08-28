@@ -3373,6 +3373,37 @@ textarea.input {
   box-shadow: var(--shadow-sm);
 }
 
+.settings-slider-wrap {
+  width: 240px;
+}
+
+.wasd-cursor-preview {
+  width: 28px;
+  height: 28px;
+  image-rendering: pixelated;
+}
+
+.tint-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: var(--space-1);
+}
+
+.tint-dot[data-preset="warm"] { background: var(--color-tint-warm); }
+.tint-dot[data-preset="rose"] { background: var(--color-tint-rose); }
+.tint-dot[data-preset="yellow"] { background: var(--color-tint-yellow); }
+.tint-dot[data-preset="blue"] { background: var(--color-tint-blue); }
+.tint-dot[data-preset="mint"] { background: var(--color-tint-mint); }
+.tint-dot[data-preset="neutral"] { background: var(--color-tint-neutral); }
+
+.preset-color-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
 /* ==========================================================================
    Icon Picker Modal & Color Palette
    ========================================================================== */

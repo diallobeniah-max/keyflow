@@ -59,6 +59,14 @@
   --color-overlay-strong: rgba(0, 0, 0, 0.80);
   --color-scrim-light: rgba(255, 255, 255, 0.04);
 
+  /* Screen Tint Presets */
+  --color-tint-warm: #f2c078;
+  --color-tint-rose: #d99ab7;
+  --color-tint-yellow: #f2e58a;
+  --color-tint-blue: #9fc7ed;
+  --color-tint-mint: #a8d8c0;
+  --color-tint-neutral: #bdbdbd;
+
   /* Typography — Derived from centralized --font-scale */
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", "Inter", system-ui, sans-serif;
   --font-family-mono: "Cascadia Code", "Consolas", "SF Mono", monospace;

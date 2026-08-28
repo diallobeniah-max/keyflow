@@ -1,13 +1,15 @@
-import { ChangeEvent, CSSProperties, useMemo, useRef, useState } from "react";
+import { ChangeEvent, CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
-import { ACCENT_PRESETS, HIGHLIGHT_PRESETS } from "../lib/constants";
+import { ACCENT_PRESETS, HIGHLIGHT_PRESETS, HOT_CORNER_ACTIONS, SCREEN_TINT_PRESETS } from "../lib/constants";
 import { Button, Field, Input, PageIntro, SettingsGroup, SettingsRow, Toggle } from "../components/ui";
 import { AppSelect } from "../components/ui/AppSelect";
 import { Icon } from "../components/Icon";
+import { IconPickerModal } from "../components/ui/IconPickerModal";
 import { getSafeHyperKeySuggestions } from "../lib/conflict";
 import { createDefaultSettings } from "../lib/defaults";
 import { searchSettings } from "../lib/fuzzySearch";
 import type { SettingSearchItem } from "../lib/settingsIndex";
+import type { HotCornerAction, HotCornerPosition, HotCornerBuiltinAction, HotCornersCustomPreset, ScreenTintPreset } from "../types";
 
 const DEFAULT_ACCENT = createDefaultSettings().appearance.accent;
 
@@ -22,7 +24,10 @@ interface SectionTab {
 const SECTIONS: SectionTab[] = [
   { id: "general", label: "General", icon: "settings" },
   { id: "shortcuts", label: "Shortcuts & Gestures", icon: "shortcuts" },
+  { id: "hotCorners", label: "Hot Corners", icon: "window" },
   { id: "alwaysOnTop", label: "Always on Top", icon: "pinTop" },
+  { id: "wasd", label: "WASD Navigation", icon: "keyboard" },
+  { id: "screenTint", label: "Screen Tint", icon: "sun" },
   { id: "popup", label: "Popup Menu", icon: "popup" },
   { id: "appearance", label: "Appearance", icon: "monitor" },
   { id: "privacy", label: "Privacy & Safety", icon: "shield" },
@@ -40,11 +45,36 @@ export function Settings() {
   const reset = useStore((s) => s.resetAll);
   const clearRecent = useStore((s) => s.clearRecent);
   const importState = useStore((s) => s.importState);
+  const wasdNavigationActive = useStore((s) => s.wasdNavigationActive);
+  const setWasdNavigationActive = useStore((s) => s.setWasdNavigationActive);
+  const focusTarget = useStore((s) => s.settingsFocusTarget);
+  const setFocusTarget = useStore((s) => s.setSettingsFocusTarget);
 
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isAdjustingCornerArea, setIsAdjustingCornerArea] = useState(false);
+  const [showSavePresetModal, setShowSavePresetModal] = useState(false);
+  const [presetNameInput, setPresetNameInput] = useState("");
+  const [presetIcon, setPresetIcon] = useState("star");
+  const [presetColor, setPresetColor] = useState("#4F7CFF");
+  const [showIconPicker, setShowIconPicker] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (focusTarget) {
+      setActiveSection(focusTarget.category as SettingsSection);
+      setTimeout(() => {
+        const el = document.getElementById(focusTarget.anchorId);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("setting-row-highlight");
+          setTimeout(() => el.classList.remove("setting-row-highlight"), 1800);
+        }
+      }, 100);
+      setFocusTarget(null);
+    }
+  }, [focusTarget, setFocusTarget]);
 
   const searchResults = useMemo(() => searchSettings(searchQuery, 8), [searchQuery]);
 
@@ -388,6 +418,233 @@ export function Settings() {
             </>
           )}
 
+          {activeSection === "hotCorners" && (
+            <>
+              <SettingsGroup title="Hot Corners & Trigger Zones" icon="window" desc="Execute actions by nudging your cursor into monitor corners">
+                <SettingsRow id="row-hot-enable" title="Enable Hot Corners" desc="Detect corner gestures across your primary display">
+                  <Toggle
+                    label="Enable Hot Corners"
+                    checked={settings.hotCorners?.enabled ?? false}
+                    onChange={(v) => {
+                      const updated = { ...settings.hotCorners, enabled: v };
+                      patch("hotCorners" as any, updated as any);
+                      window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
+                    }}
+                  />
+                </SettingsRow>
+                <SettingsRow id="row-hot-sound" title="Play sound on trigger" desc="Play custom audio chime when a corner action is activated">
+                  <Toggle
+                    label="Play sound on trigger"
+                    checked={settings.hotCorners?.soundEnabled ?? true}
+                    onChange={(v) => {
+                      const updated = { ...settings.hotCorners, soundEnabled: v };
+                      patch("hotCorners" as any, updated as any);
+                      window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
+                    }}
+                  />
+                </SettingsRow>
+                <SettingsRow id="row-hot-size" title="Corner activation area" desc="Hit-target size in pixels for each display corner">
+                  <div className="row gap-md settings-slider-wrap">
+                    <input
+                      type="range"
+                      min="16"
+                      max="48"
+                      step="4"
+                      value={settings.hotCorners?.cornerSize ?? 24}
+                      onMouseDown={() => setIsAdjustingCornerArea(true)}
+                      onMouseUp={() => setIsAdjustingCornerArea(false)}
+                      onTouchStart={() => setIsAdjustingCornerArea(true)}
+                      onTouchEnd={() => setIsAdjustingCornerArea(false)}
+                      onChange={(e) => {
+                        const updated = { ...settings.hotCorners, cornerSize: Number(e.target.value) };
+                        patch("hotCorners" as any, updated as any);
+                        window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
+                      }}
+                      className="w-full"
+                    />
+                    <span className="tiny font-mono">{settings.hotCorners?.cornerSize ?? 24}px</span>
+                  </div>
+                </SettingsRow>
+                <SettingsRow id="row-hot-delay" title="Activation delay" desc="How long the mouse must rest in the corner before firing">
+                  <div className="row gap-md settings-slider-wrap">
+                    <input
+                      type="range"
+                      min="100"
+                      max="1000"
+                      step="50"
+                      value={settings.hotCorners?.activationMs ?? 400}
+                      onChange={(e) => {
+                        const updated = { ...settings.hotCorners, activationMs: Number(e.target.value) };
+                        patch("hotCorners" as any, updated as any);
+                        window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
+                      }}
+                      className="w-full"
+                    />
+                    <span className="tiny font-mono">{settings.hotCorners?.activationMs ?? 400}ms</span>
+                  </div>
+                </SettingsRow>
+              </SettingsGroup>
+
+              {/* Interactive Corner Stage */}
+              <div className="hot-corners-stage-container" id="row-hot-stage">
+                <div className="hot-corners-stage-header">
+                  <div className="hot-corners-stage-title">
+                    <span className="hot-corners-display-icon">🖥️</span>
+                    <div>
+                      <div className="hot-corners-stage-name">Interactive Display Monitor</div>
+                      <div className="hot-corners-stage-desc">Configure actions for all 4 display corners</div>
+                    </div>
+                  </div>
+                  <div className="hot-corners-presets">
+                    <span className="hot-corners-preset-label">Quick Layouts:</span>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        const corners = {
+                          topLeft: { type: "builtin" as const, action: "taskView" as HotCornerBuiltinAction },
+                          topRight: { type: "builtin" as const, action: "desktop" as HotCornerBuiltinAction },
+                          bottomLeft: { type: "builtin" as const, action: "start" as HotCornerBuiltinAction },
+                          bottomRight: { type: "builtin" as const, action: "quickSettings" as HotCornerBuiltinAction },
+                        };
+                        const updated = { ...settings.hotCorners, corners };
+                        patch("hotCorners" as any, updated as any);
+                        window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
+                      }}
+                    >
+                      Default
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        const corners = {
+                          topLeft: { type: "builtin" as const, action: "taskView" as HotCornerBuiltinAction },
+                          topRight: { type: "builtin" as const, action: "search" as HotCornerBuiltinAction },
+                          bottomLeft: { type: "builtin" as const, action: "previousDesktop" as HotCornerBuiltinAction },
+                          bottomRight: { type: "builtin" as const, action: "nextDesktop" as HotCornerBuiltinAction },
+                        };
+                        const updated = { ...settings.hotCorners, corners };
+                        patch("hotCorners" as any, updated as any);
+                        window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
+                      }}
+                    >
+                      Multitasking
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        const corners = {
+                          topLeft: { type: "builtin" as const, action: "none" as HotCornerBuiltinAction },
+                          topRight: { type: "builtin" as const, action: "none" as HotCornerBuiltinAction },
+                          bottomLeft: { type: "builtin" as const, action: "none" as HotCornerBuiltinAction },
+                          bottomRight: { type: "builtin" as const, action: "none" as HotCornerBuiltinAction },
+                        };
+                        const updated = { ...settings.hotCorners, corners };
+                        patch("hotCorners" as any, updated as any);
+                        window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
+                      }}
+                    >
+                      Clear All
+                    </button>
+                    {(settings.hotCorners?.customPresets ?? []).map((cp) => (
+                      <div key={cp.id} className="hot-corner-custom-chip">
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={() => {
+                            const updated = { ...settings.hotCorners, corners: cp.corners };
+                            patch("hotCorners" as any, updated as any);
+                            window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
+                          }}
+                        >
+                          {cp.icon && <Icon name={cp.icon} size={13} />}
+                          <span>{cp.name}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="hot-corner-preset-del"
+                          title="Delete preset"
+                          onClick={() => {
+                            const customPresets = (settings.hotCorners?.customPresets ?? []).filter((p) => p.id !== cp.id);
+                            patch("hotCorners" as any, { ...settings.hotCorners, customPresets } as any);
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        setPresetNameInput("");
+                        setShowSavePresetModal(true);
+                      }}
+                    >
+                      + Save Layout
+                    </button>
+                  </div>
+                </div>
+
+                <div className="hot-corners-canvas" style={{ "--zone-size": `${settings.hotCorners?.cornerSize ?? 24}px` } as CSSProperties}>
+                  {isAdjustingCornerArea && (
+                    <>
+                      <div className="hot-corners-active-zone-preview hot-corners-active-zone-preview--tl is-active" />
+                      <div className="hot-corners-active-zone-preview hot-corners-active-zone-preview--tr is-active" />
+                      <div className="hot-corners-active-zone-preview hot-corners-active-zone-preview--bl is-active" />
+                      <div className="hot-corners-active-zone-preview hot-corners-active-zone-preview--br is-active" />
+                    </>
+                  )}
+                  <div className="hot-corners-grid-layout">
+                    {(["topLeft", "topRight", "bottomLeft", "bottomRight"] as HotCornerPosition[]).map((pos) => {
+                      const currentAction = settings.hotCorners?.corners?.[pos] ?? { type: "builtin", action: "none" };
+                      const isBuiltin = currentAction.type === "builtin";
+                      const selectValue = isBuiltin ? currentAction.action : `sc:${(currentAction as any).shortcutId}`;
+                      const arrow = pos === "topLeft" ? "↖" : pos === "topRight" ? "↗" : pos === "bottomLeft" ? "↙" : "↘";
+                      const label = pos === "topLeft" ? "Top Left" : pos === "topRight" ? "Top Right" : pos === "bottomLeft" ? "Bottom Left" : "Bottom Right";
+                      const isActive = isBuiltin ? currentAction.action !== "none" : !!(currentAction as any).shortcutId;
+
+                      const options = [
+                        ...HOT_CORNER_ACTIONS.map((a) => ({ value: a.value, label: a.label })),
+                        ...data.shortcuts.map((sc) => ({ value: `sc:${sc.id}`, label: `Shortcut: ${sc.name}` })),
+                      ];
+
+                      return (
+                        <div key={pos} className={"hot-corner-pod" + (isActive ? " is-active" : "")}>
+                          <div className="hot-corner-pod__top">
+                            <span className="hot-corner-pod__arrow">{arrow}</span>
+                            <span className="hot-corner-pod__title">{label}</span>
+                            {isActive && <span className="hot-corner-pod__indicator" />}
+                          </div>
+                          <div className="hot-corner-pod__selector">
+                            <AppSelect
+                              value={selectValue}
+                              onChange={(val) => {
+                                let newAct: HotCornerAction;
+                                if (val.startsWith("sc:")) {
+                                  newAct = { type: "shortcut", shortcutId: val.slice(3) };
+                                } else {
+                                  newAct = { type: "builtin", action: val as HotCornerBuiltinAction };
+                                }
+                                const corners = { ...(settings.hotCorners?.corners ?? {}), [pos]: newAct };
+                                const updated = { ...settings.hotCorners, corners };
+                                patch("hotCorners" as any, updated as any);
+                                window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
+                              }}
+                              options={options}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
           {activeSection === "alwaysOnTop" && (
             <SettingsGroup title="Always on Top Window Control" icon="pinTop" desc="Configure DWM border highlights and behavior">
               <SettingsRow id="row-top-mode" title="Default pin mode" desc="Default action behavior when pinning window">
@@ -430,6 +687,91 @@ export function Settings() {
                   checked={settings.windowControl?.soundFeedback ?? true}
                   onChange={(v) => patch("windowControl" as any, { soundFeedback: v } as any)}
                 />
+              </SettingsRow>
+            </SettingsGroup>
+          )}
+
+          {activeSection === "wasd" && (
+            <SettingsGroup title="WASD Keyboard Cursor Navigation" icon="keyboard" desc="Control the mouse cursor directly from your keyboard">
+              <SettingsRow id="row-wasd-enable" title="Enable WASD Navigation" desc="Use W, A, S, D keys to move cursor with acceleration">
+                <Toggle
+                  label="WASD Navigation"
+                  checked={wasdNavigationActive}
+                  onChange={(v) => setWasdNavigationActive(v)}
+                />
+              </SettingsRow>
+              <SettingsRow id="row-wasd-size" title="Navigation cursor size" desc="Size of the active blue cursor indicator">
+                <div className="w-160">
+                  <AppSelect
+                    value={String(settings.wasdNavigation?.cursorSize ?? 32)}
+                    onChange={(v) => patch("wasdNavigation" as any, { cursorSize: Number(v) } as any)}
+                    options={[
+                      { value: "24", label: "Small (24px)" },
+                      { value: "32", label: "Default (32px)" },
+                      { value: "48", label: "Large (48px)" },
+                      { value: "64", label: "Extra Large (64px)" },
+                    ]}
+                  />
+                </div>
+              </SettingsRow>
+              <SettingsRow id="row-wasd-preview" title="Cursor indicator preview" desc="Visual indicator displayed while navigation mode is engaged">
+                <div className="row gap-sm items-center">
+                  <img src="/cursors/blue-cursor.png" alt="Blue Cursor" className="wasd-cursor-preview" />
+                  <span className="chip chip-accent">Active State Indicator</span>
+                </div>
+              </SettingsRow>
+            </SettingsGroup>
+          )}
+
+          {activeSection === "screenTint" && (
+            <SettingsGroup title="Screen Tint Blue-Light Filter" icon="sun" desc="Hardware-accelerated screen warmth overlay for late-night eye comfort">
+              <SettingsRow id="row-tint-enable" title="Enable Screen Tint" desc="Display a fullscreen warm color wash over all monitors">
+                <Toggle
+                  label="Enable Screen Tint"
+                  checked={settings.screenTint?.enabled ?? false}
+                  onChange={(v) => {
+                    const updated = { ...settings.screenTint, enabled: v };
+                    patch("screenTint" as any, updated as any);
+                    window.electronAPI?.screenTint?.update?.(updated as any);
+                  }}
+                />
+              </SettingsRow>
+              <SettingsRow id="row-tint-presets" title="Tint preset" desc="Select a curated warmth palette">
+                <div className="row gap-xs wrap">
+                  {SCREEN_TINT_PRESETS.map((preset) => (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      className={"chip clickable" + (settings.screenTint?.preset === preset.value ? " chip-accent" : " chip-subtle")}
+                      onClick={() => {
+                        const updated = { ...settings.screenTint, preset: preset.value as ScreenTintPreset, color: preset.color };
+                        patch("screenTint" as any, updated as any);
+                        window.electronAPI?.screenTint?.update?.(updated as any);
+                      }}
+                    >
+                      <span className="tint-dot" data-preset={preset.value} />
+                      <span>{preset.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </SettingsRow>
+              <SettingsRow id="row-tint-strength" title="Filter strength" desc="Adjust the opacity and intensity of the screen tint overlay">
+                <div className="row gap-md settings-slider-wrap">
+                  <input
+                    type="range"
+                    min="5"
+                    max="60"
+                    step="1"
+                    value={settings.screenTint?.strength ?? 18}
+                    onChange={(e) => {
+                      const updated = { ...settings.screenTint, strength: Number(e.target.value) };
+                      patch("screenTint" as any, updated as any);
+                      window.electronAPI?.screenTint?.update?.(updated as any);
+                    }}
+                    className="w-full"
+                  />
+                  <span className="tiny font-mono">{settings.screenTint?.strength ?? 18}%</span>
+                </div>
               </SettingsRow>
             </SettingsGroup>
           )}
@@ -667,6 +1009,77 @@ export function Settings() {
           )}
         </div>
       </div>
+
+      {showSavePresetModal && (
+        <div className="modal-backdrop anim-fade-in" onClick={() => setShowSavePresetModal(false)}>
+          <div className="hot-corners-save-modal anim-modal-enter" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Save Corner Layout</h3>
+              <button type="button" className="icon-btn icon-btn-sm" onClick={() => setShowSavePresetModal(false)}>✕</button>
+            </div>
+            <div className="col gap-md mt-sm">
+              <Field label="Layout Name">
+                <Input
+                  value={presetNameInput}
+                  onChange={(e) => setPresetNameInput(e.target.value)}
+                  placeholder="e.g. Coding Focus, Gaming, Desktop"
+                  autoFocus
+                />
+              </Field>
+              <div className="row gap-sm items-center">
+                <Button variant="secondary" size="sm" onClick={() => setShowIconPicker(true)}>
+                  <Icon name={presetIcon} size={15} />
+                  <span>Choose Icon & Color</span>
+                </Button>
+                <div className="preset-color-badge" style={{ backgroundColor: presetColor }} />
+              </div>
+              <div className="row gap-sm justify-end mt-sm">
+                <Button variant="secondary" size="sm" onClick={() => setShowSavePresetModal(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={!presetNameInput.trim()}
+                  onClick={() => {
+                    const newPreset: HotCornersCustomPreset = {
+                      id: `cp-${Date.now()}`,
+                      name: presetNameInput.trim(),
+                      icon: presetIcon,
+                      color: presetColor,
+                      corners: settings.hotCorners?.corners ?? {
+                        topLeft: { type: "builtin", action: "none" },
+                        topRight: { type: "builtin", action: "none" },
+                        bottomLeft: { type: "builtin", action: "none" },
+                        bottomRight: { type: "builtin", action: "none" },
+                      },
+                    };
+                    const customPresets = [...(settings.hotCorners?.customPresets ?? []), newPreset];
+                    patch("hotCorners" as any, { ...settings.hotCorners, customPresets } as any);
+                    setShowSavePresetModal(false);
+                  }}
+                >
+                  Save Preset
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showIconPicker && (
+        <IconPickerModal
+          isOpen={showIconPicker}
+          onClose={() => setShowIconPicker(false)}
+          selectedIcon={presetIcon}
+          selectedColor={presetColor}
+          onSelect={(icon, color) => {
+            setPresetIcon(icon);
+            if (color) setPresetColor(color);
+            setShowIconPicker(false);
+          }}
+        />
+      )}
     </div>
   );
 }
