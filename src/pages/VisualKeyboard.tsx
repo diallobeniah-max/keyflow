@@ -56,6 +56,7 @@ export function VisualKeyboard() {
 
   const [popoverKey, setPopoverKey] = useState<string | null>(null);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const [leavingKey, setLeavingKey] = useState<string | null>(null);
   const [editingShortcutId, setEditingShortcutId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -63,14 +64,20 @@ export function VisualKeyboard() {
 
   const handleKeyMouseEnter = (k: string) => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    setLeavingKey(null);
     setHoveredKey(k);
   };
 
   const handleKeyMouseLeave = () => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    hoverTimerRef.current = setTimeout(() => {
-      setHoveredKey(null);
-    }, 220);
+    if (hoveredKey) {
+      const exiting = hoveredKey;
+      setLeavingKey(exiting);
+      hoverTimerRef.current = setTimeout(() => {
+        setHoveredKey((curr) => (curr === exiting ? null : curr));
+        setLeavingKey((curr) => (curr === exiting ? null : curr));
+      }, 140);
+    }
   };
 
   const openCreate = (key: string, mouse = false) => {
@@ -136,9 +143,10 @@ export function VisualKeyboard() {
                   const count = counts.get(k) || 0;
                   const isHyper = !!(isHyperKeyEnabled && hyperKeyName?.toLowerCase() === k.toLowerCase());
                   const isHovered = hoveredKey === k;
+                  const isLeaving = leavingKey === k;
                   const isSelected = popoverKey === k;
                   const keyShortcuts = shortcutsByKey.get(k) || [];
-                  const showPopover = isHovered && (count > 0 || isHyper);
+                  const showPopover = (isHovered || isLeaving || isSelected) && (count > 0 || isHyper);
 
                   return (
                     <div
@@ -169,7 +177,7 @@ export function VisualKeyboard() {
                       {/* iOS-Style Quick Preview Popover on Hover */}
                       {showPopover && (
                         <div
-                          className={`ios-key-popover${rowIndex === 0 ? " is-flipped-down" : ""}`}
+                          className={`ios-key-popover${rowIndex === 0 ? " is-flipped-down" : ""}${isLeaving ? " is-leaving" : ""}`}
                           onMouseEnter={() => {
                             if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
                             setHoveredKey(k);
