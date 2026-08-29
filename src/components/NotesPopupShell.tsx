@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { Icon } from "./Icon";
 import { SlashCommandPalette } from "./notes/SlashCommandPalette";
 import { SLASH_COMMANDS, SlashCommand } from "../lib/notesSlashCommands";
+import { runAction } from "../lib/actions";
 
 export interface Note {
   id: string;
@@ -59,10 +60,14 @@ export function NotesPopupShell() {
   const [notes, setNotes] = useState<Note[]>([DEFAULT_WELCOME_NOTE]);
   const [activeNoteId, setActiveNoteId] = useState<string | null>("welcome-note");
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchBarOpen, setSearchBarOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
   const [saveLocation, setSaveLocation] = useState<string>("");
+  const [folderPopoverOpen, setFolderPopoverOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [fabMenuOpen, setFabMenuOpen] = useState(false);
+  const [isLeavingFab, setIsLeavingFab] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const saved = localStorage.getItem("keyflow:notes-sidebar-w");
@@ -81,6 +86,7 @@ export function NotesPopupShell() {
   const editorRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const saveTimerRef = useRef<any>(null);
+  const fabLeaveTimeoutRef = useRef<any>(null);
 
   useEffect(() => {
     if (!isResizingSidebar) return;
@@ -350,8 +356,83 @@ export function NotesPopupShell() {
     const text = `${activeNote.title}\n\n${stripHtml(activeNote.content)}`;
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 2200);
     });
+  };
+
+  const handleFabMouseEnter = () => {
+    if (fabLeaveTimeoutRef.current) {
+      clearTimeout(fabLeaveTimeoutRef.current);
+      fabLeaveTimeoutRef.current = null;
+    }
+    setIsLeavingFab(false);
+    setFabMenuOpen(true);
+  };
+
+  const handleFabMouseLeave = () => {
+    setIsLeavingFab(true);
+    fabLeaveTimeoutRef.current = setTimeout(() => {
+      setFabMenuOpen(false);
+      setIsLeavingFab(false);
+    }, 140);
+  };
+
+  const insertImageTag = (src: string) => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    document.execCommand("insertHTML", false, `<p><img src="${src}" alt="Note image" style="max-width:100%;border-radius:8px;margin:8px 0;" /></p><p><br></p>`);
+    triggerAutosave(undefined, editorRef.current.innerHTML);
+  };
+
+  const handlePickImage = async () => {
+    setFabMenuOpen(false);
+    try {
+      if (window.electronAPI?.notes?.pickFile) {
+        const filePath = await window.electronAPI.notes.pickFile({ type: "image" });
+        if (filePath) {
+          insertImageTag(`file://${filePath.replace(/\\/g, "/")}`);
+          return;
+        }
+      }
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.onchange = (e: any) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            if (evt.target?.result) {
+              insertImageTag(String(evt.target.result));
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+      input.click();
+    } catch (err) {
+      console.error("[Notes] Failed to pick image:", err);
+    }
+  };
+
+  const handleTriggerSlashCommands = () => {
+    setFabMenuOpen(false);
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    document.execCommand("insertText", false, "/");
+    checkSlashCommand();
+  };
+
+  const handleExportMarkdown = () => {
+    setFabMenuOpen(false);
+    if (!activeNote) return;
+    const blob = new Blob([activeNote.content], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(activeNote.title || "note").replace(/[^a-zA-Z0-9_-]/g, "_")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // Sorted notes: pinned first, then newest updated
@@ -390,65 +471,104 @@ export function NotesPopupShell() {
     <div className="notes-popup-root">
       {/* Window Header Strip */}
       <header className="notes-popup-header popup-drag-region">
-        <div className="notes-header-left">
-          <div className="notes-brand-title">
-            <span className="notes-header-badge">
-              <Icon name="file" size={14} />
-            </span>
-            <span className="notes-header-title">KeyFlow Notes</span>
-            <span className="notes-header-count">{notes.length}</span>
-          </div>
-        </div>
+        {/* Left: Hamburger menu toggle for All Notes & Folder Popover */}
+        <div className="notes-header-left no-drag-region">
+          <button
+            type="button"
+            className={"notes-header-icon-btn" + (sidebarOpen ? " is-active" : "")}
+            title={sidebarOpen ? "Hide All Notes sidebar" : "Show All Notes"}
+            onClick={() => setSidebarOpen((v) => !v)}
+          >
+            <Icon name="shortcuts" size={15} />
+          </button>
 
-        {/* Center Search Bar */}
-        <div className="notes-header-center no-drag-region">
-          <div className="notes-search-input-wrap">
-            <Icon name="search" size={13} />
-            <input
-              ref={searchInputRef}
-              type="text"
-              className="notes-search-field"
-              placeholder="Search notes (Ctrl+F)…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                className="notes-search-clear"
-                onClick={() => setSearchQuery("")}
-                title="Clear search"
-              >
-                <Icon name="close" size={11} />
-              </button>
+          <div className="notes-folder-popover-anchor">
+            <button
+              type="button"
+              className={"notes-header-icon-btn" + (folderPopoverOpen ? " is-active" : "")}
+              title="Storage Directory & Placement"
+              onClick={() => setFolderPopoverOpen((v) => !v)}
+            >
+              <Icon name="folder" size={14} />
+            </button>
+
+            {/* iOS-Style Folder Placement Popover */}
+            {folderPopoverOpen && (
+              <div className="notes-folder-popover anim-scale-in">
+                <div className="notes-folder-popover-head">
+                  <span className="notes-folder-popover-title">Storage Location</span>
+                  <button
+                    type="button"
+                    className="notes-popover-close-btn"
+                    onClick={() => setFolderPopoverOpen(false)}
+                    title="Close"
+                  >
+                    <Icon name="close" size={11} />
+                  </button>
+                </div>
+                <div className="notes-folder-popover-path" title={saveLocation || "Default KeyFlow AppData Storage"}>
+                  <Icon name="folder" size={13} />
+                  <span className="truncate">{saveLocation || "Default KeyFlow AppData Storage"}</span>
+                </div>
+                <div className="notes-folder-popover-actions">
+                  <button
+                    type="button"
+                    className="btn btn-subtle btn-sm"
+                    title="Open folder in File Explorer"
+                    onClick={() => {
+                      if (saveLocation) {
+                        void runAction({ id: "open-folder", type: "openFolder", payload: { path: saveLocation } });
+                      }
+                    }}
+                  >
+                    <Icon name="folder" size={13} />
+                    <span>Open Location</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    title="Change storage folder"
+                    onClick={() => {
+                      handleSelectSaveLocation();
+                      setFolderPopoverOpen(false);
+                    }}
+                  >
+                    <Icon name="edit" size={13} />
+                    <span>Change</span>
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Right Header Actions & Window Controls */}
+        {/* Center: Note Title and Save Status Dot Indicator */}
+        <div className="notes-header-center">
+          <span className="notes-center-title truncate">
+            {activeNote?.title || "KeyFlow Notes"}
+          </span>
+          <span
+            className={"notes-status-dot-indicator" + (saveStatus === "saving" ? " is-typing" : " is-saved")}
+            title={saveStatus === "saving" ? "Typing & saving…" : "Saved"}
+          />
+        </div>
+
+        {/* Right: Search Toggle Button and Close (X) */}
         <div className="notes-header-right no-drag-region">
           <button
             type="button"
-            className={"notes-header-icon-btn no-drag-region" + (sidebarOpen ? " is-active" : "")}
-            title={sidebarOpen ? "Hide All Notes panel" : "Show All Notes panel"}
-            onClick={() => setSidebarOpen((v) => !v)}
+            className={"notes-header-search-btn" + (searchBarOpen ? " is-active" : "")}
+            title={searchBarOpen ? "Hide search" : "Search notes (Ctrl+F)"}
+            onClick={() => {
+              setSearchBarOpen((v) => !v);
+              if (!searchBarOpen) {
+                setTimeout(() => searchInputRef.current?.focus(), 50);
+              }
+            }}
           >
-            <Icon name="shortcuts" size={14} />
+            <Icon name="search" size={13} />
+            <span>Search</span>
           </button>
-
-          <button
-            type="button"
-            className="notes-header-icon-btn no-drag-region"
-            title={`Notes Storage Directory:\n${saveLocation || "Default KeyFlow AppData Storage"}\nClick to change folder`}
-            onClick={handleSelectSaveLocation}
-          >
-            <Icon name="folder" size={14} />
-          </button>
-
-          <span className={"notes-save-pill" + (saveStatus === "saving" ? " is-saving" : " is-saved")}>
-            <span className="status-dot" />
-            <span>{saveStatus === "saving" ? "Saving…" : "Saved"}</span>
-          </span>
 
           <div className="notes-header-divider" />
 
@@ -471,6 +591,31 @@ export function NotesPopupShell() {
           </div>
         </div>
       </header>
+
+      {/* Slide-Down Inline Search Strip */}
+      {searchBarOpen && (
+        <div className="notes-search-strip anim-dropdown-enter no-drag-region">
+          <Icon name="search" size={13} />
+          <input
+            ref={searchInputRef}
+            type="text"
+            className="notes-search-field"
+            placeholder="Search notes (Ctrl+F)…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              className="notes-search-clear"
+              onClick={() => setSearchQuery("")}
+              title="Clear search"
+            >
+              <Icon name="close" size={11} />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Main Body Grid */}
       <div className="notes-popup-body">
@@ -807,16 +952,80 @@ export function NotesPopupShell() {
                 onClick={() => checkSlashCommand()}
               />
 
-              {/* Floating Action Button: Copy Note text at bottom-right */}
-              <button
-                type="button"
-                className={"notes-floating-copy-btn no-drag-region" + (copied ? " is-copied" : "")}
-                title={copied ? "Copied to clipboard!" : "Copy Note Text"}
-                onClick={handleCopyNote}
-                aria-label="Copy note"
+              {/* Floating Action Menu & Copy Button at Bottom-Right */}
+              <div
+                className="notes-fab-wrap no-drag-region"
+                onMouseEnter={handleFabMouseEnter}
+                onMouseLeave={handleFabMouseLeave}
               >
-                <Icon name={copied ? "check" : "copy"} size={16} />
-              </button>
+                {fabMenuOpen && (
+                  <div className={"notes-fab-popover" + (isLeavingFab ? " is-leaving" : " anim-scale-in")}>
+                    <div className="notes-fab-popover-header">Quick Actions</div>
+                    <button
+                      type="button"
+                      className="notes-fab-item"
+                      onClick={handleTriggerSlashCommands}
+                    >
+                      <span className="notes-fab-item-icon"><Icon name="command" size={14} /></span>
+                      <div className="notes-fab-item-copy">
+                        <span className="notes-fab-item-title">Slash Commands</span>
+                        <span className="notes-fab-item-desc">Insert blocks & formatting</span>
+                      </div>
+                      <kbd className="notes-fab-kbd">/</kbd>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="notes-fab-item"
+                      onClick={handlePickImage}
+                    >
+                      <span className="notes-fab-item-icon"><Icon name="file" size={14} /></span>
+                      <div className="notes-fab-item-copy">
+                        <span className="notes-fab-item-title">Insert Picture</span>
+                        <span className="notes-fab-item-desc">Add image from device</span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="notes-fab-item"
+                      onClick={(e) => {
+                        handleTogglePin(activeNote.id, e);
+                        setFabMenuOpen(false);
+                      }}
+                    >
+                      <span className="notes-fab-item-icon"><Icon name="pin" size={14} /></span>
+                      <div className="notes-fab-item-copy">
+                        <span className="notes-fab-item-title">{activeNote.pinned ? "Unpin Note" : "Pin Note"}</span>
+                        <span className="notes-fab-item-desc">{activeNote.pinned ? "Keep in list" : "Pin to top of list"}</span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="notes-fab-item"
+                      onClick={handleExportMarkdown}
+                    >
+                      <span className="notes-fab-item-icon"><Icon name="export" size={14} /></span>
+                      <div className="notes-fab-item-copy">
+                        <span className="notes-fab-item-title">Export Markdown</span>
+                        <span className="notes-fab-item-desc">Save .md file to disk</span>
+                      </div>
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  className={"notes-floating-copy-btn" + (copied ? " is-copied" : "")}
+                  title={copied ? "Copied to clipboard!" : "Click to copy · Hover for actions"}
+                  onClick={handleCopyNote}
+                  aria-label="Copy note"
+                >
+                  <Icon name={copied ? "check" : "copy"} size={15} />
+                  {copied && <span className="notes-copy-label">Copied!</span>}
+                </button>
+              </div>
 
               {slashState && (
                 <SlashCommandPalette
