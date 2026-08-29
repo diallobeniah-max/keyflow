@@ -86,15 +86,22 @@ export class HotCornersManager {
       if (this.candidate.fired) return;
 
       const cooldownMs = clamp(this.config.cooldownMs ?? 800, 0, 10_000);
-      if (now - (this.lastTriggeredAt.get(key) ?? 0) < cooldownMs) return;
+      if (now - (this.lastTriggeredAt.get(key) ?? 0) < cooldownMs) {
+        this.candidate.enteredAt = now;
+        return;
+      }
 
       const cornerAction = this.config.corners?.[corner];
-      const specificDelay = cornerAction?.delayMs ?? this.config.activationMs ?? 400;
-      const activationMs = clamp(specificDelay, 0, 10_000);
+      const rawDelay = cornerAction?.delayMs;
+      const parsedDelay = rawDelay !== undefined && rawDelay !== null && !isNaN(Number(rawDelay))
+        ? Number(rawDelay)
+        : (this.config.activationMs ?? 400);
+      const activationMs = clamp(parsedDelay, 0, 10_000);
       if (now - this.candidate.enteredAt < activationMs) return;
 
       this.candidate.fired = true;
       this.lastTriggeredAt.set(key, now);
+      console.log(`[hot-corners] firing corner=${corner} delay=${activationMs}ms`);
       void this.trigger(corner);
     } catch {
       // Electron's screen module can briefly be unavailable while displays change.
