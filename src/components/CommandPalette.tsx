@@ -305,8 +305,32 @@ export function CommandPalette() {
         </div>
 
         <div className="command-palette-meta">
-          <span>{query ? `${results.length} result${results.length === 1 ? "" : "s"}` : "Navigate KeyFlow without leaving the keyboard"}</span>
-          <span className="command-palette-meta-hint">{previewOpen ? <><kbd>Esc</kbd> back to commands</> : <><kbd>↑↓</kbd> move <kbd>↵</kbd> run <kbd>Esc</kbd> close</>}</span>
+          <span className="command-palette-meta-status">
+            {query ? `${results.length} result${results.length === 1 ? "" : "s"}` : "Navigate KeyFlow without leaving the keyboard"}
+          </span>
+          <div className="command-palette-meta-hint">
+            {previewOpen ? (
+              <span className="command-palette-hint-item">
+                <kbd>Esc</kbd>
+                <span>Back to commands</span>
+              </span>
+            ) : (
+              <div className="command-palette-hint-items">
+                <span className="command-palette-hint-item">
+                  <kbd>↑↓</kbd>
+                  <span>Move</span>
+                </span>
+                <span className="command-palette-hint-item">
+                  <kbd>↵</kbd>
+                  <span>Run</span>
+                </span>
+                <span className="command-palette-hint-item">
+                  <kbd>Esc</kbd>
+                  <span>Close</span>
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
         {previewOpen ? (
