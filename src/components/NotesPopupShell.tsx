@@ -1254,7 +1254,7 @@ export function NotesPopupShell() {
           <div className="notes-list-scroll">
             {filteredNotes.length > 0 ? (
               filteredNotes.map((n) => {
-                const preview = stripHtml(n.content).slice(0, 80) || "No additional text";
+                const preview = stripHtml(n.content).replace(/\s+/g, " ").trim() || "No additional text";
                 const dateStr = formatNoteDate(n.updatedAt || n.createdAt);
                 const isActive = n.id === activeNoteId;
 
@@ -1267,7 +1267,7 @@ export function NotesPopupShell() {
                     <div className="notes-sidebar-item-header">
                       <span className="notes-item-title">
                         {n.pinned && <span className="notes-pin-icon" title="Pinned Note">📌</span>}
-                        {n.title || "Untitled Note"}
+                        <span className="notes-item-title-text">{n.title || "Untitled Note"}</span>
                       </span>
 
                       {confirmDeleteId === n.id ? (

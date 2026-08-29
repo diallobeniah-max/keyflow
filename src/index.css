@@ -5690,6 +5690,8 @@ body {
   text-align: left;
   border: 1px solid transparent;
   border-left: 3px solid transparent;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .notes-sidebar-item:hover {
@@ -5712,6 +5714,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-1);
+  min-width: 0;
 }
 
 .notes-item-title {
@@ -5777,26 +5780,27 @@ body {
   gap: var(--space-1);
 }
 
-.notes-item-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
-.notes-item-date {
-  font-size: var(--type-caption-size);
-  color: var(--color-text-muted);
-  flex-shrink: 0;
-  font-weight: 500;
-}
-
+.notes-sidebar-item-snippet,
 .notes-item-preview {
   font-size: var(--type-caption-size);
   color: var(--color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  line-height: var(--type-caption-line);
+}
+
+.notes-sidebar-item-meta,
+.notes-item-date {
+  font-size: var(--type-caption-size);
+  color: var(--color-text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: var(--type-caption-line);
 }
 
 .notes-sidebar-foot {
