@@ -89,11 +89,22 @@ export function CommandPalette() {
   const results = useMemo(() => allResults.slice(0, maxResults), [allResults, maxResults]);
   const activeCommandId = results[active]?.id;
 
+  const closePalette = useCallback(() => {
+    if (isClosing) return;
+    setIsClosing(true);
+    closeTimerRef.current = window.setTimeout(() => {
+      setOpen(false);
+      setIsClosing(false);
+      setPreviewOpen(false);
+      closeTimerRef.current = null;
+    }, 160);
+  }, [isClosing]);
+
   useEffect(() => {
     const handleOpen = () => openPalette();
     const handleToggle = () => {
       if (open) {
-        setOpen(false);
+        closePalette();
       } else {
         openPalette();
       }
@@ -104,7 +115,7 @@ export function CommandPalette() {
       window.removeEventListener("keyflow:open-command-palette", handleOpen);
       window.removeEventListener("keyflow:toggle-command-palette", handleToggle);
     };
-  }, [open, openPalette]);
+  }, [open, openPalette, closePalette]);
 
   useEffect(() => {
     if (!enabled) {
@@ -117,7 +128,7 @@ export function CommandPalette() {
         event.preventDefault();
         event.stopPropagation();
         if (open) {
-          setOpen(false);
+          closePalette();
         } else {
           openPalette();
         }
@@ -131,14 +142,14 @@ export function CommandPalette() {
           setQuery("");
           setActive(0);
         } else {
-          setOpen(false);
+          closePalette();
         }
       }
     };
 
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [enabled, open, configuredShortcut, previewOpen, openPalette]);
+  }, [enabled, open, configuredShortcut, previewOpen, openPalette, closePalette]);
 
   useEffect(() => {
     if (!open) {
@@ -201,17 +212,6 @@ export function CommandPalette() {
       toast(`Ran ${shortcut.name || "shortcut"}`, "success");
     },
     toast,
-  };
-
-  const closePalette = () => {
-    if (isClosing) return;
-    setIsClosing(true);
-    closeTimerRef.current = window.setTimeout(() => {
-      setOpen(false);
-      setIsClosing(false);
-      setPreviewOpen(false);
-      closeTimerRef.current = null;
-    }, 130);
   };
 
   const execute = (command: CommandDefinition) => {
@@ -308,27 +308,27 @@ export function CommandPalette() {
           <span className="command-palette-meta-status">
             {query ? `${results.length} result${results.length === 1 ? "" : "s"}` : "Navigate KeyFlow without leaving the keyboard"}
           </span>
-          <div className="command-palette-meta-hint">
+          <div className="command-palette-hint-items">
             {previewOpen ? (
               <span className="command-palette-hint-item">
                 <kbd>Esc</kbd>
-                <span>Back to commands</span>
+                <span>back to commands</span>
               </span>
             ) : (
-              <div className="command-palette-hint-items">
+              <>
                 <span className="command-palette-hint-item">
                   <kbd>↑↓</kbd>
-                  <span>Move</span>
+                  <span>move</span>
                 </span>
                 <span className="command-palette-hint-item">
                   <kbd>↵</kbd>
-                  <span>Run</span>
+                  <span>run</span>
                 </span>
                 <span className="command-palette-hint-item">
                   <kbd>Esc</kbd>
-                  <span>Close</span>
+                  <span>close</span>
                 </span>
-              </div>
+              </>
             )}
           </div>
         </div>
