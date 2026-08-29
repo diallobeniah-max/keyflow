@@ -42,6 +42,8 @@ export function CommandPalette() {
   const configuredShortcut = data.settings.shortcuts.commandPaletteShortcut || "Ctrl+K";
   const showCategories = data.settings.shortcuts.commandPaletteShowCategories !== false;
   const maxResults = data.settings.shortcuts.commandPaletteMaxResults || 8;
+  const windowMode = data.settings.shortcuts.commandPaletteWindowMode ?? "expanded";
+  const position = data.settings.shortcuts.commandPalettePosition ?? "center";
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -168,9 +170,18 @@ export function CommandPalette() {
   };
 
   return (
-    <div className="command-palette-scrim anim-fade-in" role="presentation" onMouseDown={closePalette}>
+    <div
+      className={"command-palette-scrim anim-fade-in" + (position === "top" ? " is-top" : "")}
+      role="presentation"
+      onMouseDown={closePalette}
+    >
       <section
-        className="command-palette anim-modal-enter"
+        className={
+          "command-palette anim-modal-enter" +
+          (windowMode === "compact" ? " is-compact" : "") +
+          (query.trim() ? " has-query" : "") +
+          (previewOpen ? " has-preview" : "")
+        }
         role="dialog"
         aria-modal="true"
         aria-labelledby="command-palette-title"

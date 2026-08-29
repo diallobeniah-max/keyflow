@@ -206,6 +206,8 @@ export interface ShortcutSettings {
   commandPaletteShortcut?: string;
   commandPaletteShowCategories?: boolean;
   commandPaletteMaxResults?: number;
+  commandPaletteWindowMode?: "compact" | "expanded";
+  commandPalettePosition?: "center" | "top";
   defaultDoubleTap: number;
   defaultTripleTap: number;
   defaultHold: number;

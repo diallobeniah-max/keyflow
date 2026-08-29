@@ -455,6 +455,57 @@ export function Settings() {
                 />
               </SettingsRow>
 
+              <SettingsRow id="row-cp-window-mode" title="Window Mode" desc="Choose your preferred layout mode when opening KeyFlow Command Palette">
+                <div className="window-mode-cards" role="radiogroup" aria-label="Command palette window mode">
+                  <div
+                    className={"window-mode-card" + ((settings.shortcuts.commandPaletteWindowMode ?? "expanded") === "compact" ? " is-active" : "")}
+                    onClick={() => patch("shortcuts", { commandPaletteWindowMode: "compact" })}
+                    role="radio"
+                    aria-checked={(settings.shortcuts.commandPaletteWindowMode ?? "expanded") === "compact"}
+                    tabIndex={0}
+                  >
+                    <div className="window-mode-preview">
+                      <div className="window-mode-preview-bar">
+                        <div className="window-mode-preview-dot" />
+                      </div>
+                    </div>
+                    <span className="window-mode-card-label">Compact</span>
+                  </div>
+
+                  <div
+                    className={"window-mode-card" + ((settings.shortcuts.commandPaletteWindowMode ?? "expanded") === "expanded" ? " is-active" : "")}
+                    onClick={() => patch("shortcuts", { commandPaletteWindowMode: "expanded" })}
+                    role="radio"
+                    aria-checked={(settings.shortcuts.commandPaletteWindowMode ?? "expanded") === "expanded"}
+                    tabIndex={0}
+                  >
+                    <div className="window-mode-preview">
+                      <div className="window-mode-preview-win">
+                        <div className="window-mode-preview-win-head">
+                          <div className="window-mode-preview-dot" />
+                        </div>
+                        <div className="window-mode-preview-win-row accent" />
+                        <div className="window-mode-preview-win-row" />
+                      </div>
+                    </div>
+                    <span className="window-mode-card-label">Expanded</span>
+                  </div>
+                </div>
+              </SettingsRow>
+
+              <SettingsRow id="row-cp-position" title="Screen Position" desc="Choose where the command palette opens (Center by default)">
+                <div className="w-220">
+                  <Select
+                    value={settings.shortcuts.commandPalettePosition ?? "center"}
+                    onChange={(v: string) => patch("shortcuts", { commandPalettePosition: v as any })}
+                    options={[
+                      { value: "center", label: "Center (Default)" },
+                      { value: "top", label: "Top (Classic)" },
+                    ]}
+                  />
+                </div>
+              </SettingsRow>
+
               <SettingsRow id="row-cp-shortcut" title="Activation shortcut" desc="Keyboard shortcut used to open and toggle the command palette">
                 <div className="w-220">
                   <Select

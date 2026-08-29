@@ -47,6 +47,8 @@ export function createDefaultSettings(): Settings {
       commandPaletteShortcut: "Ctrl+K",
       commandPaletteShowCategories: true,
       commandPaletteMaxResults: 8,
+      commandPaletteWindowMode: "expanded",
+      commandPalettePosition: "center",
       defaultDoubleTap: 300,
       defaultTripleTap: 420,
       defaultHold: 600,
