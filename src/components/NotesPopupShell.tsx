@@ -110,6 +110,13 @@ export function NotesPopupShell() {
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [formatSheetOpen, setFormatSheetOpen] = useState(false);
+  const [findBarOpen, setFindBarOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState("");
+  const [replaceQuery, setReplaceQuery] = useState("");
+  const [replaceOpen, setReplaceOpen] = useState(false);
+  const [matchCase, setMatchCase] = useState(false);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const [totalMatches, setTotalMatches] = useState(0);
   const [selectedImg, setSelectedImg] = useState<{
     target: HTMLImageElement;
     widthPercent: number;
@@ -127,6 +134,8 @@ export function NotesPopupShell() {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const findInputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
   const saveTimerRef = useRef<any>(null);
   const fabLeaveTimeoutRef = useRef<any>(null);
   const suppressStrayKeyUntilRef = useRef<number>(Date.now() + 350);
@@ -256,13 +265,31 @@ export function NotesPopupShell() {
       // Find in current note: Ctrl+F
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
         e.preventDefault();
-        setSearchBarOpen(true);
-        setTimeout(() => searchInputRef.current?.focus(), 50);
+        setFindBarOpen(true);
+        setReplaceOpen(false);
+        setTimeout(() => {
+          findInputRef.current?.focus();
+          findInputRef.current?.select();
+        }, 50);
+        return;
+      }
+      // Replace in current note: Ctrl+H
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h") {
+        e.preventDefault();
+        setFindBarOpen(true);
+        setReplaceOpen(true);
+        setTimeout(() => {
+          findInputRef.current?.focus();
+          findInputRef.current?.select();
+        }, 50);
         return;
       }
       // Escape
       if (e.key === "Escape") {
-        if (spotlightOpen) {
+        if (findBarOpen) {
+          setFindBarOpen(false);
+          clearHighlights();
+        } else if (spotlightOpen) {
           setSpotlightOpen(false);
         } else if (shortcutsModalOpen) {
           setShortcutsModalOpen(false);
@@ -270,9 +297,10 @@ export function NotesPopupShell() {
           setHistoryMenuOpen(false);
         } else if (folderPopoverOpen) {
           setFolderPopoverOpen(false);
-        } else if (searchBarOpen) {
-          setSearchBarOpen(false);
-          setSearchQuery("");
+        } else if (formatSheetOpen) {
+          setFormatSheetOpen(false);
+        } else if (selectedImg) {
+          setSelectedImg(null);
         } else {
           window.electronAPI?.notes?.close?.();
         }
@@ -283,7 +311,7 @@ export function NotesPopupShell() {
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [notes, activeNote, spotlightOpen, shortcutsModalOpen, historyMenuOpen, folderPopoverOpen, searchBarOpen, searchQuery]);
+  }, [notes, activeNote, spotlightOpen, shortcutsModalOpen, historyMenuOpen, folderPopoverOpen, findBarOpen, formatSheetOpen, selectedImg, matchCase]);
 
   const handleCreateNote = () => {
     const newNote: Note = {
@@ -527,6 +555,200 @@ export function NotesPopupShell() {
       setFabMenuOpen(false);
       setIsLeavingFab(false);
     }, 140);
+  };
+
+  // Clear any existing find highlight marks from editor DOM
+  const clearHighlights = () => {
+    if (!editorRef.current) return;
+    const marks = editorRef.current.querySelectorAll("mark.notes-find-match");
+    marks.forEach((mark) => {
+      const parent = mark.parentNode;
+      while (mark.firstChild) {
+        parent?.insertBefore(mark.firstChild, mark);
+      }
+      parent?.removeChild(mark);
+    });
+    editorRef.current.normalize();
+  };
+
+  // Apply Apple Notes-style live highlight marks on matching words
+  const applyHighlights = (query: string, targetIdx = 0, isCaseSensitive = matchCase) => {
+    if (!editorRef.current || !activeNote) return;
+
+    clearHighlights();
+
+    if (!query || query.trim() === "") {
+      setTotalMatches(0);
+      setCurrentMatchIndex(0);
+      return;
+    }
+
+    const editor = editorRef.current;
+    const textNodes: Text[] = [];
+    const walk = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null);
+    let node: Node | null;
+    while ((node = walk.nextNode())) {
+      if (node.parentElement?.closest(".no-find, script, style")) continue;
+      textNodes.push(node as Text);
+    }
+
+    const regexFlags = isCaseSensitive ? "g" : "gi";
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    let regex: RegExp;
+    try {
+      regex = new RegExp(escapedQuery, regexFlags);
+    } catch {
+      return;
+    }
+
+    let matchCount = 0;
+    const createdMarks: HTMLElement[] = [];
+
+    textNodes.forEach((textNode) => {
+      const text = textNode.nodeValue || "";
+      let match: RegExpExecArray | null;
+      let lastIdx = 0;
+      const frag = document.createDocumentFragment();
+      let hasMatches = false;
+
+      while ((match = regex.exec(text)) !== null) {
+        hasMatches = true;
+        const matchedText = match[0];
+        const matchStart = match.index;
+
+        if (matchStart > lastIdx) {
+          frag.appendChild(document.createTextNode(text.slice(lastIdx, matchStart)));
+        }
+
+        const mark = document.createElement("mark");
+        mark.className = "notes-find-match" + (matchCount === targetIdx ? " is-active" : "");
+        mark.dataset.matchIndex = String(matchCount);
+        mark.textContent = matchedText;
+        frag.appendChild(mark);
+        createdMarks.push(mark);
+
+        matchCount++;
+        lastIdx = matchStart + matchedText.length;
+      }
+
+      if (hasMatches) {
+        if (lastIdx < text.length) {
+          frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+        }
+        textNode.parentNode?.replaceChild(frag, textNode);
+      }
+    });
+
+    setTotalMatches(matchCount);
+    if (matchCount > 0) {
+      const boundedIndex = Math.min(targetIdx, matchCount - 1);
+      setCurrentMatchIndex(boundedIndex);
+      if (createdMarks[boundedIndex]) {
+        createdMarks[boundedIndex].scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    } else {
+      setCurrentMatchIndex(0);
+    }
+  };
+
+  const updateActiveMark = (activeIdx: number) => {
+    if (!editorRef.current) return;
+    const marks = editorRef.current.querySelectorAll("mark.notes-find-match");
+    marks.forEach((mark, i) => {
+      if (i === activeIdx) {
+        mark.classList.add("is-active");
+        mark.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else {
+        mark.classList.remove("is-active");
+      }
+    });
+  };
+
+  const handleFindNext = () => {
+    if (totalMatches === 0) return;
+    const nextIdx = (currentMatchIndex + 1) % totalMatches;
+    setCurrentMatchIndex(nextIdx);
+    updateActiveMark(nextIdx);
+  };
+
+  const handleFindPrev = () => {
+    if (totalMatches === 0) return;
+    const prevIdx = (currentMatchIndex - 1 + totalMatches) % totalMatches;
+    setCurrentMatchIndex(prevIdx);
+    updateActiveMark(prevIdx);
+  };
+
+  const handleReplaceCurrent = () => {
+    if (!editorRef.current || totalMatches === 0 || !findQuery) return;
+    const activeMark = editorRef.current.querySelector("mark.notes-find-match.is-active");
+    if (activeMark) {
+      const textNode = document.createTextNode(replaceQuery);
+      activeMark.parentNode?.replaceChild(textNode, activeMark);
+      clearHighlights();
+      triggerAutosave(undefined, editorRef.current.innerHTML);
+      setTimeout(() => applyHighlights(findQuery, currentMatchIndex), 50);
+    }
+  };
+
+  const handleReplaceAll = () => {
+    if (!editorRef.current || !findQuery || !activeNote) return;
+    clearHighlights();
+    const rawHtml = editorRef.current.innerHTML;
+    const flags = matchCase ? "g" : "gi";
+    const escaped = findQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(escaped, flags);
+    const newHtml = rawHtml.replace(regex, replaceQuery);
+    editorRef.current.innerHTML = newHtml;
+    triggerAutosave(undefined, newHtml);
+    setFindQuery("");
+    setTotalMatches(0);
+  };
+
+  // Clean, structured pasting handler for code and rich content
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const clipboardData = e.clipboardData;
+    const text = clipboardData.getData("text/plain");
+    const html = clipboardData.getData("text/html");
+
+    // Check if pasted content is code or structured syntax
+    const isCode =
+      text.includes("\n") &&
+      (text.startsWith("function ") ||
+        text.startsWith("import ") ||
+        text.startsWith("export ") ||
+        text.startsWith("const ") ||
+        text.startsWith("let ") ||
+        text.startsWith("class ") ||
+        text.startsWith("def ") ||
+        text.startsWith("public ") ||
+        text.startsWith("package ") ||
+        text.includes(" => ") ||
+        text.includes("{\n") ||
+        text.includes(";\n") ||
+        /^\s{2,4}\w+/m.test(text));
+
+    if (isCode) {
+      const escapedCode = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      const codeHtml = `<pre class="notes-code-block"><code>${escapedCode}</code></pre><p><br></p>`;
+      document.execCommand("insertHTML", false, codeHtml);
+    } else if (html && !html.includes("<script")) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      doc.querySelectorAll("script, style, iframe, meta, link").forEach((el) => el.remove());
+      doc.querySelectorAll("[style]").forEach((el) => el.removeAttribute("style"));
+      const cleanHtml = doc.body.innerHTML || text;
+      document.execCommand("insertHTML", false, cleanHtml);
+    } else {
+      document.execCommand("insertText", false, text);
+    }
+
+    if (editorRef.current) {
+      triggerAutosave(undefined, editorRef.current.innerHTML);
+    }
   };
 
   function formatFileSize(bytes: number): string {
@@ -1531,6 +1753,29 @@ export function NotesPopupShell() {
                   )}
                 </div>
 
+                <div className="notes-toolbar-divider" />
+
+                {/* Find in Note Button */}
+                <button
+                  type="button"
+                  className={"notes-toolbar-btn" + (findBarOpen ? " is-active" : "")}
+                  title="Find & Replace in Note (Ctrl+F / Ctrl+H)"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setFindBarOpen((v) => !v);
+                    if (!findBarOpen) {
+                      setTimeout(() => {
+                        findInputRef.current?.focus();
+                        findInputRef.current?.select();
+                      }, 50);
+                    } else {
+                      clearHighlights();
+                    }
+                  }}
+                >
+                  <Icon name="search" size={13} />
+                </button>
+
                 <div className="notes-toolbar-spacer" />
 
                 {/* Professional Pin Button */}
@@ -1544,6 +1789,132 @@ export function NotesPopupShell() {
                   <span>{activeNote.pinned ? "Pinned" : "Pin"}</span>
                 </button>
               </div>
+
+              {/* Apple Notes Style Floating Find & Replace Bar */}
+              {findBarOpen && (
+                <div className="notes-find-replace-bar anim-scale-in no-drag-region">
+                  <div className="notes-find-row">
+                    <div className="notes-find-input-wrap">
+                      <Icon name="search" size={12} className="muted mr-xs" />
+                      <input
+                        ref={findInputRef}
+                        type="text"
+                        className="notes-find-input"
+                        placeholder="Find in note…"
+                        value={findQuery}
+                        onChange={(e) => {
+                          setFindQuery(e.target.value);
+                          applyHighlights(e.target.value, 0);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            if (e.shiftKey) handleFindPrev();
+                            else handleFindNext();
+                          } else if (e.key === "Escape") {
+                            e.preventDefault();
+                            setFindBarOpen(false);
+                            clearHighlights();
+                          }
+                        }}
+                      />
+                      <span className="notes-find-count">
+                        {totalMatches > 0 ? `${currentMatchIndex + 1} of ${totalMatches}` : findQuery ? "0 matches" : ""}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="notes-find-btn"
+                      title="Previous match (Shift+Enter)"
+                      onClick={handleFindPrev}
+                      disabled={totalMatches === 0}
+                    >
+                      <Icon name="chevronUp" size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      className="notes-find-btn"
+                      title="Next match (Enter)"
+                      onClick={handleFindNext}
+                      disabled={totalMatches === 0}
+                    >
+                      <Icon name="chevronDown" size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      className={"notes-find-btn" + (matchCase ? " is-active" : "")}
+                      title="Match Case"
+                      onClick={() => {
+                        const next = !matchCase;
+                        setMatchCase(next);
+                        applyHighlights(findQuery, currentMatchIndex, next);
+                      }}
+                    >
+                      <span className="bold tiny">Aa</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={"notes-find-btn" + (replaceOpen ? " is-active" : "")}
+                      title="Toggle Replace (Ctrl+H)"
+                      onClick={() => setReplaceOpen((v) => !v)}
+                    >
+                      <Icon name="edit" size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      className="notes-find-btn"
+                      title="Close (Escape)"
+                      onClick={() => {
+                        setFindBarOpen(false);
+                        clearHighlights();
+                      }}
+                    >
+                      <Icon name="close" size={11} />
+                    </button>
+                  </div>
+
+                  {/* Expandable Replace Row */}
+                  {replaceOpen && (
+                    <div className="notes-find-row anim-scale-in">
+                      <div className="notes-find-input-wrap">
+                        <input
+                          ref={replaceInputRef}
+                          type="text"
+                          className="notes-find-input"
+                          placeholder="Replace with…"
+                          value={replaceQuery}
+                          onChange={(e) => setReplaceQuery(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleReplaceCurrent();
+                            }
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className="notes-find-action-btn"
+                        onClick={handleReplaceCurrent}
+                        disabled={totalMatches === 0}
+                        title="Replace current match"
+                      >
+                        Replace
+                      </button>
+                      <button
+                        type="button"
+                        className="notes-find-action-btn"
+                        onClick={handleReplaceAll}
+                        disabled={totalMatches === 0}
+                        title="Replace all matches"
+                      >
+                        Replace All
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Floating Image Resizing & Adjustment Toolbar */}
               {selectedImg && (
@@ -1668,6 +2039,7 @@ export function NotesPopupShell() {
                 }}
                 onKeyUp={() => checkSlashCommand()}
                 onClick={handleEditorClick}
+                onPaste={handlePaste}
               />
 
               {/* Floating Action Menu & Copy Button at Bottom-Right */}
