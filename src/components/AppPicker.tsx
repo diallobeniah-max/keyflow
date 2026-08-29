@@ -20,6 +20,47 @@ interface RunningApp {
   icon?: string;
 }
 
+function formatIconSrc(icon?: string): string | null {
+  if (!icon || !icon.trim()) return null;
+  const trimmed = icon.trim();
+  if (trimmed.startsWith("data:") || trimmed.startsWith("http:") || trimmed.startsWith("https:") || trimmed.startsWith("file:")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("Qk")) {
+    return `data:image/bmp;base64,${trimmed}`;
+  }
+  if (trimmed.startsWith("iVBOR")) {
+    return `data:image/png;base64,${trimmed}`;
+  }
+  return `data:image/png;base64,${trimmed}`;
+}
+
+function AppPickerItemIcon({ icon, name }: { icon?: string; name: string }) {
+  const [error, setError] = useState(false);
+  const src = formatIconSrc(icon);
+
+  if (!src || error) {
+    const cleanName = (name || "App").replace(/\.exe$/i, "").trim();
+    const initial = cleanName.charAt(0).toUpperCase() || "A";
+    return (
+      <span className="app-picker-fallback-icon" aria-hidden="true">
+        {initial}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt=""
+      width={20}
+      height={20}
+      onError={() => setError(true)}
+      style={{ objectFit: "contain", borderRadius: "var(--radius-xs)" }}
+    />
+  );
+}
+
 /** Live scanner cadence (ms) while the picker is open. */
 const REFRESH_MS = 1000;
 
@@ -237,7 +278,7 @@ export function AppPicker({ value, onChange, disabled }: AppPickerProps) {
                   onClick={() => pickApp(app)}
                 >
                   <span className="app-picker-icon">
-                    {app.icon ? <img src={app.icon} alt="" width={18} height={18} /> : <Icon name="window" size={16} />}
+                    <AppPickerItemIcon icon={app.icon} name={app.displayName || app.processName} />
                   </span>
                   <span className="app-picker-copy">
                     <b>{app.displayName || app.processName}</b>
@@ -276,7 +317,7 @@ export function AppPicker({ value, onChange, disabled }: AppPickerProps) {
                     }}
                   >
                     <span className="app-picker-icon">
-                      <Icon name="window" size={16} />
+                      <AppPickerItemIcon name={label} />
                     </span>
                     <span className="app-picker-copy">
                       <b>{label}</b>

@@ -100,9 +100,11 @@ export default function App() {
 
   useEffect(() => {
     if (wasdNavigationActive) {
-      const customPath = wasdSettings?.customCursorPath;
+      const activeId = wasdSettings?.activeCursorId ?? "default";
+      const customItem = wasdSettings?.customCursors?.find((c) => c.id === activeId);
+      const customPath = customItem?.dataUrl || wasdSettings?.customCursorPath;
       const cursorUrl = customPath
-        ? `url("file://${customPath.replace(/\\/g, "/")}") 0 0, auto`
+        ? (customPath.startsWith("data:") ? `url("${customPath}") 0 0, auto` : `url("file://${customPath.replace(/\\/g, "/")}") 0 0, auto`)
         : `url("/cursors/blue-cursor.png") 5 2, auto`;
       document.documentElement.style.setProperty("--wasd-cursor", cursorUrl);
       document.documentElement.classList.add("blue-cursor-active");
@@ -110,7 +112,7 @@ export default function App() {
       document.documentElement.classList.remove("blue-cursor-active");
       document.documentElement.style.removeProperty("--wasd-cursor");
     }
-  }, [wasdNavigationActive, wasdSettings?.customCursorPath]);
+  }, [wasdNavigationActive, wasdSettings?.activeCursorId, wasdSettings?.customCursors, wasdSettings?.customCursorPath]);
 
   return (
     <div className="app-shell" data-font-size={appearance?.fontSize ?? "default"}>

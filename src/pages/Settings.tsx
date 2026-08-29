@@ -9,7 +9,7 @@ import { getSafeHyperKeySuggestions } from "../lib/conflict";
 import { createDefaultSettings } from "../lib/defaults";
 import { searchSettings } from "../lib/fuzzySearch";
 import type { SettingSearchItem } from "../lib/settingsIndex";
-import type { HotCornerAction, HotCornerPosition, HotCornerBuiltinAction, HotCornersCustomPreset, ScreenTintPreset } from "../types";
+import type { HotCornerAction, HotCornerPosition, HotCornerBuiltinAction, HotCornersCustomPreset, ScreenTintPreset, CustomCursorItem } from "../types";
 
 const DEFAULT_ACCENT = createDefaultSettings().appearance.accent;
 
@@ -56,10 +56,14 @@ export function Settings() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isAdjustingCornerArea, setIsAdjustingCornerArea] = useState(false);
   const [showSavePresetModal, setShowSavePresetModal] = useState(false);
+  const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
+  const [deletedPresetIds, setDeletedPresetIds] = useState<string[]>([]);
   const [presetNameInput, setPresetNameInput] = useState("");
   const [presetIcon, setPresetIcon] = useState("star");
   const [presetColor, setPresetColor] = useState("#4F7CFF");
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [isDraggingCursor, setIsDraggingCursor] = useState(false);
+  const cursorInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -650,40 +654,83 @@ export function Settings() {
                   </div>
                   <div className="hot-corners-presets">
                     <span className="hot-corners-preset-label">Quick Layouts:</span>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => {
-                        const corners = {
+                    {(([
+                      {
+                        id: "default",
+                        name: "Default",
+                        icon: "window",
+                        color: "#4F7CFF",
+                        corners: {
                           topLeft: { type: "builtin" as const, action: "taskView" as HotCornerBuiltinAction },
                           topRight: { type: "builtin" as const, action: "desktop" as HotCornerBuiltinAction },
                           bottomLeft: { type: "builtin" as const, action: "start" as HotCornerBuiltinAction },
                           bottomRight: { type: "builtin" as const, action: "quickSettings" as HotCornerBuiltinAction },
-                        };
-                        const updated = { ...settings.hotCorners, corners };
-                        patch("hotCorners" as any, updated as any);
-                        window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
-                      }}
-                    >
-                      Default
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => {
-                        const corners = {
+                        },
+                      },
+                      {
+                        id: "multitasking",
+                        name: "Multitasking",
+                        icon: "shortcuts",
+                        color: "#6A91FF",
+                        corners: {
                           topLeft: { type: "builtin" as const, action: "taskView" as HotCornerBuiltinAction },
                           topRight: { type: "builtin" as const, action: "search" as HotCornerBuiltinAction },
                           bottomLeft: { type: "builtin" as const, action: "previousDesktop" as HotCornerBuiltinAction },
                           bottomRight: { type: "builtin" as const, action: "nextDesktop" as HotCornerBuiltinAction },
-                        };
-                        const updated = { ...settings.hotCorners, corners };
-                        patch("hotCorners" as any, updated as any);
-                        window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
-                      }}
-                    >
-                      Multitasking
-                    </button>
+                        },
+                      },
+                    ] as HotCornersCustomPreset[])
+                      .filter((dp) => !deletedPresetIds.includes(dp.id))
+                      .concat((settings.hotCorners?.customPresets ?? []).filter((cp) => !deletedPresetIds.includes(cp.id)))
+                    ).map((cp) => (
+                      <div key={cp.id} className="hot-corner-custom-chip">
+                        <button
+                          type="button"
+                          className="btn btn-sm hot-corner-chip-btn"
+                          onClick={() => {
+                            const updated = { ...settings.hotCorners, corners: cp.corners };
+                            patch("hotCorners" as any, updated as any);
+                            window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
+                          }}
+                        >
+                          <Icon name={cp.icon || "star"} size={13} className="hot-corner-chip-icon" />
+                          <span>{cp.name}</span>
+                        </button>
+                        <div className="hot-corner-chip-actions">
+                          <button
+                            type="button"
+                            className="hot-corner-preset-action-btn"
+                            title={`Edit ${cp.name} layout`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingPresetId(cp.id);
+                              setPresetNameInput(cp.name);
+                              setPresetIcon(cp.icon || "star");
+                              setPresetColor(cp.color || "#4F7CFF");
+                              setShowSavePresetModal(true);
+                            }}
+                          >
+                            <Icon name="edit" size={11} />
+                          </button>
+                          <button
+                            type="button"
+                            className="hot-corner-preset-del"
+                            title={`Delete ${cp.name} layout`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (cp.id === "default" || cp.id === "multitasking") {
+                                setDeletedPresetIds((prev) => [...prev, cp.id]);
+                              } else {
+                                const customPresets = (settings.hotCorners?.customPresets ?? []).filter((p) => p.id !== cp.id);
+                                patch("hotCorners" as any, { ...settings.hotCorners, customPresets } as any);
+                              }
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
@@ -701,38 +748,23 @@ export function Settings() {
                     >
                       Clear All
                     </button>
-                    {(settings.hotCorners?.customPresets ?? []).map((cp) => (
-                      <div key={cp.id} className="hot-corner-custom-chip">
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          onClick={() => {
-                            const updated = { ...settings.hotCorners, corners: cp.corners };
-                            patch("hotCorners" as any, updated as any);
-                            window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
-                          }}
-                        >
-                          {cp.icon && <Icon name={cp.icon} size={13} />}
-                          <span>{cp.name}</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="hot-corner-preset-del"
-                          title="Delete preset"
-                          onClick={() => {
-                            const customPresets = (settings.hotCorners?.customPresets ?? []).filter((p) => p.id !== cp.id);
-                            patch("hotCorners" as any, { ...settings.hotCorners, customPresets } as any);
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+                    {deletedPresetIds.length > 0 && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setDeletedPresetIds([])}
+                      >
+                        Reset Defaults
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
                       onClick={() => {
+                        setEditingPresetId(null);
                         setPresetNameInput("");
+                        setPresetIcon("star");
+                        setPresetColor("#4F7CFF");
                         setShowSavePresetModal(true);
                       }}
                     >
@@ -853,7 +885,7 @@ export function Settings() {
                   onChange={(v) => setWasdNavigationActive(v)}
                 />
               </SettingsRow>
-              <SettingsRow id="row-wasd-size" title="Navigation cursor size" desc="Size of the active blue cursor indicator">
+              <SettingsRow id="row-wasd-size" title="Navigation cursor size" desc="Size of the active cursor indicator">
                 <div className="w-160">
                   <AppSelect
                     value={String(settings.wasdNavigation?.cursorSize ?? 32)}
@@ -867,10 +899,183 @@ export function Settings() {
                   />
                 </div>
               </SettingsRow>
+
+              {/* Cursor Selection & Gallery */}
+              <SettingsRow id="row-wasd-gallery" title="Cursor Indicator Style" desc="Pick default indicator or upload custom cursors (.cur, .ani, .png, .svg, .ico, .webp)">
+                <div className="col gap-sm w-full">
+                  <div className="row gap-xs wrap items-center">
+                    <button
+                      type="button"
+                      className={"chip clickable" + ((settings.wasdNavigation?.activeCursorId ?? "default") === "default" ? " chip-accent" : " chip-subtle")}
+                      onClick={() => {
+                        const updated = { ...settings.wasdNavigation, activeCursorId: "default" };
+                        patch("wasdNavigation" as any, updated as any);
+                      }}
+                    >
+                      <img src="/cursors/blue-cursor.png" alt="" width={14} height={14} className="wasd-cursor-img" />
+                      <span>Default Blue Pointer</span>
+                    </button>
+
+                    {(settings.wasdNavigation?.customCursors ?? []).map((c) => {
+                      const isActive = settings.wasdNavigation?.activeCursorId === c.id;
+                      return (
+                        <div key={c.id} className="wasd-custom-cursor-chip">
+                          <button
+                            type="button"
+                            className={"chip clickable" + (isActive ? " chip-accent" : " chip-subtle")}
+                            onClick={() => {
+                              const updated = { ...settings.wasdNavigation, activeCursorId: c.id };
+                              patch("wasdNavigation" as any, updated as any);
+                            }}
+                          >
+                            <img src={c.dataUrl} alt="" width={14} height={14} className="wasd-cursor-img" />
+                            <span>{c.name}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="wasd-cursor-chip-del"
+                            title="Delete custom cursor"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const customCursors = (settings.wasdNavigation?.customCursors ?? []).filter((item) => item.id !== c.id);
+                              const activeCursorId = settings.wasdNavigation?.activeCursorId === c.id ? "default" : settings.wasdNavigation?.activeCursorId;
+                              patch("wasdNavigation" as any, { ...settings.wasdNavigation, customCursors, activeCursorId } as any);
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Actions: Choose Default & Remove All */}
+                  <div className="row gap-sm items-center mt-xs">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        const updated = { ...settings.wasdNavigation, activeCursorId: "default" };
+                        patch("wasdNavigation" as any, updated as any);
+                      }}
+                    >
+                      Choose Default
+                    </Button>
+                    {(settings.wasdNavigation?.customCursors ?? []).length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          const updated = { ...settings.wasdNavigation, customCursors: [], activeCursorId: "default" };
+                          patch("wasdNavigation" as any, updated as any);
+                        }}
+                      >
+                        Remove All Custom
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </SettingsRow>
+
+              {/* Drag & Drop Cursor Upload Zone */}
+              <SettingsRow id="row-wasd-upload" title="Upload Custom Cursor" desc="Drag and drop any mouse format (.cur, .ani, .png, .svg, .ico, .webp, .jpg, .bmp)">
+                <div
+                  className={"wasd-cursor-dropzone" + (isDraggingCursor ? " is-dragging" : "")}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingCursor(true);
+                  }}
+                  onDragLeave={() => setIsDraggingCursor(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingCursor(false);
+                    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                      const file = e.dataTransfer.files[0];
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        const dataUrl = event.target?.result as string;
+                        if (!dataUrl) return;
+                        const newCursor: CustomCursorItem = {
+                          id: `cursor-${Date.now()}`,
+                          name: file.name.replace(/\.[^/.]+$/, ""),
+                          dataUrl,
+                          format: file.name.split(".").pop()?.toLowerCase(),
+                        };
+                        const existing = settings.wasdNavigation?.customCursors ?? [];
+                        const updated = {
+                          ...settings.wasdNavigation,
+                          customCursors: [...existing, newCursor],
+                          activeCursorId: newCursor.id,
+                        };
+                        patch("wasdNavigation" as any, updated as any);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  onClick={() => cursorInputRef.current?.click()}
+                >
+                  <input
+                    ref={cursorInputRef}
+                    type="file"
+                    className="visually-hidden"
+                    accept=".cur,.ani,.png,.svg,.ico,.webp,.jpg,.jpeg,.bmp"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        const file = e.target.files[0];
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          const dataUrl = event.target?.result as string;
+                          if (!dataUrl) return;
+                          const newCursor: CustomCursorItem = {
+                            id: `cursor-${Date.now()}`,
+                            name: file.name.replace(/\.[^/.]+$/, ""),
+                            dataUrl,
+                            format: file.name.split(".").pop()?.toLowerCase(),
+                          };
+                          const existing = settings.wasdNavigation?.customCursors ?? [];
+                          const updated = {
+                            ...settings.wasdNavigation,
+                            customCursors: [...existing, newCursor],
+                            activeCursorId: newCursor.id,
+                          };
+                          patch("wasdNavigation" as any, updated as any);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  <Icon name="upload" size={18} />
+                  <div>
+                    <div className="small bold">Drag & Drop cursor file here or click to browse</div>
+                    <div className="tiny muted">Supports .cur, .ani, .png, .svg, .ico, .webp, .jpg, .bmp</div>
+                  </div>
+                </div>
+              </SettingsRow>
+
+              {/* Cursor Preview */}
               <SettingsRow id="row-wasd-preview" title="Cursor indicator preview" desc="Visual indicator displayed while navigation mode is engaged">
                 <div className="row gap-sm items-center">
-                  <img src="/cursors/blue-cursor.png" alt="Blue Cursor" className="wasd-cursor-preview" />
-                  <span className="chip chip-accent">Active State Indicator</span>
+                  <div
+                    className="wasd-cursor-preview-stage"
+                    data-cursor-size={settings.wasdNavigation?.cursorSize ?? 32}
+                  >
+                    <img
+                      src={
+                        (settings.wasdNavigation?.customCursors ?? []).find(
+                          (c) => c.id === settings.wasdNavigation?.activeCursorId
+                        )?.dataUrl || "/cursors/blue-cursor.png"
+                      }
+                      alt="Active Cursor"
+                      className="wasd-cursor-preview-img"
+                    />
+                  </div>
+                  <span className="chip chip-accent">
+                    {((settings.wasdNavigation?.activeCursorId ?? "default") === "default")
+                      ? "Default Blue Pointer"
+                      : (settings.wasdNavigation?.customCursors ?? []).find(
+                          (c) => c.id === settings.wasdNavigation?.activeCursorId
+                        )?.name ?? "Active Custom Cursor"}
+                  </span>
                 </div>
               </SettingsRow>
             </SettingsGroup>
@@ -1206,11 +1411,11 @@ export function Settings() {
       </div>
 
       {showSavePresetModal && (
-        <div className="modal-backdrop anim-fade-in" onClick={() => setShowSavePresetModal(false)}>
+        <div className="modal-backdrop anim-fade-in" onClick={() => { setShowSavePresetModal(false); setEditingPresetId(null); }}>
           <div className="hot-corners-save-modal anim-modal-enter" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">Save Corner Layout</h3>
-              <button type="button" className="icon-btn icon-btn-sm" onClick={() => setShowSavePresetModal(false)}>✕</button>
+              <h3 className="modal-title">{editingPresetId ? "Edit Corner Layout" : "Save Corner Layout"}</h3>
+              <button type="button" className="icon-btn icon-btn-sm" onClick={() => { setShowSavePresetModal(false); setEditingPresetId(null); }}>✕</button>
             </div>
             <div className="col gap-md mt-sm">
               <Field label="Layout Name">
@@ -1226,10 +1431,10 @@ export function Settings() {
                   <Icon name={presetIcon} size={15} />
                   <span>Choose Icon & Color</span>
                 </Button>
-                <div className="preset-color-badge" style={{ backgroundColor: presetColor }} />
+                <div className="preset-color-badge" />
               </div>
               <div className="row gap-sm justify-end mt-sm">
-                <Button variant="secondary" size="sm" onClick={() => setShowSavePresetModal(false)}>
+                <Button variant="secondary" size="sm" onClick={() => { setShowSavePresetModal(false); setEditingPresetId(null); }}>
                   Cancel
                 </Button>
                 <Button
@@ -1237,24 +1442,54 @@ export function Settings() {
                   size="sm"
                   disabled={!presetNameInput.trim()}
                   onClick={() => {
-                    const newPreset: HotCornersCustomPreset = {
-                      id: `cp-${Date.now()}`,
-                      name: presetNameInput.trim(),
-                      icon: presetIcon,
-                      color: presetColor,
-                      corners: settings.hotCorners?.corners ?? {
-                        topLeft: { type: "builtin", action: "none" },
-                        topRight: { type: "builtin", action: "none" },
-                        bottomLeft: { type: "builtin", action: "none" },
-                        bottomRight: { type: "builtin", action: "none" },
-                      },
-                    };
-                    const customPresets = [...(settings.hotCorners?.customPresets ?? []), newPreset];
-                    patch("hotCorners" as any, { ...settings.hotCorners, customPresets } as any);
+                    const existing = settings.hotCorners?.customPresets ?? [];
+                    if (editingPresetId) {
+                      const isBuiltin = editingPresetId === "default" || editingPresetId === "multitasking";
+                      if (isBuiltin) {
+                        const updatedPreset: HotCornersCustomPreset = {
+                          id: `cp-${Date.now()}`,
+                          name: presetNameInput.trim(),
+                          icon: presetIcon,
+                          color: presetColor,
+                          corners: settings.hotCorners?.corners ?? {
+                            topLeft: { type: "builtin", action: "none" },
+                            topRight: { type: "builtin", action: "none" },
+                            bottomLeft: { type: "builtin", action: "none" },
+                            bottomRight: { type: "builtin", action: "none" },
+                          },
+                        };
+                        setDeletedPresetIds((prev) => [...prev, editingPresetId]);
+                        const customPresets = [...existing, updatedPreset];
+                        patch("hotCorners" as any, { ...settings.hotCorners, customPresets } as any);
+                      } else {
+                        const customPresets = existing.map((p) =>
+                          p.id === editingPresetId
+                            ? { ...p, name: presetNameInput.trim(), icon: presetIcon, color: presetColor }
+                            : p
+                        );
+                        patch("hotCorners" as any, { ...settings.hotCorners, customPresets } as any);
+                      }
+                    } else {
+                      const newPreset: HotCornersCustomPreset = {
+                        id: `cp-${Date.now()}`,
+                        name: presetNameInput.trim(),
+                        icon: presetIcon,
+                        color: presetColor,
+                        corners: settings.hotCorners?.corners ?? {
+                          topLeft: { type: "builtin", action: "none" },
+                          topRight: { type: "builtin", action: "none" },
+                          bottomLeft: { type: "builtin", action: "none" },
+                          bottomRight: { type: "builtin", action: "none" },
+                        },
+                      };
+                      const customPresets = [...existing, newPreset];
+                      patch("hotCorners" as any, { ...settings.hotCorners, customPresets } as any);
+                    }
                     setShowSavePresetModal(false);
+                    setEditingPresetId(null);
                   }}
                 >
-                  Save Preset
+                  {editingPresetId ? "Update Layout" : "Save Layout"}
                 </Button>
               </div>
             </div>

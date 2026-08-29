@@ -371,9 +371,18 @@ export interface AudioSettings {
   playOnNavigation: boolean;
 }
 
+export interface CustomCursorItem {
+  id: string;
+  name: string;
+  dataUrl: string;
+  format?: string;
+}
+
 export interface WasdNavigationSettings {
   cursorSize: number;        // 16–64, default 32
   customCursorPath?: string; // user-uploaded cursor image path (absolute)
+  activeCursorId?: string;   // 'default' or custom cursor id
+  customCursors?: CustomCursorItem[];
 }
 
 export interface Settings {
