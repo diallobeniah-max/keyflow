@@ -67,6 +67,7 @@ export function NotesPopupShell() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [fabMenuOpen, setFabMenuOpen] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [isLeavingFab, setIsLeavingFab] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
@@ -290,11 +291,16 @@ export function NotesPopupShell() {
       range.setEnd(anchorNode, anchorOffset);
 
       const rect = range.getBoundingClientRect();
-      let top = rect.bottom + 6;
+      const paletteWidth = 240;
+      const paletteHeight = 220;
+      let top = rect.bottom + 4;
       let left = rect.left;
 
-      if (top + 340 > window.innerHeight) {
-        top = Math.max(10, rect.top - 350);
+      if (top + paletteHeight > window.innerHeight - 20) {
+        top = Math.max(10, rect.top - paletteHeight - 4);
+      }
+      if (left + paletteWidth > window.innerWidth - 20) {
+        left = Math.max(10, window.innerWidth - paletteWidth - 20);
       }
 
       setSlashState({
@@ -423,14 +429,54 @@ export function NotesPopupShell() {
     checkSlashCommand();
   };
 
-  const handleExportMarkdown = () => {
-    setFabMenuOpen(false);
+  const handleExportAs = (format: "md" | "txt" | "html" | "json") => {
     if (!activeNote) return;
-    const blob = new Blob([activeNote.content], { type: "text/markdown;charset=utf-8" });
+    setFabMenuOpen(false);
+    setExportMenuOpen(false);
+
+    let content = "";
+    let mimeType = "text/plain;charset=utf-8";
+    let ext = "txt";
+    const baseName = (activeNote.title || "note").replace(/[^a-zA-Z0-9_-]/g, "_");
+
+    if (format === "md") {
+      content = activeNote.content;
+      mimeType = "text/markdown;charset=utf-8";
+      ext = "md";
+    } else if (format === "txt") {
+      content = `${activeNote.title}\n\n${stripHtml(activeNote.content)}`;
+      mimeType = "text/plain;charset=utf-8";
+      ext = "txt";
+    } else if (format === "html") {
+      content = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${activeNote.title || "KeyFlow Note"}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; max-width: 720px; margin: 40px auto; padding: 0 20px; }
+    h1, h2, h3 { font-weight: 700; }
+    code { font-family: monospace; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>${activeNote.title}</h1>
+  ${activeNote.content}
+</body>
+</html>`;
+      mimeType = "text/html;charset=utf-8";
+      ext = "html";
+    } else if (format === "json") {
+      content = JSON.stringify(activeNote, null, 2);
+      mimeType = "application/json;charset=utf-8";
+      ext = "json";
+    }
+
+    const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${(activeNote.title || "note").replace(/[^a-zA-Z0-9_-]/g, "_")}.md`;
+    a.download = `${baseName}.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -960,58 +1006,121 @@ export function NotesPopupShell() {
               >
                 {fabMenuOpen && (
                   <div className={"notes-fab-popover" + (isLeavingFab ? " is-leaving" : " anim-scale-in")}>
-                    <div className="notes-fab-popover-header">Quick Actions</div>
-                    <button
-                      type="button"
-                      className="notes-fab-item"
-                      onClick={handleTriggerSlashCommands}
-                    >
-                      <span className="notes-fab-item-icon"><Icon name="command" size={14} /></span>
-                      <div className="notes-fab-item-copy">
-                        <span className="notes-fab-item-title">Slash Commands</span>
-                        <span className="notes-fab-item-desc">Insert blocks & formatting</span>
-                      </div>
-                      <kbd className="notes-fab-kbd">/</kbd>
-                    </button>
+                    {exportMenuOpen ? (
+                      <>
+                        <div className="notes-fab-popover-head-row">
+                          <button
+                            type="button"
+                            className="notes-fab-back-btn"
+                            onClick={() => setExportMenuOpen(false)}
+                            title="Back to actions"
+                          >
+                            <Icon name="chevronLeft" size={12} />
+                            <span>Export Formats</span>
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          className="notes-fab-item"
+                          onClick={() => handleExportAs("md")}
+                        >
+                          <span className="notes-fab-item-icon"><Icon name="file" size={14} /></span>
+                          <div className="notes-fab-item-copy">
+                            <span className="notes-fab-item-title">Markdown (.md)</span>
+                            <span className="notes-fab-item-desc">Headers, lists, tables</span>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-fab-item"
+                          onClick={() => handleExportAs("txt")}
+                        >
+                          <span className="notes-fab-item-icon"><Icon name="edit" size={14} /></span>
+                          <div className="notes-fab-item-copy">
+                            <span className="notes-fab-item-title">Plain Text (.txt)</span>
+                            <span className="notes-fab-item-desc">Clean unformatted text</span>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-fab-item"
+                          onClick={() => handleExportAs("html")}
+                        >
+                          <span className="notes-fab-item-icon"><Icon name="globe" size={14} /></span>
+                          <div className="notes-fab-item-copy">
+                            <span className="notes-fab-item-title">HTML (.html)</span>
+                            <span className="notes-fab-item-desc">Formatted web document</span>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-fab-item"
+                          onClick={() => handleExportAs("json")}
+                        >
+                          <span className="notes-fab-item-icon"><Icon name="database" size={14} /></span>
+                          <div className="notes-fab-item-copy">
+                            <span className="notes-fab-item-title">JSON (.json)</span>
+                            <span className="notes-fab-item-desc">Full metadata backup</span>
+                          </div>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="notes-fab-popover-header">Quick Actions</div>
+                        <button
+                          type="button"
+                          className="notes-fab-item"
+                          onClick={handleTriggerSlashCommands}
+                        >
+                          <span className="notes-fab-item-icon"><Icon name="command" size={14} /></span>
+                          <div className="notes-fab-item-copy">
+                            <span className="notes-fab-item-title">Slash Commands</span>
+                            <span className="notes-fab-item-desc">Insert blocks & formatting</span>
+                          </div>
+                          <kbd className="notes-fab-kbd">/</kbd>
+                        </button>
 
-                    <button
-                      type="button"
-                      className="notes-fab-item"
-                      onClick={handlePickImage}
-                    >
-                      <span className="notes-fab-item-icon"><Icon name="file" size={14} /></span>
-                      <div className="notes-fab-item-copy">
-                        <span className="notes-fab-item-title">Insert Picture</span>
-                        <span className="notes-fab-item-desc">Add image from device</span>
-                      </div>
-                    </button>
+                        <button
+                          type="button"
+                          className="notes-fab-item"
+                          onClick={handlePickImage}
+                        >
+                          <span className="notes-fab-item-icon"><Icon name="file" size={14} /></span>
+                          <div className="notes-fab-item-copy">
+                            <span className="notes-fab-item-title">Insert Picture</span>
+                            <span className="notes-fab-item-desc">Add image from device</span>
+                          </div>
+                        </button>
 
-                    <button
-                      type="button"
-                      className="notes-fab-item"
-                      onClick={(e) => {
-                        handleTogglePin(activeNote.id, e);
-                        setFabMenuOpen(false);
-                      }}
-                    >
-                      <span className="notes-fab-item-icon"><Icon name="pin" size={14} /></span>
-                      <div className="notes-fab-item-copy">
-                        <span className="notes-fab-item-title">{activeNote.pinned ? "Unpin Note" : "Pin Note"}</span>
-                        <span className="notes-fab-item-desc">{activeNote.pinned ? "Keep in list" : "Pin to top of list"}</span>
-                      </div>
-                    </button>
+                        <button
+                          type="button"
+                          className="notes-fab-item"
+                          onClick={(e) => {
+                            handleTogglePin(activeNote.id, e);
+                            setFabMenuOpen(false);
+                          }}
+                        >
+                          <span className="notes-fab-item-icon"><Icon name="pin" size={14} /></span>
+                          <div className="notes-fab-item-copy">
+                            <span className="notes-fab-item-title">{activeNote.pinned ? "Unpin Note" : "Pin Note"}</span>
+                            <span className="notes-fab-item-desc">{activeNote.pinned ? "Keep in list" : "Pin to top of list"}</span>
+                          </div>
+                        </button>
 
-                    <button
-                      type="button"
-                      className="notes-fab-item"
-                      onClick={handleExportMarkdown}
-                    >
-                      <span className="notes-fab-item-icon"><Icon name="export" size={14} /></span>
-                      <div className="notes-fab-item-copy">
-                        <span className="notes-fab-item-title">Export Markdown</span>
-                        <span className="notes-fab-item-desc">Save .md file to disk</span>
-                      </div>
-                    </button>
+                        <button
+                          type="button"
+                          className="notes-fab-item"
+                          onClick={() => setExportMenuOpen(true)}
+                        >
+                          <span className="notes-fab-item-icon"><Icon name="export" size={14} /></span>
+                          <div className="notes-fab-item-copy">
+                            <span className="notes-fab-item-title">Export As…</span>
+                            <span className="notes-fab-item-desc">.md, .txt, .html, .json</span>
+                          </div>
+                          <Icon name="chevronRight" size={12} className="muted" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
 

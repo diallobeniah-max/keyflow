@@ -84,7 +84,7 @@ export function SlashCommandPalette({
 
   const style: CSSProperties = {
     top: `${Math.max(10, position.top)}px`,
-    left: `${Math.max(10, Math.min(position.left, window.innerWidth - 300))}px`,
+    left: `${Math.max(10, Math.min(position.left, window.innerWidth - 260))}px`,
   };
 
   return (
