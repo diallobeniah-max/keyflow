@@ -6,6 +6,7 @@ import { PopupMenu } from "./components/PopupMenu";
 import { CommandPalette } from "./components/CommandPalette";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ToastHost } from "./components/ui";
+import { GlobalTooltip } from "./components/GlobalTooltip";
 import { Dashboard } from "./pages/Dashboard";
 import { Shortcuts } from "./pages/Shortcuts";
 import { CreateShortcut } from "./pages/CreateShortcut";
@@ -69,10 +70,10 @@ function Router() {
 }
 
 export default function App() {
-  if (isPopupWindow()) return <PopupShell />;
-  if (isNotesWindow()) return <NotesPopupShell />;
-  if (isDragSwitcherWindow()) return <DragSwitcherOverlay />;
-  if (isScreenTintWindow()) return <ScreenTintOverlay />;
+  if (isPopupWindow()) return <><GlobalTooltip /><PopupShell /></>;
+  if (isNotesWindow()) return <><GlobalTooltip /><NotesPopupShell /></>;
+  if (isDragSwitcherWindow()) return <><GlobalTooltip /><DragSwitcherOverlay /></>;
+  if (isScreenTintWindow()) return <><GlobalTooltip /><ScreenTintOverlay /></>;
 
   const onboardingDone = useStore((s) => s.data.onboardingDone);
   const drawerOpen = useStore((s) => s.drawerOpen);
@@ -113,6 +114,7 @@ export default function App() {
 
   return (
     <div className="app-shell" data-font-size={appearance?.fontSize ?? "default"}>
+      <GlobalTooltip />
       <TitleBar />
       <div className="app-body">
         <Sidebar />

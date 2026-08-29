@@ -97,6 +97,25 @@ export function Sidebar() {
     return () => window.removeEventListener("keydown", onKey, true);
   }, [drawerOpen, setDrawerOpen]);
 
+  // Global toggle shortcut: Ctrl+B or Ctrl+Shift+S
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key.toLowerCase() === "b" || (e.shiftKey && e.key.toLowerCase() === "s"))
+      ) {
+        const target = e.target as HTMLElement | null;
+        if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable) {
+          return;
+        }
+        e.preventDefault();
+        toggle();
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKey);
+    return () => window.removeEventListener("keydown", handleGlobalKey);
+  }, [toggle]);
+
   const navigate = (page: AppPage) => {
     setPage(page);
     setDrawerOpen(false);
@@ -136,7 +155,7 @@ export function Sidebar() {
           <IconButton
             name={collapsed ? "chevronRight" : "chevronLeft"}
             onClick={toggle}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
             size={16}
           />
         </div>

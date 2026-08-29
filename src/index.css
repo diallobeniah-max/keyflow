@@ -328,9 +328,13 @@ input, textarea {
   background: var(--color-bg-sidebar);
   border-right: none;
   padding: var(--space-3) var(--space-2);
-  transition: width var(--motion-default);
+  will-change: width, min-width, flex-basis;
+  transition: width 240ms cubic-bezier(0.16, 1, 0.3, 1),
+              flex-basis 240ms cubic-bezier(0.16, 1, 0.3, 1),
+              padding 240ms cubic-bezier(0.16, 1, 0.3, 1);
   z-index: var(--z-sidebar);
   position: relative;
+  overflow: hidden;
 }
 
 .sidebar.is-resizing {
@@ -367,9 +371,24 @@ input, textarea {
 }
 
 .sidebar.collapsed {
-  flex-basis: var(--layout-sidebar-collapsed-width);
-  width: var(--layout-sidebar-collapsed-width);
+  flex-basis: var(--layout-sidebar-collapsed-width) !important;
+  width: var(--layout-sidebar-collapsed-width) !important;
   padding: var(--space-3) var(--space-1);
+}
+
+.sidebar.collapsed .sidebar-brand {
+  justify-content: center;
+  padding: 0;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 0;
+  gap: 0;
+}
+
+.sidebar.collapsed .sidebar-pause-btn {
+  padding: var(--space-2) 0;
 }
 
 .sidebar-top {
@@ -6758,6 +6777,59 @@ mark.notes-find-match.is-active {
   font-family: inherit;
   background: transparent;
   color: var(--color-accent);
+}
+
+/* Universal Design System Global Tooltip */
+.kf-global-tooltip {
+  position: fixed;
+  z-index: 99999;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-popup);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--type-caption-size);
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.kf-global-tooltip.is-top {
+  transform: translate(-50%, -100%);
+}
+
+.kf-global-tooltip.is-bottom {
+  transform: translate(-50%, 0);
+}
+
+.kf-tooltip-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--type-caption-size);
+  color: var(--color-text-primary);
+}
+
+.kf-tooltip-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-family-mono);
+  font-size: var(--type-tiny-size);
+  font-weight: 600;
+  padding: var(--space-0) var(--space-1);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  color: var(--color-accent);
+}
+
+.kf-tooltip-sub {
+  color: var(--color-text-muted);
+  font-size: var(--type-tiny-size);
 }
 
 /* Slash Command Palette */
