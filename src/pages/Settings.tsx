@@ -1,7 +1,7 @@
 import { ChangeEvent, CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import { ACCENT_PRESETS, HIGHLIGHT_PRESETS, HOT_CORNER_ACTIONS, SCREEN_TINT_PRESETS } from "../lib/constants";
-import { Button, Field, Input, PageIntro, SettingsGroup, SettingsRow, Toggle } from "../components/ui";
+import { Button, Field, Input, PageIntro, Select, SettingsGroup, SettingsRow, Toggle } from "../components/ui";
 import { AppSelect } from "../components/ui/AppSelect";
 import { Icon } from "../components/Icon";
 import { IconPickerModal } from "../components/ui/IconPickerModal";
@@ -127,6 +127,32 @@ export function Settings() {
     const file = e.target.files?.[0];
     if (!file) return;
     file.text().then((txt) => importState(JSON.parse(txt)));
+  };
+
+  const [backupStatus, setBackupStatus] = useState<string | null>(null);
+
+  const handleSelectBackupFolder = async () => {
+    if (window.electronAPI?.backup?.selectFolder) {
+      const folder = await window.electronAPI.backup.selectFolder();
+      if (folder) {
+        patch("data", { autoBackupPath: folder });
+        setBackupStatus(`Folder set: ${folder}`);
+        setTimeout(() => setBackupStatus(null), 3000);
+      }
+    }
+  };
+
+  const handleRunBackupNow = async () => {
+    if (window.electronAPI?.backup?.runNow) {
+      setBackupStatus("Backing up…");
+      const res = await window.electronAPI.backup.runNow();
+      if (res.success) {
+        setBackupStatus("Backup saved successfully!");
+      } else {
+        setBackupStatus(`Backup failed: ${res.error || "Unknown error"}`);
+      }
+      setTimeout(() => setBackupStatus(null), 4000);
+    }
   };
 
   return (
@@ -943,7 +969,50 @@ export function Settings() {
           )}
 
           {activeSection === "data" && (
-            <SettingsGroup title="Data & Backup" icon="folder" desc="Local JSON storage and configuration export">
+            <SettingsGroup title="Data & Backup" icon="folder" desc="Local JSON storage, auto-backup schedule, and configuration export">
+              <SettingsRow id="row-data-auto-backup" title="Automatic periodic backup" desc="Periodically export a full backup of all shortcuts and preferences to a selected folder (Raycast-style)">
+                <Toggle
+                  label="Automatic backup"
+                  checked={settings.data.autoBackupEnabled ?? false}
+                  onChange={(v) => patch("data", { autoBackupEnabled: v })}
+                />
+              </SettingsRow>
+
+              {settings.data.autoBackupEnabled && (
+                <>
+                  <SettingsRow id="row-data-backup-path" title="Auto-backup location" desc={settings.data.autoBackupPath || "No folder selected"}>
+                    <Button variant="secondary" size="sm" icon="folder" onClick={handleSelectBackupFolder}>
+                      {settings.data.autoBackupPath ? "Change Folder" : "Select Folder…"}
+                    </Button>
+                  </SettingsRow>
+
+                  <SettingsRow id="row-data-backup-interval" title="Backup frequency" desc="How often KeyFlow automatically creates a new timestamped backup">
+                    <Select
+                      value={String(settings.data.autoBackupIntervalMinutes ?? 360)}
+                      onChange={(v: string) => patch("data", { autoBackupIntervalMinutes: Number(v) })}
+                      options={[
+                        { value: "5", label: "Every 5 minutes" },
+                        { value: "15", label: "Every 15 minutes" },
+                        { value: "30", label: "Every 30 minutes" },
+                        { value: "60", label: "Every 1 hour" },
+                        { value: "360", label: "Every 6 hours (Recommended)" },
+                        { value: "720", label: "Every 12 hours" },
+                        { value: "1440", label: "Every 24 hours" },
+                      ]}
+                    />
+                  </SettingsRow>
+
+                  <SettingsRow id="row-data-backup-now" title="Manual backup trigger" desc="Immediately save a new backup to the auto-backup folder">
+                    <div className="row gap-xs items-center">
+                      {backupStatus && <span className="tiny text-accent bold">{backupStatus}</span>}
+                      <Button variant="secondary" size="sm" icon="sync" onClick={handleRunBackupNow}>
+                        Backup Now
+                      </Button>
+                    </div>
+                  </SettingsRow>
+                </>
+              )}
+
               <SettingsRow id="row-data-export" title="Export backup" desc="Save all shortcuts and settings to a JSON file">
                 <Button variant="secondary" size="sm" icon="file" onClick={exportJson}>
                   Export JSON

@@ -254,6 +254,19 @@ export interface PrivacySettings {
 export interface DataSettings {
   storageType: "json" | "sqlite";
   dataLocation: string;
+  autoBackupEnabled?: boolean;
+  autoBackupPath?: string;
+  autoBackupIntervalMinutes?: number;
+}
+
+export interface NotesSettings {
+  saveLocation?: string;
+  autoSaveIntervalMs?: number;
+  defaultSlashCommands?: string[];
+  showWordCount?: boolean;
+  showCharCount?: boolean;
+  fontSize?: "small" | "default" | "large";
+  spellCheck?: boolean;
 }
 
 export interface AdvancedSettings {
@@ -370,6 +383,7 @@ export interface Settings {
   hotCorners?: HotCornersSettings;
   screenTint?: ScreenTintSettings;
   wasdNavigation?: WasdNavigationSettings;
+  notes?: NotesSettings;
 }
 
 export interface RecentAction {
@@ -399,7 +413,8 @@ export type AppPage =
   | "visual"
   | "library"
   | "profiles"
-  | "settings";
+  | "settings"
+  | "notes";
 
 export interface PopupRequest {
   items: PopupItem[];

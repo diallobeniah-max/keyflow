@@ -89,6 +89,9 @@ export function createDefaultSettings(): Settings {
     data: {
       storageType: "json",
       dataLocation: "%APPDATA%/keyflow/keyflow-state.json",
+      autoBackupEnabled: false,
+      autoBackupPath: "",
+      autoBackupIntervalMinutes: 360,
     },
     advanced: {
       debugLogs: false,
@@ -144,6 +147,14 @@ export function createDefaultSettings(): Settings {
     },
     wasdNavigation: {
       cursorSize: 32,
+    },
+    notes: {
+      saveLocation: "",
+      autoSaveIntervalMs: 300,
+      showWordCount: true,
+      showCharCount: true,
+      fontSize: "default",
+      spellCheck: true,
     },
   };
 }

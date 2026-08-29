@@ -94,7 +94,30 @@ export function initNativeInput(): void {
     void eapi.appInfo?.setLoginItemSettings?.({
       openAtLogin: !!general.launchOnStartup,
       openAsHidden: !!general.startMinimized,
+    }).then((res: any) => {
+      if (res && res.openAtLogin !== general.launchOnStartup) {
+        console.log(`[startup] synced openAtLogin from system: ${res.openAtLogin}`);
+      }
     }).catch((error: unknown) => console.warn("[startup] configure failed", error));
+  };
+
+  const syncBackup = () => {
+    const dataSettings = useStore.getState().data.settings.data;
+    const fullData = useStore.getState().data;
+    void eapi.backup?.updateState?.(fullData);
+    if (dataSettings?.autoBackupEnabled && dataSettings?.autoBackupPath) {
+      void eapi.backup?.setConfig?.({
+        enabled: !!dataSettings.autoBackupEnabled,
+        path: dataSettings.autoBackupPath,
+        intervalMinutes: dataSettings.autoBackupIntervalMinutes || 360,
+      });
+    } else {
+      void eapi.backup?.setConfig?.({
+        enabled: false,
+        path: "",
+        intervalMinutes: 360,
+      });
+    }
   };
 
   const unsub1 = eapi.input.onTriggered((sc: any, results?: any[]) => {
@@ -183,10 +206,19 @@ export function initNativeInput(): void {
       state.data.settings.screenTint !== previous.data.settings.screenTint ||
       state.activeProfileId !== previous.activeProfileId
     ) pushPopupSnapshot();
+
+    if (state.data.settings.general !== previous.data.settings.general) {
+      syncStartup();
+    }
+
+    if (state.data.settings.data !== previous.data.settings.data || state.data !== previous.data) {
+      syncBackup();
+    }
   });
 
   syncShortcuts();
   syncStartup();
+  syncBackup();
   pushPopupSnapshot();
   const initialState = useStore.getState();
   void eapi.input.setPaused(initialState.paused || initialState.safeMode);

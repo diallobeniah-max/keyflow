@@ -65,6 +65,7 @@ export function Sidebar() {
   const NAV_MANAGE: NavItem[] = [
     { page: "profiles", label: "Profiles", icon: "profiles", badge: profiles.length },
     { page: "library", label: "Action Library", icon: "library" },
+    { page: "notes", label: "Notes", icon: "file" },
     { page: "settings", label: "Settings", icon: "settings" },
   ];
 

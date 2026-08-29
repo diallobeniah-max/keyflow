@@ -149,4 +149,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     minimize: () => ipcRenderer.invoke("notes:minimize"),
     maximize: () => ipcRenderer.invoke("notes:maximize"),
   },
+  backup: {
+    selectFolder: () => ipcRenderer.invoke("backup:select-folder"),
+    setConfig: (config) => ipcRenderer.invoke("backup:set-config", config),
+    getConfig: () => ipcRenderer.invoke("backup:get-config"),
+    runNow: () => ipcRenderer.invoke("backup:run-now"),
+    updateState: (state) => ipcRenderer.invoke("backup:update-state", state),
+  },
 });

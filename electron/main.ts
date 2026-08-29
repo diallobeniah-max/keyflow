@@ -15,6 +15,7 @@ import { DragSwitcherWindowManager } from "./drag-switcher-window.js";
 import { HotCornersManager } from "./hot-corners.js";
 import { ScreenTintWindowManager } from "./screen-tint-window.js";
 import { notesService } from "./notes-window.js";
+import { autoBackupService } from "./auto-backup.js";
 import { nextPopupGeneration, routeMatchedShortcut, notifyRendererMatched } from "./action-router.js";
 import { NativeInputHelper, buildNativeKeyConfig, resolveNativeHelperPath } from "./native-input-helper.js";
 import { NavigationModeController } from "./navigation-mode.js";
@@ -286,20 +287,63 @@ function registerIPC(): void {
   ipcMain.handle("app:set-login-item-settings", (_event, config: { openAtLogin?: boolean; openAsHidden?: boolean }) => {
     const openAtLogin = !!config?.openAtLogin;
     const openAsHidden = !!config?.openAsHidden;
-    const args = process.defaultApp ? [app.getAppPath()] : [];
-    app.setLoginItemSettings({
-      openAtLogin,
-      openAsHidden,
-      path: process.execPath,
-      args,
-      name: "KeyFlow",
-    });
+    try {
+      if (app.isPackaged) {
+        app.setLoginItemSettings({
+          openAtLogin,
+          openAsHidden,
+          path: process.execPath,
+          name: "KeyFlow",
+        });
+      } else {
+        app.setLoginItemSettings({
+          openAtLogin,
+          openAsHidden,
+          path: process.execPath,
+          args: [app.getAppPath()],
+          name: "KeyFlow Dev",
+        });
+      }
+    } catch (err) {
+      console.error("[startup] Failed to configure login item settings:", err);
+    }
     const result = app.getLoginItemSettings();
     console.log(`[startup] configured openAtLogin=${result.openAtLogin} openAsHidden=${result.openAsHidden ?? false} packaged=${app.isPackaged}`);
     return result;
   });
 
   notesService.setupIPC();
+
+  // Auto-backup IPC handlers
+  let latestPersistedState: any = null;
+  autoBackupService.init(() => latestPersistedState);
+
+  ipcMain.handle("backup:select-folder", async () => {
+    const res = await dialog.showOpenDialog({
+      title: "Select Auto-Backup Folder",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (res.canceled || !res.filePaths || res.filePaths.length === 0) {
+      return null;
+    }
+    return res.filePaths[0];
+  });
+
+  ipcMain.handle("backup:set-config", (_event, config: { enabled: boolean; path: string; intervalMinutes: number }) => {
+    autoBackupService.setConfig(config);
+  });
+
+  ipcMain.handle("backup:get-config", () => {
+    return autoBackupService.getConfig();
+  });
+
+  ipcMain.handle("backup:run-now", () => {
+    return autoBackupService.runNow();
+  });
+
+  ipcMain.handle("backup:update-state", (_event, state: any) => {
+    latestPersistedState = state;
+  });
 
   ipcMain.handle("input:update-shortcuts", async (_event, entries: any[], context: any) => {
     if (inputService) inputService.updateShortcuts(entries);

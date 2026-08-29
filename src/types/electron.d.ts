@@ -163,6 +163,14 @@ interface DragSwitcherAPI {
   onHide: (callback: (data: { reason: string }) => void) => () => void;
 }
 
+interface BackupAPI {
+  selectFolder: () => Promise<string | null>;
+  setConfig: (config: { enabled: boolean; path: string; intervalMinutes: number }) => Promise<void>;
+  getConfig: () => Promise<{ enabled: boolean; path: string; intervalMinutes: number; lastBackupTime: number }>;
+  runNow: () => Promise<{ success: boolean; path?: string; error?: string }>;
+  updateState: (state: any) => Promise<void>;
+}
+
 interface ElectronAPI {
   windowControls: WindowControls;
   appInfo: AppInfo;
@@ -173,6 +181,7 @@ interface ElectronAPI {
   popup: PopupAPI;
   dragSwitcher?: DragSwitcherAPI;
   notes?: NotesAPI;
+  backup?: BackupAPI;
 }
 
 interface Window {

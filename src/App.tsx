@@ -12,6 +12,7 @@ import { VisualKeyboard } from "./pages/VisualKeyboard";
 import { ActionLibrary } from "./pages/ActionLibrary";
 import { Profiles } from "./pages/Profiles";
 import { Settings } from "./pages/Settings";
+import { NotesSettingsPage } from "./pages/NotesSettingsPage";
 import { Onboarding } from "./pages/Onboarding";
 import { PopupShell } from "./components/PopupShell";
 import { NotesPopupShell } from "./components/NotesPopupShell";
@@ -56,6 +57,8 @@ function Router() {
             return <Profiles />;
           case "settings":
             return <Settings />;
+          case "notes":
+            return <NotesSettingsPage />;
           default:
             return <Dashboard />;
         }

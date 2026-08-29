@@ -112,6 +112,17 @@ export function createCommandRegistry(data: PersistedState): CommandDefinition[]
     ),
     command(
       {
+        id: "navigate.notes",
+        title: "Open Notes Settings",
+        description: "Configure floating notepad preferences, slash commands, and save location.",
+        category: "Navigation",
+        icon: "file",
+        keywords: ["notes", "notepad", "editor", "slash commands", "markdown"],
+      },
+      ({ navigate }) => navigate("notes")
+    ),
+    command(
+      {
         id: "navigate.settings",
         title: "Open Settings",
         description: "Configure KeyFlow behaviour, appearance, safety, and local data.",

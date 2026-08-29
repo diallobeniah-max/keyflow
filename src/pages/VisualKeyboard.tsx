@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useStore } from "../store/useStore";
-import { KEYBOARD_ROWS, MOUSE_BUTTONS } from "../lib/constants";
+import { KEYBOARD_ROWS, MOUSE_BUTTONS, ACTION_META } from "../lib/constants";
 import { Button, Card, PageHeader } from "../components/ui";
 import { Icon } from "../components/Icon";
 import { isModifierHyperKeyName } from "../lib/defaults";
 import { formatTriggerLabel } from "../lib/conflict";
+import { EditShortcutModal } from "../components/EditShortcutModal";
 import type { Shortcut } from "../types";
 
 function keyClass(k: string, isHyper: boolean, navOn: boolean) {
@@ -27,7 +28,6 @@ export function VisualKeyboard() {
   const wasdActive = useStore((s) => s.wasdNavigationActive);
   const setPage = useStore((s) => s.setPage);
   const setPending = useStore((s) => s.setPendingKey);
-  const setEditing = useStore((s) => s.setEditing);
   const deleteShortcut = useStore((s) => s.deleteShortcut);
 
   const hyperKeyConfig = data.settings?.shortcuts?.hyperKeyConfig;
@@ -55,17 +55,26 @@ export function VisualKeyboard() {
   }, [shortcutsByKey]);
 
   const [popoverKey, setPopoverKey] = useState<string | null>(null);
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const [editingShortcutId, setEditingShortcutId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  const openCreate = (key: string, mouse = false) => {
-    setEditing(null);
-    setPending(key, mouse);
-    setPage("create");
+  const hoverTimerRef = useRef<any>(null);
+
+  const handleKeyMouseEnter = (k: string) => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    setHoveredKey(k);
   };
 
-  const handleEdit = (shortcut: Shortcut) => {
-    setEditing(shortcut.id);
-    setPending(shortcut.key, shortcut.mouse ?? false);
+  const handleKeyMouseLeave = () => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => {
+      setHoveredKey(null);
+    }, 220);
+  };
+
+  const openCreate = (key: string, mouse = false) => {
+    setPending(key, mouse);
     setPage("create");
   };
 
@@ -97,7 +106,7 @@ export function VisualKeyboard() {
             <div>
               <h3 className="section-title no-margin">Physical Keyboard Layout</h3>
               <p className="muted tiny no-margin">
-                Keys with active shortcuts are highlighted with assigned counts. Hover to inspect details.
+                Keys with active shortcuts are highlighted with assigned counts. Hover any assigned key for a quick preview with edit controls.
               </p>
             </div>
             <div className="row gap-sm align-center">
@@ -121,31 +130,98 @@ export function VisualKeyboard() {
           </div>
 
           <div className="keyboard-grid pt-sm">
-            {KEYBOARD_ROWS.map((row, i) => (
-              <div className="key-row" key={i}>
+            {KEYBOARD_ROWS.map((row, rowIndex) => (
+              <div className="key-row" key={rowIndex}>
                 {row.map((k, idx) => {
                   const count = counts.get(k) || 0;
                   const isHyper = !!(isHyperKeyEnabled && hyperKeyName?.toLowerCase() === k.toLowerCase());
-                  const isHovered = popoverKey === k;
+                  const isHovered = hoveredKey === k;
+                  const isSelected = popoverKey === k;
+                  const keyShortcuts = shortcutsByKey.get(k) || [];
+                  const showPopover = isHovered && (count > 0 || isHyper);
+
                   return (
-                    <div key={k + idx} className="key-tile-wrap" style={{ position: "relative" }}>
+                    <div
+                      key={k + idx}
+                      className="key-tile-wrap"
+                      style={{ position: "relative" }}
+                      onMouseEnter={() => handleKeyMouseEnter(k)}
+                      onMouseLeave={handleKeyMouseLeave}
+                    >
                       <button
                         type="button"
-                        className={keyClass(k, isHyper, wasdActive) + (count ? " assigned" : "") + (isHovered ? " is-focused" : "")}
+                        className={keyClass(k, isHyper, wasdActive) + (count ? " assigned" : "") + (isHovered || isSelected ? " is-focused" : "")}
                         onClick={() => {
-                          if (count > 0) {
+                          if (count > 0 || isHyper) {
                             setPopoverKey(popoverKey === k ? null : k);
                           } else {
                             openCreate(k, false);
                           }
                         }}
-                        onMouseEnter={() => setPopoverKey(k)}
-                        onFocus={() => setPopoverKey(k)}
+                        onFocus={() => handleKeyMouseEnter(k)}
+                        onBlur={handleKeyMouseLeave}
                       >
                         <span className="key-tile-label">{k}</span>
                         {isHyper && <span className="key-hyper-badge">HYPER</span>}
                         {count > 0 && <span className="status-dot" />}
                       </button>
+
+                      {/* iOS-Style Quick Preview Popover on Hover */}
+                      {showPopover && (
+                        <div
+                          className={`ios-key-popover${rowIndex === 0 ? " is-flipped-down" : ""}`}
+                          onMouseEnter={() => {
+                            if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+                            setHoveredKey(k);
+                          }}
+                          onMouseLeave={handleKeyMouseLeave}
+                        >
+                          <div className="ios-key-popover-header">
+                            <span className="ios-key-popover-keybadge">{k}</span>
+                            <span className="ios-key-popover-count">
+                              {count > 0 ? `${count} shortcut${count > 1 ? "s" : ""}` : "Hyper Key"}
+                            </span>
+                          </div>
+
+                          {isHyper && (
+                            <div className="tiny text-accent row gap-xs items-center">
+                              <Icon name="zap" size={13} />
+                              <span className="bold">Configured Hyper Key</span>
+                            </div>
+                          )}
+
+                          <div className="ios-key-popover-list">
+                            {keyShortcuts.map((s) => {
+                              const actionType = s.actions[0]?.type || "custom";
+                              const actionLabel = ACTION_META[actionType]?.label || actionType;
+                              return (
+                                <div key={s.id} className="ios-key-popover-item">
+                                  <div className="ios-key-popover-item-left">
+                                    <span className="ios-key-popover-item-name" title={s.name || s.key}>
+                                      {s.name || actionLabel}
+                                    </span>
+                                    <span className="ios-key-popover-item-trigger">
+                                      {formatTriggerLabel(s)} · {actionLabel}
+                                    </span>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    className="ios-key-popover-edit-btn"
+                                    title="Quick edit shortcut"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingShortcutId(s.id);
+                                    }}
+                                  >
+                                    <Icon name="edit" size={13} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -359,7 +435,7 @@ export function VisualKeyboard() {
                     </div>
 
                     <div className="row align-center gap-xs">
-                      <Button size="sm" variant="secondary" icon="edit" onClick={() => handleEdit(s)}>
+                      <Button size="sm" variant="secondary" icon="edit" onClick={() => setEditingShortcutId(s.id)}>
                         Edit
                       </Button>
 
@@ -391,6 +467,16 @@ export function VisualKeyboard() {
           </Card>
         )}
       </div>
+
+      {/* Edit Shortcut Modal */}
+      {editingShortcutId && (
+        <EditShortcutModal
+          shortcutId={editingShortcutId}
+          open={!!editingShortcutId}
+          onClose={() => setEditingShortcutId(null)}
+        />
+      )}
     </div>
   );
 }
+
