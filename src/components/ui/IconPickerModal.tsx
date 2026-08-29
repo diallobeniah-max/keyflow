@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { Icon, ICON_CATEGORIES, ICON_COLOR_PALETTE } from "../Icon";
 
 export interface IconPickerModalProps {
@@ -40,7 +41,7 @@ export function IconPickerModal({
     onClose();
   };
 
-  return (
+  return createPortal(
     <div className="modal-backdrop anim-fade-in" onClick={onClose}>
       <div
         className="icon-picker-modal anim-modal-enter"
@@ -131,6 +132,7 @@ export function IconPickerModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

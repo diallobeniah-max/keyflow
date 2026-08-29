@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Action, ModifierKey, Shortcut, TriggerType } from "../types";
 import { useStore } from "../store/useStore";
 import { ACTION_META, REMAP_TARGETS, TRIGGER_META } from "../lib/constants";
@@ -24,11 +25,13 @@ function deriveFriendlyName(shortcut: Shortcut): string {
   return `${keyPart} (${triggerLabel}) → ${actionLabel}`;
 }
 
-async function testShortcut(s: Shortcut) {
-  if (s.actions && s.actions.length > 0) {
-    useStore.getState().toast(`Testing: ${deriveFriendlyName(s)}`, "success");
-    await runActions(s.actions);
+async function testShortcut(s: Shortcut | null) {
+  if (!s || !s.actions || s.actions.length === 0) {
+    useStore.getState().toast("No action configured to test", "warning");
+    return;
   }
+  useStore.getState().toast(`Testing: ${deriveFriendlyName(s)}`, "success");
+  await runActions(s.actions);
 }
 
 interface EditShortcutModalProps {
@@ -153,7 +156,9 @@ export function EditShortcutModal({ shortcutId, open, onClose }: EditShortcutMod
     payload: { screenshotMode: "snipOverlay" },
   };
 
-  return (
+  if (!open || !draft) return null;
+
+  return createPortal(
     <div className={"ios-modal-backdrop " + (isClosing ? "anim-fade-out" : "anim-fade-in")} onClick={handleClose}>
       <div
         className={"ios-modal-sheet " + (isClosing ? "anim-modal-exit" : "anim-modal-enter")}
@@ -439,6 +444,7 @@ export function EditShortcutModal({ shortcutId, open, onClose }: EditShortcutMod
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

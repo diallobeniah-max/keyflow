@@ -1,4 +1,5 @@
 import { ChangeEvent, CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useStore } from "../store/useStore";
 import { ACCENT_PRESETS, HIGHLIGHT_PRESETS, HOT_CORNER_ACTIONS, SCREEN_TINT_PRESETS } from "../lib/constants";
 import { Button, Field, Input, PageIntro, Select, SettingsGroup, SettingsRow, Slider, Toggle } from "../components/ui";
@@ -1410,7 +1411,7 @@ export function Settings() {
         </div>
       </div>
 
-      {showSavePresetModal && (
+      {showSavePresetModal && createPortal(
         <div className="modal-backdrop anim-fade-in" onClick={() => { setShowSavePresetModal(false); setEditingPresetId(null); }}>
           <div className="hot-corners-save-modal anim-modal-enter" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -1494,7 +1495,8 @@ export function Settings() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {showIconPicker && (

@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
 import { useStore } from "../store/useStore";
 import { AppSelect, AppSelectOption } from "./ui/AppSelect";
@@ -568,7 +569,7 @@ export function Modal({
   width?: number;
 }) {
   if (!open) return null;
-  return (
+  return createPortal(
     <div className="modal-backdrop anim-fade-in" onMouseDown={onClose}>
       <div
         className="modal anim-modal-enter"
@@ -584,7 +585,8 @@ export function Modal({
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-footer row">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

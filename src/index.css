@@ -2595,12 +2595,15 @@ textarea.input {
 .modal-backdrop {
   position: fixed;
   inset: var(--space-0);
+  width: 100vw;
+  height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-overlay);
-  backdrop-filter: blur(4px);
-  z-index: var(--z-dialog);
+  background: var(--color-overlay-strong);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: var(--z-modal);
   animation: fadeIn var(--motion-fast);
 }
 
@@ -3888,8 +3891,11 @@ textarea.input {
 .ios-modal-backdrop {
   position: fixed;
   inset: var(--space-0);
+  width: 100vw;
+  height: 100vh;
   background: var(--color-overlay-strong);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;

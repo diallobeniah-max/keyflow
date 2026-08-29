@@ -1,4 +1,4 @@
-﻿import { Action, Settings } from "../types";
+import { Action, Settings } from "../types";
 import { useStore } from "../store/useStore";
 import { invoke, isTauri } from "./tauri";
 
@@ -20,7 +20,7 @@ const ELECTRON_ACTION_TYPES = new Set<Action["type"]>([
   "pasteText", "typeText", "pressShortcut", "volumeControl", "mediaControl", "toggleMute",
 "brightnessControl", "screenshot", "lockScreen", "openSettings", "showNotification", "copySelected",
   "clipboardHistory", "minimizeWindow", "maximizeWindow", "closeWindow", "moveWindow", "alwaysOnTop",
-  "toggleWasdNavigation",
+  "toggleWasdNavigation", "notesPopup",
 ]);
 export async function runAction(action: Action): Promise<void> {
   const store = useStore.getState();
@@ -152,6 +152,7 @@ export async function runAction(action: Action): Promise<void> {
 case "moveWindow":
     case "alwaysOnTop":
     case "toggleWasdNavigation":
+    case "notesPopup":
       store.toast(`${type} needs the Windows desktop build. Simulated now.`, "info");
       break;
   }
