@@ -8,7 +8,15 @@ files:
   - dist/**/*
   - dist-electron/**/*
   - package.json
-  - "!node_modules/**/*"
+  # Native input support runs in the Electron main process. Keep its loader
+  # in the archive, while the compiled .node binary is unpacked below.
+  - node_modules/uiohook-napi/**/*
+  - node_modules/node-gyp-build/**/*
+asarUnpack:
+  - node_modules/uiohook-napi/prebuilds/**/*.node
+# uiohook-napi ships a Windows N-API binary. Rebuilding it is unnecessary and
+# fails in checkout paths that contain spaces.
+npmRebuild: false
 extraResources:
   - from: native/keyflow-input/target/release/keyflow-input.exe
     to: keyflow-input/keyflow-input.exe

@@ -101,16 +101,21 @@ export function KeyPicker({
       <section key={group.id} className="key-picker-group">
         <span className="app-picker-section-title">{group.label}</span>
         <div className="key-picker-chips">
-          {group.keys.map((key) => (
-            <button
-              key={key}
-              type="button"
-              className={"key-picker-chip" + (key === value ? " is-selected" : "")}
-              onClick={() => choose(key)}
-            >
-              {keyLabel(key)}
-            </button>
-          ))}
+          {group.keys.map((key) => {
+            const isSelected = key === value;
+            return (
+              <button
+                key={key}
+                type="button"
+                className={"key-picker-chip" + (isSelected ? " is-selected" : "")}
+                title={isSelected ? `Deselect ${keyLabel(key)}` : `Select ${keyLabel(key)}`}
+                onClick={() => choose(isSelected ? "" : key)}
+              >
+                <span>{keyLabel(key)}</span>
+                {isSelected && <span className="key-picker-chip-check">✓</span>}
+              </button>
+            );
+          })}
         </div>
       </section>
     ));
@@ -136,11 +141,30 @@ export function KeyPicker({
             <span className="muted tiny">{results?.length ?? 0} {results?.length === 1 ? "match" : "matches"}</span>
           )}
         </div>
+
+        {value && (
+          <div className="row gap-sm items-center justify-between py-xs px-sm card border-accent-soft">
+            <div className="row gap-xs items-center">
+              <span className="tiny muted">Selected Key:</span>
+              <span className="chip chip-accent">{keyLabel(value)}</span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs"
+              onClick={() => choose("")}
+              title="Deselect key"
+            >
+              <Icon name="close" size={12} />
+              <span>Deselect Key</span>
+            </button>
+          </div>
+        )}
+
         <div className="key-picker-list" ref={listRef} role="listbox" aria-label="Available keys">
           {renderGroups()}
         </div>
         <div className="muted tiny">
-          Tip: you can also press a key physically to capture it — the picker stays in sync.
+          Tip: you can also press a key physically to capture it, or click a selected key to deselect.
         </div>
       </div>
     </Modal>

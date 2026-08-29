@@ -6,6 +6,7 @@ import { formatScopeLabel } from "../lib/app-scope";
 import { ActionType, TriggerType } from "../types";
 import { Button, Card, EmptyState, Field, IconButton, Input, KeycapBadge, PageHeader, Select, Toggle } from "../components/ui";
 import { Icon } from "../components/Icon";
+import { EditShortcutModal } from "../components/EditShortcutModal";
 
 export function Shortcuts() {
   const data = useStore((s) => s.data);
@@ -24,6 +25,7 @@ export function Shortcuts() {
   const [trigger, setTrigger] = useState("all");
   const [actionType, setActionType] = useState("all");
   const [sort, setSort] = useState("name");
+  const [editingShortcutId, setEditingShortcutId] = useState<string | null>(null);
 
   const actionTypes = useMemo(
     () => Array.from(new Set(data.shortcuts.flatMap((s) => s.actions.map((a) => a.type)))),
@@ -253,10 +255,7 @@ export function Shortcuts() {
                       name="edit"
                       size={15}
                       title="Edit shortcut"
-                      onClick={() => {
-                        useStore.getState().setEditing(s.id);
-                        setPage("create");
-                      }}
+                      onClick={() => setEditingShortcutId(s.id)}
                     />
                     <IconButton
                       name="copy"
@@ -283,6 +282,12 @@ export function Shortcuts() {
           })
         )}
       </div>
+
+      <EditShortcutModal
+        shortcutId={editingShortcutId}
+        open={!!editingShortcutId}
+        onClose={() => setEditingShortcutId(null)}
+      />
     </div>
   );
 }

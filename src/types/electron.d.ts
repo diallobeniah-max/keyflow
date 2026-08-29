@@ -9,6 +9,8 @@ interface WindowControls {
 interface AppInfo {
   getVersion: () => Promise<string>;
   getPlatform: () => Promise<string>;
+  getLoginItemSettings: () => Promise<{ openAtLogin: boolean; openAsHidden?: boolean }>;
+  setLoginItemSettings: (config: { openAtLogin: boolean; openAsHidden?: boolean }) => Promise<{ openAtLogin: boolean; openAsHidden?: boolean }>;
 }
 
 interface ActionResult {

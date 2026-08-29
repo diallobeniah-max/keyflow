@@ -6,6 +6,7 @@ import { getEngine } from "../lib/engine";
 import { Button, Card, EmptyState, IconButton, KeycapBadge, PageHeader, Toggle } from "../components/ui";
 import { Icon } from "../components/Icon";
 import { Simulator } from "../components/Simulator";
+import { EditShortcutModal } from "../components/EditShortcutModal";
 import { playFeedbackSound } from "../lib/sound";
 
 function timeAgo(at: number): string {
@@ -31,6 +32,8 @@ export function Dashboard() {
   const focusedApp = useStore((s) => s.focusedApp);
 
   const [simOpen, setSimOpen] = useState(false);
+  const [editingShortcutId, setEditingShortcutId] = useState<string | null>(null);
+
   const activeProfile = data.profiles.find((p) => p.id === activeId);
   const activeShortcuts = data.shortcuts.filter((s) => s.profileId === activeId && s.enabled);
   const favorites = data.shortcuts.filter((s) => s.favorite);
@@ -428,6 +431,12 @@ export function Dashboard() {
 
                     <div className="row gap-xs">
                       <IconButton
+                        name="edit"
+                        title="Edit shortcut"
+                        size={15}
+                        onClick={() => setEditingShortcutId(s.id)}
+                      />
+                      <IconButton
                         name="play"
                         title="Simulate shortcut"
                         size={15}
@@ -529,6 +538,13 @@ export function Dashboard() {
 
       {/* Simulator Modal */}
       <Simulator open={simOpen} onClose={() => setSimOpen(false)} />
+
+      {/* Edit Shortcut Modal */}
+      <EditShortcutModal
+        shortcutId={editingShortcutId}
+        open={!!editingShortcutId}
+        onClose={() => setEditingShortcutId(null)}
+      />
     </div>
   );
 }

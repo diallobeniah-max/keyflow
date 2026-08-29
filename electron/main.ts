@@ -282,6 +282,22 @@ function registerIPC(): void {
   ipcMain.handle("window:is-maximized", () => mainWindow?.isMaximized() ?? false);
   ipcMain.handle("app:get-version", () => app.getVersion());
   ipcMain.handle("app:get-platform", () => process.platform);
+  ipcMain.handle("app:get-login-item-settings", () => app.getLoginItemSettings());
+  ipcMain.handle("app:set-login-item-settings", (_event, config: { openAtLogin?: boolean; openAsHidden?: boolean }) => {
+    const openAtLogin = !!config?.openAtLogin;
+    const openAsHidden = !!config?.openAsHidden;
+    const args = process.defaultApp ? [app.getAppPath()] : [];
+    app.setLoginItemSettings({
+      openAtLogin,
+      openAsHidden,
+      path: process.execPath,
+      args,
+      name: "KeyFlow",
+    });
+    const result = app.getLoginItemSettings();
+    console.log(`[startup] configured openAtLogin=${result.openAtLogin} openAsHidden=${result.openAsHidden ?? false} packaged=${app.isPackaged}`);
+    return result;
+  });
 
   notesService.setupIPC();
 

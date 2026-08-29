@@ -89,6 +89,14 @@ export function initNativeInput(): void {
     }).catch((error: unknown) => console.warn("[screen-tint] update failed", error));
   };
 
+  const syncStartup = () => {
+    const general = useStore.getState().data.settings.general;
+    void eapi.appInfo?.setLoginItemSettings?.({
+      openAtLogin: !!general.launchOnStartup,
+      openAsHidden: !!general.startMinimized,
+    }).catch((error: unknown) => console.warn("[startup] configure failed", error));
+  };
+
   const unsub1 = eapi.input.onTriggered((sc: any, results?: any[]) => {
     // Desktop actions are executed in the main process (ActionRouter); this
     // event is informational only (recent list, debug toast, user feedback).
@@ -162,6 +170,7 @@ export function initNativeInput(): void {
       state.data.settings.dragSwitcher !== previous.data.settings.dragSwitcher ||
       state.data.settings.hotCorners !== previous.data.settings.hotCorners ||
       state.data.settings.screenTint !== previous.data.settings.screenTint ||
+      state.data.settings.general !== previous.data.settings.general ||
       state.paused !== previous.paused ||
       state.safeMode !== previous.safeMode
     ) {
@@ -177,6 +186,7 @@ export function initNativeInput(): void {
   });
 
   syncShortcuts();
+  syncStartup();
   pushPopupSnapshot();
   const initialState = useStore.getState();
   void eapi.input.setPaused(initialState.paused || initialState.safeMode);

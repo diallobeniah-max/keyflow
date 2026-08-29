@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   appInfo: {
     getVersion: () => ipcRenderer.invoke("app:get-version"),
     getPlatform: () => ipcRenderer.invoke("app:get-platform"),
+    getLoginItemSettings: () => ipcRenderer.invoke("app:get-login-item-settings"),
+    setLoginItemSettings: (config) => ipcRenderer.invoke("app:set-login-item-settings", config),
   },
   actions: {
     run: (action) => ipcRenderer.invoke("action:run", action),

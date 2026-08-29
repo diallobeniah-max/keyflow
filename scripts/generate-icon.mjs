@@ -11,9 +11,10 @@ const svg = readFileSync(svgPath);
 async function main() {
   const sizes = [256, 128, 64, 48, 32, 16];
   const pngBuffers = await Promise.all(
-    sizes.map((size) =>
-      sharp(svg).resize(size, size).png().toBuffer()
-    )
+    sizes.map(async (size) => ({
+      size,
+      png: await sharp(svg).resize(size, size).png().toBuffer(),
+    }))
   );
 
   const icoPath = resolve(root, "build", "icon.ico");
@@ -32,10 +33,10 @@ function createIco(pngBuffers) {
   let offset = 6 + pngBuffers.length * 16;
   const imageData = [];
 
-  for (const png of pngBuffers) {
+  for (const { size, png } of pngBuffers) {
     const entry = Buffer.alloc(16);
-    entry.writeUInt8(png.width === 256 ? 0 : png.width, 0);
-    entry.writeUInt8(png.height === 256 ? 0 : png.height, 1);
+    entry.writeUInt8(size === 256 ? 0 : size, 0);
+    entry.writeUInt8(size === 256 ? 0 : size, 1);
     entry.writeUInt8(0, 2);
     entry.writeUInt8(0, 3);
     entry.writeUInt16LE(1, 4);

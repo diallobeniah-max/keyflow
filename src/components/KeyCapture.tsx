@@ -3,6 +3,7 @@ import { getEngine } from "../lib/engine";
 import { CaptureCoordinator } from "../lib/capture";
 import { ModifierKey } from "../types";
 import { Button, KeycapBadge } from "./ui";
+import { Icon } from "./Icon";
 import { useStore } from "../store/useStore";
 import { KeyPicker } from "./KeyPicker";
 
@@ -155,9 +156,23 @@ export function KeyCapture({
           Browse…
         </Button>
 
-        {value && !capturing && (
-          <KeycapBadge keys={[...modifiers, value]} size="lg" />
-        )}
+        {value && !capturing ? (
+          <div className="row gap-xs items-center">
+            <KeycapBadge keys={[...modifiers, value]} size="lg" />
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs"
+              title="Deselect key"
+              onClick={() => onChangeKey("")}
+              aria-label="Deselect key"
+            >
+              <Icon name="close" size={13} />
+              <span>Deselect</span>
+            </button>
+          </div>
+        ) : !capturing ? (
+          <span className="muted tiny row items-center">No key selected</span>
+        ) : null}
       </div>
 
       {!capturing && (

@@ -157,7 +157,7 @@ export function CreateShortcut() {
       }),
     [draft, data.shortcuts, data.settings, editingId, active]
   );
-  const hasError = conflictReport.hasBlockingConflict;
+  const hasError = conflictReport.hasBlockingConflict || !draft.key;
 
   const gestureAvailability = useMemo(
     () =>
