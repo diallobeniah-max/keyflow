@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { Action } from "../types";
+import type { Action, UIScale } from "../types";
 import { useStore } from "../store/useStore";
 import { runActions } from "../lib/actions";
 import { createCommandRegistry, searchCommands, type CommandDefinition, type CommandExecutionContext } from "../lib/command-registry";
+import { formatShortcutLabel, formatTriggerLabel } from "../lib/conflict";
 import { Icon } from "./Icon";
 import { Button, Toggle } from "./ui";
 
@@ -42,6 +43,7 @@ export function CommandPalette() {
   const togglePaused = useStore((s) => s.togglePaused);
   const setSafeMode = useStore((s) => s.setSafeMode);
   const patchSettings = useStore((s) => s.patchSettings);
+  const updateShortcut = useStore((s) => s.updateShortcut);
   const setSettingsFocusTarget = useStore((s) => s.setSettingsFocusTarget);
   const addRecent = useStore((s) => s.addRecent);
   const toast = useStore((s) => s.toast);
@@ -57,6 +59,7 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [sideViewOpen, setSideViewOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const closeTimerRef = useRef<number | null>(null);
 
@@ -67,27 +70,9 @@ export function CommandPalette() {
     }
     setIsClosing(false);
     setPreviewOpen(false);
+    setSideViewOpen(false);
     setOpen(true);
   }, []);
-
-  const commands = useMemo(() => {
-    try {
-      return createCommandRegistry(data);
-    } catch (err) {
-      console.error("[CommandPalette] Failed to build commands:", err);
-      return [];
-    }
-  }, [data]);
-  const allResults = useMemo(() => {
-    try {
-      return searchCommands(commands, query);
-    } catch (err) {
-      console.error("[CommandPalette] Failed to search commands:", err);
-      return [];
-    }
-  }, [commands, query]);
-  const results = useMemo(() => allResults.slice(0, maxResults), [allResults, maxResults]);
-  const activeCommandId = results[active]?.id;
 
   const closePalette = useCallback(() => {
     if (isClosing) return;
@@ -96,26 +81,26 @@ export function CommandPalette() {
       setOpen(false);
       setIsClosing(false);
       setPreviewOpen(false);
+      setSideViewOpen(false);
       closeTimerRef.current = null;
-    }, 160);
+    }, 140);
   }, [isClosing]);
 
   useEffect(() => {
-    const handleOpen = () => openPalette();
-    const handleToggle = () => {
-      if (open) {
-        closePalette();
-      } else {
-        openPalette();
-      }
-    };
-    window.addEventListener("keyflow:open-command-palette", handleOpen);
-    window.addEventListener("keyflow:toggle-command-palette", handleToggle);
-    return () => {
-      window.removeEventListener("keyflow:open-command-palette", handleOpen);
-      window.removeEventListener("keyflow:toggle-command-palette", handleToggle);
-    };
-  }, [open, openPalette, closePalette]);
+    const handleOpenEvent = () => openPalette();
+    window.addEventListener("keyflow:open-command-palette", handleOpenEvent);
+    return () => window.removeEventListener("keyflow:open-command-palette", handleOpenEvent);
+  }, [openPalette]);
+
+  const commands = useMemo(() => createCommandRegistry(data), [data]);
+
+  const results = useMemo(() => {
+    if (!query.trim()) return commands.slice(0, maxResults);
+    return searchCommands(commands, query).slice(0, maxResults);
+  }, [commands, query, maxResults]);
+
+  const activeCommandId = results[active]?.id;
+  const activeCommand = results[active];
 
   useEffect(() => {
     if (!enabled) {
@@ -134,10 +119,18 @@ export function CommandPalette() {
         }
         return;
       }
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && open) {
+        event.preventDefault();
+        event.stopPropagation();
+        setSideViewOpen((prev) => !prev);
+        return;
+      }
       if (event.key === "Escape" && open) {
         event.preventDefault();
         event.stopPropagation();
-        if (previewOpen) {
+        if (sideViewOpen) {
+          setSideViewOpen(false);
+        } else if (previewOpen) {
           setPreviewOpen(false);
           setQuery("");
           setActive(0);
@@ -149,7 +142,7 @@ export function CommandPalette() {
 
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [enabled, open, configuredShortcut, previewOpen, openPalette, closePalette]);
+  }, [enabled, open, configuredShortcut, previewOpen, sideViewOpen, openPalette, closePalette]);
 
   useEffect(() => {
     if (!open) {
@@ -240,7 +233,8 @@ export function CommandPalette() {
           (isClosing ? "anim-modal-exit" : "anim-modal-enter") +
           (windowMode === "compact" ? " is-compact" : "") +
           (query.trim() ? " has-query" : "") +
-          (previewOpen ? " has-preview" : "")
+          (previewOpen ? " has-preview" : "") +
+          (sideViewOpen && !previewOpen ? " has-sideview" : "")
         }
         role="dialog"
         aria-modal="true"
@@ -289,6 +283,9 @@ export function CommandPalette() {
               } else if (event.key === "End") {
                 event.preventDefault();
                 setActive(Math.max(0, results.length - 1));
+              } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+                event.preventDefault();
+                setSideViewOpen((prev) => !prev);
               } else if (event.key === "Enter" && results[active]) {
                 event.preventDefault();
                 execute(results[active]);
@@ -324,9 +321,17 @@ export function CommandPalette() {
                   <kbd>↵</kbd>
                   <span>run</span>
                 </span>
+                <span
+                  className="command-palette-hint-item clickable"
+                  title="Toggle Quick Inspector Side View (Ctrl+Enter)"
+                  onClick={() => setSideViewOpen((prev) => !prev)}
+                >
+                  <kbd>Ctrl+↵</kbd>
+                  <span>{sideViewOpen ? "hide side view" : "side view"}</span>
+                </span>
                 <span className="command-palette-hint-item">
                   <kbd>Esc</kbd>
-                  <span>close</span>
+                  <span>{sideViewOpen ? "close panel" : "close"}</span>
                 </span>
               </>
             )}
@@ -370,33 +375,40 @@ export function CommandPalette() {
                   onChange={(value) => patchSettings("appearance", { compactMode: value })}
                 />
               </div>
+
               <div className="command-palette-preview-control is-column">
                 <div>
-                  <strong>Interface scale</strong>
-                  <span>Use a smaller scale when the app is snapped beside another window.</span>
+                  <strong>Workspace scale</strong>
+                  <span>Preview standard desktop sizes before keeping them.</span>
                 </div>
-                <div className="command-palette-preview-options" role="group" aria-label="Interface scale">
-                  {(["90", "100", "110", "125"] as const).map((scale) => (
+                <div className="command-palette-preview-options" role="radiogroup" aria-label="Workspace scale">
+                  {([
+                    ["90", "90%"],
+                    ["100", "100%"],
+                    ["110", "110%"],
+                    ["125", "125%"],
+                  ] as const).map(([scale, label]) => (
                     <button
                       key={scale}
                       type="button"
                       className={`command-palette-preview-option${(data.settings.appearance.uiScale ?? "100") === scale ? " is-selected" : ""}`}
                       aria-pressed={(data.settings.appearance.uiScale ?? "100") === scale}
-                      onClick={() => patchSettings("appearance", { uiScale: scale })}
+                      onClick={() => patchSettings("appearance", { uiScale: scale as UIScale })}
                     >
-                      {scale}%
+                      {label}
                     </button>
                   ))}
                 </div>
               </div>
+
               <div className="command-palette-preview-control is-column">
                 <div>
-                  <strong>Text size</strong>
-                  <span>Adjust readable type without changing the layout proportions.</span>
+                  <strong>Typography size</strong>
+                  <span>Fine-tune legibility across compact laptop screens and large monitors.</span>
                 </div>
-                <div className="command-palette-preview-options" role="group" aria-label="Text size">
+                <div className="command-palette-preview-options" role="radiogroup" aria-label="Typography size">
                   {([
-                    ["small", "Small"],
+                    ["small", "Compact"],
                     ["default", "Default"],
                     ["large", "Large"],
                     ["xlarge", "Extra large"],
@@ -425,36 +437,216 @@ export function CommandPalette() {
             </div>
           </div>
         ) : (
-          <div id="command-palette-results" className="command-palette-results" role="listbox" aria-label="Command results">
-            {results.length === 0 ? (
-              <div className="command-palette-empty">
-                <Icon name="search" size={22} />
-                <strong>No command matches that search</strong>
-                <span>Try a page name, shortcut, setting, or action.</span>
+          <div className="command-palette-body">
+            <div className="command-palette-main-col">
+              <div id="command-palette-results" className="command-palette-results" role="listbox" aria-label="Command results">
+                {results.length === 0 ? (
+                  <div className="command-palette-empty">
+                    <Icon name="search" size={22} />
+                    <strong>No command matches that search</strong>
+                    <span>Try a page name, shortcut, setting, or action.</span>
+                  </div>
+                ) : (
+                  results.map((command, index) => (
+                    <button
+                      key={command.id}
+                      id={`command-${command.id}`}
+                      type="button"
+                      role="option"
+                      aria-selected={index === active}
+                      className={`command-palette-result${index === active ? " is-active" : ""}`}
+                      onMouseEnter={() => setActive(index)}
+                      onClick={() => execute(command)}
+                    >
+                      <span className="command-palette-result-icon"><Icon name={command.icon} size={16} /></span>
+                      <span className="command-palette-result-copy">
+                        <span className="command-palette-result-title">{command.title}</span>
+                        <span className="command-palette-result-description">{command.description}</span>
+                      </span>
+                      <span className="command-palette-result-side">
+                        {showCategories && <span className="command-palette-category">{command.category}</span>}
+                        {command.shortcut && <kbd>{command.shortcut}</kbd>}
+                      </span>
+                    </button>
+                  ))
+                )}
               </div>
-            ) : (
-              results.map((command, index) => (
-                <button
-                  key={command.id}
-                  id={`command-${command.id}`}
-                  type="button"
-                  role="option"
-                  aria-selected={index === active}
-                  className={`command-palette-result${index === active ? " is-active" : ""}`}
-                  onMouseEnter={() => setActive(index)}
-                  onClick={() => execute(command)}
-                >
-                  <span className="command-palette-result-icon"><Icon name={command.icon} size={16} /></span>
-                  <span className="command-palette-result-copy">
-                    <span className="command-palette-result-title">{command.title}</span>
-                    <span className="command-palette-result-description">{command.description}</span>
+            </div>
+
+            {sideViewOpen && activeCommand && (
+              <aside className="command-palette-sideview" aria-label="Quick Inspector">
+                <div className="command-palette-sideview-header">
+                  <span className="command-palette-sideview-icon">
+                    <Icon name={activeCommand.icon} size={20} />
                   </span>
-                  <span className="command-palette-result-side">
-                    {showCategories && <span className="command-palette-category">{command.category}</span>}
-                    {command.shortcut && <kbd>{command.shortcut}</kbd>}
-                  </span>
-                </button>
-              ))
+                  <div className="command-palette-sideview-title-wrap">
+                    <div className="command-palette-sideview-kicker">{activeCommand.category.toUpperCase()}</div>
+                    <h3 className="command-palette-sideview-title">{activeCommand.title}</h3>
+                  </div>
+                </div>
+                <p className="command-palette-sideview-desc">{activeCommand.description}</p>
+
+                <div className="command-palette-sideview-body">
+                  {(() => {
+                    if (activeCommand.id.startsWith("shortcut.")) {
+                      const scId = activeCommand.id.replace("shortcut.", "");
+                      const sc = data.shortcuts.find((s) => s.id === scId);
+                      if (!sc) return null;
+                      const profile = data.profiles.find((p) => p.id === sc.profileId);
+                      return (
+                        <div className="command-palette-sideview-section">
+                          <div className="command-palette-sideview-prop">
+                            <span className="tiny muted">Trigger</span>
+                            <span className="bold">{formatTriggerLabel(sc)}</span>
+                          </div>
+                          <div className="command-palette-sideview-prop">
+                            <span className="tiny muted">Assigned Key</span>
+                            <span className="bold">{formatShortcutLabel(sc.modifiers, sc.key)}</span>
+                          </div>
+                          <div className="command-palette-sideview-prop">
+                            <span className="tiny muted">Workspace Profile</span>
+                            <span className="tiny bold">{profile?.name ?? "Global"}</span>
+                          </div>
+                          <div className="command-palette-sideview-prop">
+                            <span className="tiny muted">Status</span>
+                            <span className="tiny bold">
+                              {sc.enabled ? "Active" : "Disabled"}
+                            </span>
+                          </div>
+                          <div className="col gap-xs mt-sm">
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              icon="play"
+                              onClick={() => context.runShortcut(sc)}
+                            >
+                              Test Shortcut
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              icon="edit"
+                              onClick={() => {
+                                closePalette();
+                                setEditing(sc.id);
+                                setPage("shortcuts");
+                              }}
+                            >
+                              Edit Full Shortcut
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                updateShortcut({ ...sc, enabled: !sc.enabled });
+                                toast(sc.enabled ? "Shortcut disabled" : "Shortcut enabled", "info");
+                              }}
+                            >
+                              {sc.enabled ? "Disable Shortcut" : "Enable Shortcut"}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (activeCommand.id === "action.pause-engine") {
+                      return (
+                        <div className="command-palette-sideview-section">
+                          <div className="command-palette-sideview-prop">
+                            <span className="tiny muted">Engine State</span>
+                            <span className="bold">
+                              {data.settings.shortcuts ? "Running" : "Paused"}
+                            </span>
+                          </div>
+                          <div className="mt-sm">
+                            <Button
+                              size="sm"
+                              variant={data.settings.shortcuts ? "danger" : "primary"}
+                              icon="pause"
+                              onClick={() => togglePaused()}
+                            >
+                              {data.settings.shortcuts ? "Pause Shortcut Engine" : "Resume Shortcut Engine"}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (activeCommand.id === "action.safe-mode") {
+                      const isSafe = data.settings.privacy.safeMode;
+                      return (
+                        <div className="command-palette-sideview-section">
+                          <div className="command-palette-sideview-prop">
+                            <span className="tiny muted">Safe Mode State</span>
+                            <span className="bold">
+                              {isSafe ? "Enabled (Hooks Detached)" : "Disabled (Normal)"}
+                            </span>
+                          </div>
+                          <div className="mt-sm">
+                            <Button
+                              size="sm"
+                              variant={isSafe ? "primary" : "secondary"}
+                              icon="shield"
+                              onClick={() => {
+                                const next = !isSafe;
+                                setSafeMode(next);
+                                toast(next ? "Safe Mode enabled" : "Safe Mode disabled", next ? "warning" : "success");
+                              }}
+                            >
+                              {isSafe ? "Disable Safe Mode" : "Engage Emergency Safe Mode"}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (activeCommand.id === "action.toggle-theme") {
+                      const curTheme = data.settings.appearance.theme ?? "system";
+                      return (
+                        <div className="command-palette-sideview-section">
+                          <span className="tiny muted mb-xs">Select Theme</span>
+                          <div className="row gap-xs wrap">
+                            {(["system", "dark", "light"] as const).map((th) => (
+                              <button
+                                key={th}
+                                type="button"
+                                className={"clickable " + (curTheme === th ? "bold" : "muted")}
+                                onClick={() => patchSettings("appearance", { theme: th })}
+                              >
+                                {th.charAt(0).toUpperCase() + th.slice(1)}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="command-palette-sideview-section">
+                        <div className="command-palette-sideview-prop">
+                          <span className="tiny muted">Action Type</span>
+                          <span className="bold">{activeCommand.category}</span>
+                        </div>
+                        {activeCommand.shortcut && (
+                          <div className="command-palette-sideview-prop">
+                            <span className="tiny muted">Global Shortcut</span>
+                            <kbd>{activeCommand.shortcut}</kbd>
+                          </div>
+                        )}
+                        <div className="mt-sm">
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => execute(activeCommand)}
+                          >
+                            Run Command
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </aside>
             )}
           </div>
         )}
