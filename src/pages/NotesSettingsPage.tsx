@@ -163,6 +163,8 @@ export function NotesSettingsPage() {
               step={100}
               value={settings.notes?.autoSaveIntervalMs ?? 300}
               onChange={(v) => patchSettings("notes", { autoSaveIntervalMs: v })}
+              showValue
+              formatValue={(v) => `${v}ms`}
             />
           </div>
         </div>

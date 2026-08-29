@@ -524,13 +524,15 @@ export function Settings() {
               </SettingsRow>
 
               <SettingsRow id="row-cp-max-results" title="Maximum search results" desc={`Display up to ${settings.shortcuts.commandPaletteMaxResults ?? 8} matching commands in the list`}>
-                <div className="w-200">
+                <div className="w-240">
                   <Slider
                     min={4}
                     max={20}
                     step={1}
                     value={settings.shortcuts.commandPaletteMaxResults ?? 8}
                     onChange={(v: number) => patch("shortcuts", { commandPaletteMaxResults: v })}
+                    showValue
+                    formatValue={(v) => `${v} items`}
                   />
                 </div>
               </SettingsRow>
@@ -589,43 +591,37 @@ export function Settings() {
                   />
                 </SettingsRow>
                 <SettingsRow id="row-hot-size" title="Corner activation area" desc="Hit-target size in pixels for each display corner">
-                  <div className="row gap-md settings-slider-wrap">
-                    <input
-                      type="range"
-                      min="16"
-                      max="48"
-                      step="4"
+                  <div className="w-260">
+                    <Slider
+                      min={16}
+                      max={48}
+                      step={4}
                       value={settings.hotCorners?.cornerSize ?? 24}
-                      onMouseDown={() => setIsAdjustingCornerArea(true)}
-                      onMouseUp={() => setIsAdjustingCornerArea(false)}
-                      onTouchStart={() => setIsAdjustingCornerArea(true)}
-                      onTouchEnd={() => setIsAdjustingCornerArea(false)}
-                      onChange={(e) => {
-                        const updated = { ...settings.hotCorners, cornerSize: Number(e.target.value) };
+                      onChange={(v) => {
+                        const updated = { ...settings.hotCorners, cornerSize: v };
                         patch("hotCorners" as any, updated as any);
                         window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
                       }}
-                      className="w-full"
+                      showValue
+                      formatValue={(v) => `${v}px`}
                     />
-                    <span className="tiny font-mono">{settings.hotCorners?.cornerSize ?? 24}px</span>
                   </div>
                 </SettingsRow>
                 <SettingsRow id="row-hot-delay" title="Activation delay" desc="How long the mouse must rest in the corner before firing">
-                  <div className="row gap-md settings-slider-wrap">
-                    <input
-                      type="range"
-                      min="100"
-                      max="1000"
-                      step="50"
+                  <div className="w-260">
+                    <Slider
+                      min={100}
+                      max={1000}
+                      step={50}
                       value={settings.hotCorners?.activationMs ?? 400}
-                      onChange={(e) => {
-                        const updated = { ...settings.hotCorners, activationMs: Number(e.target.value) };
+                      onChange={(v) => {
+                        const updated = { ...settings.hotCorners, activationMs: v };
                         patch("hotCorners" as any, updated as any);
                         window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
                       }}
-                      className="w-full"
+                      showValue
+                      formatValue={(v) => `${v}ms`}
                     />
-                    <span className="tiny font-mono">{settings.hotCorners?.activationMs ?? 400}ms</span>
                   </div>
                 </SettingsRow>
               </SettingsGroup>
@@ -901,21 +897,20 @@ export function Settings() {
                 </div>
               </SettingsRow>
               <SettingsRow id="row-tint-strength" title="Filter strength" desc="Adjust the opacity and intensity of the screen tint overlay">
-                <div className="row gap-md settings-slider-wrap">
-                  <input
-                    type="range"
-                    min="5"
-                    max="60"
-                    step="1"
+                <div className="w-260">
+                  <Slider
+                    min={5}
+                    max={60}
+                    step={1}
                     value={settings.screenTint?.strength ?? 18}
-                    onChange={(e) => {
-                      const updated = { ...settings.screenTint, strength: Number(e.target.value) };
+                    onChange={(v) => {
+                      const updated = { ...settings.screenTint, strength: v };
                       patch("screenTint" as any, updated as any);
                       window.electronAPI?.screenTint?.update?.(updated as any);
                     }}
-                    className="w-full"
+                    showValue
+                    formatValue={(v) => `${v}%`}
                   />
-                  <span className="tiny font-mono">{settings.screenTint?.strength ?? 18}%</span>
                 </div>
               </SettingsRow>
             </SettingsGroup>

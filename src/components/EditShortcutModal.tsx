@@ -64,12 +64,23 @@ export function EditShortcutModal({ shortcutId, open, onClose }: EditShortcutMod
   const [draft, setDraft] = useState<Shortcut | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
+  const handleClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    window.setTimeout(() => {
+      setIsClosing(false);
+      onClose();
+    }, 130);
+  };
 
   // Sync draft when modal opens or shortcut changes
   useEffect(() => {
     if (existing && open) {
       setDraft(JSON.parse(JSON.stringify(existing)));
       setConfirmDelete(false);
+      setIsClosing(false);
     } else {
       setDraft(null);
     }
@@ -134,19 +145,19 @@ export function EditShortcutModal({ shortcutId, open, onClose }: EditShortcutMod
       suppressKey: draft.trigger === "remap" ? false : draft.suppressKey ?? (resolveShortcutBehavior(draft) === "suppress"),
     };
     updateShortcut(finalShortcut);
-    onClose();
+    handleClose();
   };
 
   const handleDelete = () => {
     if (!draft) return;
     deleteShortcut(draft.id);
-    onClose();
+    handleClose();
   };
 
   const handleDuplicate = () => {
     if (!draft) return;
     duplicateShortcut(draft.id);
-    onClose();
+    handleClose();
   };
 
   const primaryAction = draft.actions?.[0] ?? {
@@ -156,9 +167,9 @@ export function EditShortcutModal({ shortcutId, open, onClose }: EditShortcutMod
   };
 
   return (
-    <div className="ios-modal-backdrop" onClick={onClose}>
+    <div className={"ios-modal-backdrop " + (isClosing ? "anim-fade-out" : "anim-fade-in")} onClick={handleClose}>
       <div
-        className="ios-modal-sheet anim-card-enter"
+        className={"ios-modal-sheet " + (isClosing ? "anim-modal-exit" : "anim-modal-enter")}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -172,7 +183,7 @@ export function EditShortcutModal({ shortcutId, open, onClose }: EditShortcutMod
           <button
             type="button"
             className="btn btn-ghost btn-sm"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Cancel"
           >
             Cancel

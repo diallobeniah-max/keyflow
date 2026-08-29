@@ -149,19 +149,25 @@ export function CommandPalette() {
     toast,
   };
 
+  const [isClosing, setIsClosing] = useState(false);
+
+  const closePalette = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    window.setTimeout(() => {
+      setOpen(false);
+      setIsClosing(false);
+      setPreviewOpen(false);
+    }, 130);
+  };
+
   const execute = (command: CommandDefinition) => {
     if (command.id === "action.layout-preview") {
       command.execute(context);
       return;
     }
-    setOpen(false);
-    setPreviewOpen(false);
-    window.setTimeout(() => command.execute(context), 0);
-  };
-
-  const closePalette = () => {
-    setOpen(false);
-    setPreviewOpen(false);
+    closePalette();
+    window.setTimeout(() => command.execute(context), 140);
   };
 
   const moveSelection = (delta: number) => {
@@ -171,13 +177,14 @@ export function CommandPalette() {
 
   return (
     <div
-      className={"command-palette-scrim anim-fade-in" + (position === "top" ? " is-top" : "")}
+      className={"command-palette-scrim " + (isClosing ? "anim-fade-out" : "anim-fade-in") + (position === "top" ? " is-top" : "")}
       role="presentation"
       onMouseDown={closePalette}
     >
       <section
         className={
-          "command-palette anim-modal-enter" +
+          "command-palette " +
+          (isClosing ? "anim-modal-exit" : "anim-modal-enter") +
           (windowMode === "compact" ? " is-compact" : "") +
           (query.trim() ? " has-query" : "") +
           (previewOpen ? " has-preview" : "")

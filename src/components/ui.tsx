@@ -330,6 +330,8 @@ export function Slider({
   "aria-label": ariaLabelProp,
   "aria-labelledby": ariaLabelledBy,
   disabled,
+  showValue = false,
+  formatValue,
 }: {
   value: number;
   min: number;
@@ -343,9 +345,13 @@ export function Slider({
   "aria-label"?: string;
   "aria-labelledby"?: string;
   disabled?: boolean;
+  showValue?: boolean;
+  formatValue?: (v: number) => string;
 }) {
-  const progress = ((value - min) / (max - min)) * 100;
-  return (
+  const safeProgress = Math.max(0, Math.min(100, ((value - min) / (max - min || 1)) * 100));
+  const displayVal = formatValue ? formatValue(value) : String(value);
+
+  const inputEl = (
     <input
       id={id}
       aria-describedby={[describedBy, ariaDescribedBy].filter(Boolean).join(" ") || undefined}
@@ -359,9 +365,20 @@ export function Slider({
       step={step}
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
-      style={{ ["--range-progress" as string]: `${progress}%` } as React.CSSProperties}
+      style={{ ["--range-progress" as string]: `${safeProgress}%` } as React.CSSProperties}
     />
   );
+
+  if (showValue) {
+    return (
+      <div className="slider-wrap">
+        {inputEl}
+        <span className="slider-value-badge">{displayVal}</span>
+      </div>
+    );
+  }
+
+  return inputEl;
 }
 
 export function Segmented({

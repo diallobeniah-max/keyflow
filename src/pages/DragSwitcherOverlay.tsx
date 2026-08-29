@@ -105,27 +105,49 @@ export function DragSwitcherOverlay() {
         cursorRef.current = { x: p.x, y: p.y };
       }}
     >
-      <div className="drag-switcher-hint">Drop into a window</div>
-      <div className="drag-switcher-grid" role="list" aria-label="Open windows">
-        {tiles.map((t) => (
-          <div
-            key={t.hwnd}
-            className={`drag-switcher-tile${hoverHwnd === t.hwnd ? " is-hover" : ""}`}
-            data-hwnd={t.hwnd}
-            role="listitem"
-          >
-            {t.icon ? (
-              <img className="drag-switcher-icon" src={`data:image/bmp;base64,${t.icon}`} alt="" draggable={false} />
-            ) : (
-              <div className="drag-switcher-monogram" aria-hidden="true">
-                {(t.app || t.title || "?").charAt(0).toUpperCase()}
-              </div>
-            )}
-            <span className="drag-switcher-title" title={t.title}>
-              {t.title || t.app}
-            </span>
+      <div className="drag-switcher-shelf anim-sheet-enter" role="region" aria-label="Quick Drop Shelf">
+        <div className="drag-switcher-header">
+          <div className="drag-switcher-header-left">
+            <span className="drag-switcher-badge">DROP SHELF</span>
+            <div className="drag-switcher-header-title">Hover over an app to activate</div>
           </div>
-        ))}
+          <div className="drag-switcher-header-right">
+            <span className="tiny muted">{tiles.length} active apps</span>
+          </div>
+        </div>
+
+        <div className="drag-switcher-grid" role="list" aria-label="Open apps and windows">
+          {tiles.map((t) => (
+            <div
+              key={t.hwnd}
+              className={`drag-switcher-tile${hoverHwnd === t.hwnd ? " is-hover" : ""}`}
+              data-hwnd={t.hwnd}
+              role="listitem"
+            >
+              {hoverHwnd === t.hwnd && <div className="drag-dwell-progress-bar" />}
+              {t.icon ? (
+                <img className="drag-switcher-icon" src={`data:image/bmp;base64,${t.icon}`} alt="" draggable={false} />
+              ) : (
+                <div className="drag-switcher-monogram" aria-hidden="true">
+                  {(t.app || t.title || "?").charAt(0).toUpperCase()}
+                </div>
+              )}
+              <span className="drag-switcher-title" title={t.title}>
+                {t.title || t.app}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="drag-switcher-holding-tray" data-role="holding-tray">
+          <div className="drag-switcher-tray-inner">
+            <span className="drag-switcher-tray-icon">📥</span>
+            <div className="drag-switcher-tray-text">
+              <span className="bold tiny">Temporary Holding Tray</span>
+              <span className="muted tiny">Drop files here to hold or combine</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
