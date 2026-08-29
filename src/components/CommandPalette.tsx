@@ -46,6 +46,7 @@ export function CommandPalette() {
   const position = data?.settings?.shortcuts?.commandPalettePosition ?? "center";
 
   const [open, setOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -113,7 +114,7 @@ export function CommandPalette() {
     setActive((current) => Math.min(current, Math.max(0, results.length - 1)));
   }, [results.length]);
 
-  if (!open) return null;
+  if (!open && !isClosing) return null;
 
   const context: CommandExecutionContext = {
     navigate: setPage,
@@ -162,8 +163,6 @@ export function CommandPalette() {
     },
     toast,
   };
-
-  const [isClosing, setIsClosing] = useState(false);
 
   const closePalette = () => {
     if (isClosing) return;
