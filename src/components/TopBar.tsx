@@ -56,6 +56,19 @@ export function TopBar() {
       </div>
 
       <div className="topbar-actions">
+        <button
+          type="button"
+          className="topbar-search-trigger hide-mobile"
+          onClick={() => {
+            window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }));
+          }}
+          title="Search commands and settings (Ctrl+K)"
+        >
+          <Icon name="search" size={13} />
+          <span>Search…</span>
+          <kbd className="topbar-search-kbd">Ctrl K</kbd>
+        </button>
+
         {focusedApp && focusedApp !== "keyflow.exe" && (
           <span className="topbar-chip hide-mobile" title={`Active foreground application: ${focusedApp}`}>
             <Icon name="window" size={13} />

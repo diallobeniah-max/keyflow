@@ -694,6 +694,38 @@ input, textarea {
   margin-left: auto;
 }
 
+.topbar-search-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 30px;
+  padding: 0 var(--space-2);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  color: var(--color-text-secondary);
+  font-size: var(--type-caption-size);
+  cursor: pointer;
+  transition: all var(--motion-fast);
+}
+
+.topbar-search-trigger:hover {
+  background: var(--color-bg-surface-elevated);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+
+.topbar-search-kbd {
+  font-family: var(--font-family-mono);
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+  padding: var(--space-0) var(--space-1);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-muted);
+}
+
 .topbar-chip {
   display: inline-flex;
   align-items: center;
@@ -4488,20 +4520,45 @@ body {
 
 .settings-search-dropdown {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + var(--space-2));
   left: 0;
   right: 0;
+  width: 100%;
+  box-sizing: border-box;
   z-index: 120;
   background: var(--color-bg-surface-elevated);
-  border: 1px solid var(--color-border-default);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-lg);
-  max-height: 340px;
+  box-shadow: var(--shadow-popup);
+  max-height: 360px;
   overflow-y: auto;
-  padding: var(--space-1);
+  padding: var(--space-2);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  animation: slideDownMenu var(--motion-fast) var(--ease-desktop) both;
+}
+
+.settings-search-palette-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-0) var(--space-2);
+  height: 24px;
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  font-size: var(--type-caption-size);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--motion-fast);
+}
+
+.settings-search-palette-badge:hover {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
 .settings-search-result-item {
@@ -5874,8 +5931,7 @@ body {
   width: min(580px, calc(100vw - var(--space-8)));
   max-height: min(440px, 68vh);
   overflow: hidden;
-  background: var(--color-bg-surface-elevated);
-  backdrop-filter: blur(28px) saturate(180%);
+  background: var(--color-bg-surface);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-popup);
@@ -6388,9 +6444,31 @@ body {
    iOS-Style Key Hover Popover (Visual Keyboard Map)
    ========================================================================== */
 
+@keyframes popoverIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes popoverInDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
 .ios-key-popover {
   position: absolute;
-  bottom: calc(100% + 8px);
+  bottom: calc(100% + var(--space-2));
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -6404,14 +6482,15 @@ body {
   flex-direction: column;
   gap: var(--space-2);
   pointer-events: auto;
-  animation: popIn 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: popoverIn 140ms cubic-bezier(0.16, 1, 0.3, 1) both;
   text-align: left;
   user-select: none;
 }
 
 .ios-key-popover.is-flipped-down {
   bottom: auto;
-  top: calc(100% + 8px);
+  top: calc(100% + var(--space-2));
+  animation: popoverInDown 140ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .ios-key-popover::after {

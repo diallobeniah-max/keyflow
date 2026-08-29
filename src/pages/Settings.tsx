@@ -180,7 +180,7 @@ export function Settings() {
             }}
             onKeyDown={handleSearchKeyDown}
           />
-          {searchQuery && (
+          {searchQuery ? (
             <button
               type="button"
               className="settings-search-clear"
@@ -192,6 +192,18 @@ export function Settings() {
               }}
             >
               <Icon name="close" size={14} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="settings-search-palette-badge"
+              title="Open full Command Palette (Ctrl+K)"
+              onClick={() => {
+                window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }));
+              }}
+            >
+              <Icon name="command" size={12} />
+              <span>Ctrl+K</span>
             </button>
           )}
         </div>
