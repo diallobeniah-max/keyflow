@@ -108,6 +108,14 @@ export function NotesPopupShell() {
     return saved ? Math.min(420, Math.max(160, Number(saved))) : 220;
   });
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [formatSheetOpen, setFormatSheetOpen] = useState(false);
+  const [selectedImg, setSelectedImg] = useState<{
+    target: HTMLImageElement;
+    widthPercent: number;
+    align: "left" | "center" | "right";
+    rect: DOMRect;
+  } | null>(null);
 
   // Slash commands state
   const [slashState, setSlashState] = useState<{
@@ -505,10 +513,181 @@ export function NotesPopupShell() {
     }, 140);
   };
 
-  const insertImageTag = (src: string) => {
+  function formatFileSize(bytes: number): string {
+    if (!bytes || bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  }
+
+  const insertImageTag = (src: string, alt = "Image") => {
     if (!editorRef.current) return;
     editorRef.current.focus();
-    document.execCommand("insertHTML", false, `<p><img src="${src}" alt="Note image" style="max-width:100%;border-radius:8px;margin:8px 0;" /></p><p><br></p>`);
+    const imgHtml = `<p><img src="${src}" alt="${alt}" class="notes-embedded-img" style="width: 100%; max-width: 100%; border-radius: var(--radius-md); display: block; margin: var(--space-2) auto;" /></p><p><br></p>`;
+    document.execCommand("insertHTML", false, imgHtml);
+    triggerAutosave(undefined, editorRef.current.innerHTML);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDraggingOver) setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (!files.length) return;
+
+    for (const file of files) {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "";
+      const isImg =
+        file.type.startsWith("image/") ||
+        ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico"].includes(ext);
+
+      if (isImg) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          if (evt.target?.result) {
+            insertImageTag(String(evt.target.result), file.name);
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        let badgeType = "doc";
+        if (["psd", "psb"].includes(ext)) badgeType = "psd";
+        else if (["afdesign", "afphoto", "afpub", "affinity"].includes(ext)) badgeType = "affinity";
+        else if (["pdf"].includes(ext)) badgeType = "pdf";
+        else if (["ai", "eps", "fig", "sketch"].includes(ext)) badgeType = "vector";
+        else if (["zip", "rar", "7z", "tar"].includes(ext)) badgeType = "archive";
+
+        const sizeStr = formatFileSize(file.size);
+        const cardHtml = `
+          <div class="notes-attachment-card" contenteditable="false" data-file-name="${file.name}">
+            <div class="notes-attachment-badge ${badgeType}">
+              <span>${ext.toUpperCase() || "FILE"}</span>
+            </div>
+            <div class="notes-attachment-info">
+              <span class="notes-attachment-name">${file.name}</span>
+              <span class="notes-attachment-size">${sizeStr}</span>
+            </div>
+          </div>
+          <p><br></p>
+        `;
+        if (editorRef.current) {
+          editorRef.current.focus();
+          document.execCommand("insertHTML", false, cardHtml);
+          triggerAutosave(undefined, editorRef.current.innerHTML);
+        }
+      }
+    }
+  };
+
+  const handleEditorClick = (e: React.MouseEvent) => {
+    checkSlashCommand();
+    const target = e.target as HTMLElement;
+    if (target && target.tagName === "IMG") {
+      const img = target as HTMLImageElement;
+      const rect = img.getBoundingClientRect();
+      const currentWidth = img.style.width || "100%";
+      const numPercent = parseInt(currentWidth, 10) || 100;
+      let currentAlign: "left" | "center" | "right" = "center";
+      if (img.style.marginLeft === "0px" && img.style.marginRight === "auto") currentAlign = "left";
+      if (img.style.marginLeft === "auto" && img.style.marginRight === "0px") currentAlign = "right";
+
+      setSelectedImg({
+        target: img,
+        widthPercent: numPercent,
+        align: currentAlign,
+        rect,
+      });
+    } else {
+      setSelectedImg(null);
+    }
+  };
+
+  const handleSetImageWidth = (pct: number) => {
+    if (!selectedImg || !editorRef.current) return;
+    const img = selectedImg.target;
+    img.style.width = `${pct}%`;
+    img.style.maxWidth = "100%";
+    img.style.borderRadius = "var(--radius-md)";
+    img.style.display = "block";
+    setSelectedImg({
+      ...selectedImg,
+      widthPercent: pct,
+      rect: img.getBoundingClientRect(),
+    });
+    triggerAutosave(undefined, editorRef.current.innerHTML);
+  };
+
+  const handleSetImageAlign = (align: "left" | "center" | "right") => {
+    if (!selectedImg || !editorRef.current) return;
+    const img = selectedImg.target;
+    img.style.display = "block";
+    if (align === "left") {
+      img.style.marginLeft = "0";
+      img.style.marginRight = "auto";
+    } else if (align === "right") {
+      img.style.marginLeft = "auto";
+      img.style.marginRight = "0";
+    } else {
+      img.style.marginLeft = "auto";
+      img.style.marginRight = "auto";
+    }
+    setSelectedImg({
+      ...selectedImg,
+      align,
+      rect: img.getBoundingClientRect(),
+    });
+    triggerAutosave(undefined, editorRef.current.innerHTML);
+  };
+
+  const handleDeleteImage = () => {
+    if (!selectedImg || !editorRef.current) return;
+    selectedImg.target.remove();
+    setSelectedImg(null);
+    triggerAutosave(undefined, editorRef.current.innerHTML);
+  };
+
+  const handleInsertTable = (rows = 3, cols = 2) => {
+    if (!editorRef.current) return;
+    let tableHtml = `<table class="notes-table"><tbody>`;
+    for (let r = 0; r < rows; r++) {
+      tableHtml += `<tr>`;
+      for (let c = 0; c < cols; c++) {
+        tableHtml += `<td>${r === 0 && c === 0 ? "Header 1" : r === 0 && c === 1 ? "Header 2" : "Cell"}</td>`;
+      }
+      tableHtml += `</tr>`;
+    }
+    tableHtml += `</tbody></table><p><br></p>`;
+    editorRef.current.focus();
+    document.execCommand("insertHTML", false, tableHtml);
+    triggerAutosave(undefined, editorRef.current.innerHTML);
+  };
+
+  const handleInsertChecklist = () => {
+    if (!editorRef.current) return;
+    const checkHtml = `<div class="notes-task-row"><input type="checkbox" class="notes-checkbox" /><span>&nbsp;To-do item</span></div><p><br></p>`;
+    editorRef.current.focus();
+    document.execCommand("insertHTML", false, checkHtml);
+    triggerAutosave(undefined, editorRef.current.innerHTML);
+  };
+
+  const handleHighlight = () => {
+    if (!editorRef.current) return;
+    document.execCommand("hiliteColor", false, "yellow");
     triggerAutosave(undefined, editorRef.current.innerHTML);
   };
 
@@ -931,8 +1110,24 @@ export function NotesPopupShell() {
           />
         )}
 
-        {/* Right Editor Area */}
-        <main className="notes-editor-pane">
+        {/* Right Editor Area with Drag & Drop */}
+        <main
+          className={"notes-editor-pane" + (isDraggingOver ? " is-dragging" : "")}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          {/* Drop Overlay */}
+          {isDraggingOver && (
+            <div className="notes-drop-overlay anim-fade-in">
+              <div className="notes-drop-content anim-scale-in">
+                <Icon name="plus" size={32} className="text-accent mb-xs" />
+                <div className="bold small">Drop to Insert</div>
+                <div className="tiny muted">Images, PSD, Affinity (.afdesign, .afphoto), PDF & Files</div>
+              </div>
+            </div>
+          )}
+
           {activeNote ? (
             <>
               {/* Note Header Info & Title */}
@@ -969,6 +1164,191 @@ export function NotesPopupShell() {
 
               {/* Rich Text Toolbar */}
               <div className="notes-toolbar">
+                {/* iOS Format Sheet Popover Anchor */}
+                <div className="notes-format-sheet-anchor">
+                  <button
+                    type="button"
+                    className={"notes-toolbar-btn notes-format-toggle-btn" + (formatSheetOpen ? " is-active" : "")}
+                    title="iOS Format Sheet (Aa)"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setFormatSheetOpen((v) => !v)}
+                  >
+                    <span className="bold">Aa</span>
+                  </button>
+
+                  {/* iOS Style Format Sheet Popover */}
+                  {formatSheetOpen && (
+                    <div className="notes-format-sheet anim-scale-in" onMouseDown={(e) => e.stopPropagation()}>
+                      <div className="notes-format-sheet-head">
+                        <span className="notes-format-sheet-title">Format</span>
+                        <button
+                          type="button"
+                          className="notes-popover-close-btn"
+                          onClick={() => setFormatSheetOpen(false)}
+                          title="Close"
+                        >
+                          <Icon name="close" size={11} />
+                        </button>
+                      </div>
+
+                      {/* Hierarchy Styles (Title, Heading, Subheading, Body, Monostyled) */}
+                      <div className="notes-format-hierarchy-row">
+                        <button
+                          type="button"
+                          className="notes-format-pill"
+                          onClick={() => {
+                            execCommand("formatBlock", "<h1>");
+                            setFormatSheetOpen(false);
+                          }}
+                        >
+                          Title
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-format-pill"
+                          onClick={() => {
+                            execCommand("formatBlock", "<h2>");
+                            setFormatSheetOpen(false);
+                          }}
+                        >
+                          Heading
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-format-pill"
+                          onClick={() => {
+                            execCommand("formatBlock", "<h3>");
+                            setFormatSheetOpen(false);
+                          }}
+                        >
+                          Subheading
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-format-pill"
+                          onClick={() => {
+                            execCommand("formatBlock", "<p>");
+                            setFormatSheetOpen(false);
+                          }}
+                        >
+                          Body
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-format-pill"
+                          onClick={() => {
+                            execCommand("formatBlock", "<pre>");
+                            setFormatSheetOpen(false);
+                          }}
+                        >
+                          Monostyled
+                        </button>
+                      </div>
+
+                      {/* Inline Formats (B, I, U, S, Highlighter) */}
+                      <div className="notes-format-inline-row">
+                        <button
+                          type="button"
+                          className="notes-format-inline-btn"
+                          onClick={() => execCommand("bold")}
+                          title="Bold"
+                        >
+                          <strong>B</strong>
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-format-inline-btn"
+                          onClick={() => execCommand("italic")}
+                          title="Italic"
+                        >
+                          <em>I</em>
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-format-inline-btn"
+                          onClick={() => execCommand("underline")}
+                          title="Underline"
+                        >
+                          <u>U</u>
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-format-inline-btn"
+                          onClick={() => execCommand("strikeThrough")}
+                          title="Strikethrough"
+                        >
+                          <s>S</s>
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-format-inline-btn"
+                          onClick={handleHighlight}
+                          title="Highlighter"
+                        >
+                          <Icon name="highlighter" size={13} />
+                        </button>
+                      </div>
+
+                      {/* Block & Table Controls */}
+                      <div className="notes-format-block-row">
+                        <button
+                          type="button"
+                          className="notes-format-inline-btn"
+                          onClick={() => execCommand("insertUnorderedList")}
+                          title="Bullet List"
+                        >
+                          •
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-format-inline-btn"
+                          onClick={() => execCommand("insertOrderedList")}
+                          title="Numbered List"
+                        >
+                          1.
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-format-inline-btn"
+                          onClick={handleInsertChecklist}
+                          title="Checklist"
+                        >
+                          <Icon name="checkCircle" size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-format-inline-btn"
+                          onClick={() => execCommand("outdent")}
+                          title="Decrease Indent"
+                        >
+                          ⇥
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-format-inline-btn"
+                          onClick={() => execCommand("indent")}
+                          title="Increase Indent"
+                        >
+                          ⇤
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-format-inline-btn"
+                          onClick={() => {
+                            handleInsertTable(3, 2);
+                            setFormatSheetOpen(false);
+                          }}
+                          title="Insert Table"
+                        >
+                          <Icon name="table" size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="notes-toolbar-divider" />
+
                 {/* Character Formats */}
                 <div className="notes-toolbar-group">
                   <button
@@ -1001,60 +1381,27 @@ export function NotesPopupShell() {
                   <button
                     type="button"
                     className="notes-toolbar-btn"
-                    title="Strikethrough"
+                    title="Highlighter"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => execCommand("strikeThrough")}
+                    onClick={handleHighlight}
                   >
-                    <s>S</s>
+                    <Icon name="highlighter" size={13} />
                   </button>
                 </div>
 
                 <div className="notes-toolbar-divider" />
 
-                {/* Headings */}
+                {/* Lists & Table Insertion */}
                 <div className="notes-toolbar-group">
                   <button
                     type="button"
                     className="notes-toolbar-btn"
-                    title="Heading 1"
+                    title="Checklist"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => execCommand("formatBlock", "<h1>")}
+                    onClick={handleInsertChecklist}
                   >
-                    H1
+                    <Icon name="checkCircle" size={13} />
                   </button>
-                  <button
-                    type="button"
-                    className="notes-toolbar-btn"
-                    title="Heading 2"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => execCommand("formatBlock", "<h2>")}
-                  >
-                    H2
-                  </button>
-                  <button
-                    type="button"
-                    className="notes-toolbar-btn"
-                    title="Heading 3"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => execCommand("formatBlock", "<h3>")}
-                  >
-                    H3
-                  </button>
-                  <button
-                    type="button"
-                    className="notes-toolbar-btn"
-                    title="Body Paragraph"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => execCommand("formatBlock", "<p>")}
-                  >
-                    ¶
-                  </button>
-                </div>
-
-                <div className="notes-toolbar-divider" />
-
-                {/* Lists & Blocks */}
-                <div className="notes-toolbar-group">
                   <button
                     type="button"
                     className="notes-toolbar-btn"
@@ -1067,11 +1414,11 @@ export function NotesPopupShell() {
                   <button
                     type="button"
                     className="notes-toolbar-btn"
-                    title="Numbered List"
+                    title="Insert Table"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => execCommand("insertOrderedList")}
+                    onClick={() => handleInsertTable(3, 2)}
                   >
-                    1. List
+                    <Icon name="table" size={13} />
                   </button>
                   <button
                     type="button"
@@ -1081,15 +1428,6 @@ export function NotesPopupShell() {
                     onClick={() => execCommand("formatBlock", "<blockquote>")}
                   >
                     ”
-                  </button>
-                  <button
-                    type="button"
-                    className="notes-toolbar-btn"
-                    title="Horizontal Line"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => execCommand("insertHorizontalRule")}
-                  >
-                    —
                   </button>
                 </div>
 
@@ -1187,12 +1525,109 @@ export function NotesPopupShell() {
                 </button>
               </div>
 
+              {/* Floating Image Resizing & Adjustment Toolbar */}
+              {selectedImg && (
+                <div
+                  className="notes-img-adjust-bar anim-scale-in no-drag-region"
+                  style={{
+                    top: Math.max(10, selectedImg.rect.top - 46),
+                    left: Math.max(10, Math.min(window.innerWidth - 320, selectedImg.rect.left)),
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="notes-img-adjust-group">
+                    <span className="notes-img-adjust-label">Size</span>
+                    <button
+                      type="button"
+                      className={"notes-img-adjust-btn" + (selectedImg.widthPercent <= 25 ? " is-active" : "")}
+                      onClick={() => handleSetImageWidth(25)}
+                      title="Small (25%)"
+                    >
+                      25%
+                    </button>
+                    <button
+                      type="button"
+                      className={"notes-img-adjust-btn" + (selectedImg.widthPercent > 25 && selectedImg.widthPercent <= 50 ? " is-active" : "")}
+                      onClick={() => handleSetImageWidth(50)}
+                      title="Medium (50%)"
+                    >
+                      50%
+                    </button>
+                    <button
+                      type="button"
+                      className={"notes-img-adjust-btn" + (selectedImg.widthPercent > 50 && selectedImg.widthPercent <= 75 ? " is-active" : "")}
+                      onClick={() => handleSetImageWidth(75)}
+                      title="Large (75%)"
+                    >
+                      75%
+                    </button>
+                    <button
+                      type="button"
+                      className={"notes-img-adjust-btn" + (selectedImg.widthPercent > 75 ? " is-active" : "")}
+                      onClick={() => handleSetImageWidth(100)}
+                      title="Full Width (100%)"
+                    >
+                      100%
+                    </button>
+                  </div>
+
+                  <div className="notes-toolbar-divider" />
+
+                  <div className="notes-img-adjust-group">
+                    <button
+                      type="button"
+                      className={"notes-img-adjust-btn" + (selectedImg.align === "left" ? " is-active" : "")}
+                      onClick={() => handleSetImageAlign("left")}
+                      title="Align Left"
+                    >
+                      <Icon name="alignLeft" size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      className={"notes-img-adjust-btn" + (selectedImg.align === "center" ? " is-active" : "")}
+                      onClick={() => handleSetImageAlign("center")}
+                      title="Align Center"
+                    >
+                      <Icon name="alignCenter" size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      className={"notes-img-adjust-btn" + (selectedImg.align === "right" ? " is-active" : "")}
+                      onClick={() => handleSetImageAlign("right")}
+                      title="Align Right"
+                    >
+                      <Icon name="alignRight" size={12} />
+                    </button>
+                  </div>
+
+                  <div className="notes-toolbar-divider" />
+
+                  <button
+                    type="button"
+                    className="notes-img-adjust-btn notes-img-del-btn"
+                    onClick={handleDeleteImage}
+                    title="Delete Image"
+                  >
+                    <Icon name="trash" size={12} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="notes-img-adjust-btn"
+                    onClick={() => setSelectedImg(null)}
+                    title="Done"
+                  >
+                    <Icon name="close" size={11} />
+                  </button>
+                </div>
+              )}
+
               {/* Content Editable Note Canvas */}
               <div
                 ref={editorRef}
                 contentEditable
                 className="notes-editor-content"
-                data-placeholder="Start typing your note here… (Type / for commands)"
+                data-placeholder="Start typing your note here… (Drag & drop images/files or type / for commands)"
                 onKeyDown={(e) => {
                   if (
                     Date.now() < suppressStrayKeyUntilRef.current &&
@@ -1212,7 +1647,7 @@ export function NotesPopupShell() {
                   checkSlashCommand();
                 }}
                 onKeyUp={() => checkSlashCommand()}
-                onClick={() => checkSlashCommand()}
+                onClick={handleEditorClick}
               />
 
               {/* Floating Action Menu & Copy Button at Bottom-Right */}

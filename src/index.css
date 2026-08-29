@@ -6304,6 +6304,317 @@ body {
   padding: var(--space-0) var(--space-1);
 }
 
+/* Drop Overlay */
+.notes-editor-pane.is-dragging {
+  border: 2px dashed var(--color-accent);
+}
+
+.notes-drop-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--color-overlay);
+  backdrop-filter: blur(4px);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.notes-drop-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6) var(--space-8);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-modal);
+  text-align: center;
+}
+
+/* Floating Image Adjustment Bar */
+.notes-img-adjust-bar {
+  position: fixed;
+  z-index: var(--z-popup);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-popup);
+}
+
+.notes-img-adjust-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.notes-img-adjust-label {
+  font-size: var(--type-tiny-size);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding-left: var(--space-1);
+}
+
+.notes-img-adjust-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-xs);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--type-tiny-size);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--motion-fast);
+}
+
+.notes-img-adjust-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.notes-img-adjust-btn.is-active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border-color: var(--color-accent-border);
+}
+
+.notes-img-del-btn:hover {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+/* iOS Format Sheet Popover */
+.notes-format-sheet-anchor {
+  position: relative;
+}
+
+.notes-format-toggle-btn {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.notes-format-sheet {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: var(--z-popup);
+  width: 320px;
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.notes-format-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.notes-format-sheet-title {
+  font-size: var(--type-caption-size);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.notes-format-hierarchy-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+}
+
+.notes-format-pill {
+  flex: 1;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: var(--type-tiny-size);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: center;
+  transition: all var(--motion-fast);
+}
+
+.notes-format-pill:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-default);
+}
+
+.notes-format-inline-row,
+.notes-format-block-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.notes-format-inline-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--type-caption-size);
+  cursor: pointer;
+  transition: all var(--motion-fast);
+}
+
+.notes-format-inline-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
+}
+
+/* Document & Design File Attachments */
+.notes-attachment-card {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
+  margin: var(--space-2) 0;
+  user-select: none;
+  max-width: 320px;
+}
+
+.notes-attachment-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  font-size: var(--type-tiny-size);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: var(--color-bg-surface-elevated);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+}
+
+.notes-attachment-badge.psd {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border-color: var(--color-accent-border);
+}
+
+.notes-attachment-badge.affinity {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border-color: var(--color-warning-border);
+}
+
+.notes-attachment-badge.pdf {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  border-color: var(--color-danger-border);
+}
+
+.notes-attachment-badge.vector {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border-color: var(--color-warning-border);
+}
+
+.notes-attachment-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.notes-attachment-name {
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notes-attachment-size {
+  font-size: var(--type-tiny-size);
+  color: var(--color-text-muted);
+}
+
+/* Tables in Notes */
+.notes-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-3) 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+}
+
+.notes-table td,
+.notes-table th {
+  border: 1px solid var(--color-border-default);
+  padding: var(--space-2) var(--space-3);
+  min-width: 80px;
+  font-size: var(--type-body-size);
+  background: var(--color-bg-surface);
+}
+
+.notes-table tr:first-child td {
+  background: var(--color-bg-surface-elevated);
+  font-weight: 600;
+}
+
+/* Tasks / Checklist */
+.notes-task-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1) 0;
+}
+
+.notes-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.notes-embedded-img {
+  cursor: pointer;
+  transition: outline var(--motion-fast);
+}
+
+.notes-embedded-img:hover {
+  outline: 2px solid var(--color-accent);
+}
+
 /* Slash Command Palette */
 .slash-command-palette {
   position: absolute;
