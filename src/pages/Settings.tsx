@@ -199,7 +199,7 @@ export function Settings() {
               className="settings-search-palette-badge"
               title="Open full Command Palette (Ctrl+K)"
               onClick={() => {
-                window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }));
+                window.dispatchEvent(new CustomEvent("keyflow:open-command-palette"));
               }}
             >
               <Icon name="command" size={12} />

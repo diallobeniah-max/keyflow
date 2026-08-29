@@ -63,6 +63,7 @@ export function NotesPopupShell() {
   const [saveLocation, setSaveLocation] = useState<string>("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const saved = localStorage.getItem("keyflow:notes-sidebar-w");
     return saved ? Math.min(420, Math.max(160, Number(saved))) : 220;
@@ -428,22 +429,20 @@ export function NotesPopupShell() {
         <div className="notes-header-right no-drag-region">
           <button
             type="button"
-            className="notes-save-location-btn no-drag-region"
-            title={`Notes Storage Directory:\n${saveLocation || "Default KeyFlow AppData Storage"}\nClick to change folder`}
-            onClick={handleSelectSaveLocation}
+            className={"notes-header-icon-btn no-drag-region" + (sidebarOpen ? " is-active" : "")}
+            title={sidebarOpen ? "Hide All Notes panel" : "Show All Notes panel"}
+            onClick={() => setSidebarOpen((v) => !v)}
           >
-            <Icon name="folder" size={13} />
-            <span>{saveLocation ? saveLocation.split(/[/\\]/).pop() || "Folder" : "Storage Folder"}</span>
+            <Icon name="shortcuts" size={14} />
           </button>
 
           <button
             type="button"
-            className={"btn btn-subtle btn-sm notes-copy-btn" + (copied ? " is-copied" : "")}
-            title="Copy Note Text"
-            onClick={handleCopyNote}
+            className="notes-header-icon-btn no-drag-region"
+            title={`Notes Storage Directory:\n${saveLocation || "Default KeyFlow AppData Storage"}\nClick to change folder`}
+            onClick={handleSelectSaveLocation}
           >
-            <Icon name={copied ? "check" : "copy"} size={13} />
-            <span>{copied ? "Copied!" : "Copy"}</span>
+            <Icon name="folder" size={14} />
           </button>
 
           <span className={"notes-save-pill" + (saveStatus === "saving" ? " is-saving" : " is-saved")}>
@@ -453,34 +452,8 @@ export function NotesPopupShell() {
 
           <div className="notes-header-divider" />
 
-          {/* Window Control Buttons on Top Right */}
+          {/* Window Control Buttons on Top Right (Close only) */}
           <div className="notes-window-controls no-drag-region">
-            <button
-              type="button"
-              className="notes-win-ctrl-btn no-drag-region"
-              title="Minimize"
-              onClick={() => {
-                if (window.electronAPI?.notes?.minimize) {
-                  window.electronAPI.notes.minimize();
-                } else if (window.electronAPI?.notes?.close) {
-                  window.electronAPI.notes.close();
-                }
-              }}
-            >
-              <span className="notes-win-icon-min">─</span>
-            </button>
-            <button
-              type="button"
-              className="notes-win-ctrl-btn no-drag-region"
-              title="Maximize / Restore"
-              onClick={() => {
-                if (window.electronAPI?.notes?.maximize) {
-                  window.electronAPI.notes.maximize();
-                }
-              }}
-            >
-              <span className="notes-win-icon-max">□</span>
-            </button>
             <button
               type="button"
               className="notes-win-ctrl-btn notes-win-close no-drag-region"
@@ -488,6 +461,8 @@ export function NotesPopupShell() {
               onClick={() => {
                 if (window.electronAPI?.notes?.close) {
                   window.electronAPI.notes.close();
+                } else {
+                  window.close();
                 }
               }}
             >
@@ -500,7 +475,10 @@ export function NotesPopupShell() {
       {/* Main Body Grid */}
       <div className="notes-popup-body">
         {/* Left Notes List Sidebar */}
-        <aside className="notes-sidebar" style={{ width: `${sidebarWidth}px`, minWidth: `${sidebarWidth}px` }}>
+        <aside
+          className={"notes-sidebar" + (sidebarOpen ? " is-open" : " is-collapsed")}
+          style={sidebarOpen ? { width: `${sidebarWidth}px`, minWidth: `${sidebarWidth}px` } : {}}
+        >
           <div className="notes-sidebar-head">
             <span className="notes-sidebar-label">ALL NOTES</span>
             <span className="notes-sidebar-total">{filteredNotes.length}</span>
@@ -603,15 +581,17 @@ export function NotesPopupShell() {
           </div>
         </aside>
 
-        {/* Draggable Resizer Splitter */}
-        <div
-          className={`notes-sidebar-resizer${isResizingSidebar ? " is-active" : ""}`}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            setIsResizingSidebar(true);
-          }}
-          title="Drag to resize sidebar"
-        />
+        {/* Draggable Resizer Splitter (only active when sidebar is open) */}
+        {sidebarOpen && (
+          <div
+            className={`notes-sidebar-resizer${isResizingSidebar ? " is-active" : ""}`}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              setIsResizingSidebar(true);
+            }}
+            title="Drag to resize sidebar"
+          />
+        )}
 
         {/* Right Editor Area */}
         <main className="notes-editor-pane">
@@ -826,6 +806,17 @@ export function NotesPopupShell() {
                 onKeyUp={() => checkSlashCommand()}
                 onClick={() => checkSlashCommand()}
               />
+
+              {/* Floating Action Button: Copy Note text at bottom-right */}
+              <button
+                type="button"
+                className={"notes-floating-copy-btn no-drag-region" + (copied ? " is-copied" : "")}
+                title={copied ? "Copied to clipboard!" : "Copy Note Text"}
+                onClick={handleCopyNote}
+                aria-label="Copy note"
+              >
+                <Icon name={copied ? "check" : "copy"} size={16} />
+              </button>
 
               {slashState && (
                 <SlashCommandPalette

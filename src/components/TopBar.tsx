@@ -60,7 +60,7 @@ export function TopBar() {
           type="button"
           className="topbar-search-trigger hide-mobile"
           onClick={() => {
-            window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }));
+            window.dispatchEvent(new CustomEvent("keyflow:toggle-command-palette"));
           }}
           title="Search commands and settings (Ctrl+K)"
         >

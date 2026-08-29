@@ -12,20 +12,26 @@ function isCommandShortcut(event: KeyboardEvent, shortcutSetting?: string): bool
   const isCtrl = event.ctrlKey || event.metaKey;
   const isAlt = event.altKey;
   const isShift = event.shiftKey;
-  const key = event.key.toLowerCase();
+  const key = (event.key || "").toLowerCase();
+  const code = (event.code || "").toLowerCase();
 
-  if (target === "ctrl+k") return isCtrl && !isAlt && !isShift && key === "k";
-  if (target === "ctrl+p") return isCtrl && !isAlt && !isShift && key === "p";
-  if (target === "ctrl+space") return isCtrl && !isAlt && !isShift && (key === " " || key === "space");
-  if (target === "alt+space") return isAlt && !isCtrl && !isShift && (key === " " || key === "space");
-  if (target === "ctrl+shift+p") return isCtrl && isShift && !isAlt && key === "p";
-  if (target === "ctrl+shift+k") return isCtrl && isShift && !isAlt && key === "k";
-  if (target === "f1") return key === "f1";
+  const isK = key === "k" || code === "keyk";
+  const isP = key === "p" || code === "keyp";
+  const isSpace = key === " " || key === "space" || code === "space";
+
+  if (target === "ctrl+k") return isCtrl && !isAlt && !isShift && isK;
+  if (target === "ctrl+p") return isCtrl && !isAlt && !isShift && isP;
+  if (target === "ctrl+space") return isCtrl && !isAlt && !isShift && isSpace;
+  if (target === "alt+space") return isAlt && !isCtrl && !isShift && isSpace;
+  if (target === "ctrl+shift+p") return isCtrl && isShift && !isAlt && isP;
+  if (target === "ctrl+shift+k") return isCtrl && isShift && !isAlt && isK;
+  if (target === "f1") return key === "f1" || code === "f1";
 
   if (target.startsWith("ctrl+") && !isAlt && !isShift) {
-    return isCtrl && key === target.replace("ctrl+", "").toLowerCase();
+    const desired = target.replace("ctrl+", "").toLowerCase();
+    return isCtrl && (key === desired || code === `key${desired}`);
   }
-  return isCtrl && !isAlt && !isShift && key === "k";
+  return isCtrl && !isAlt && !isShift && isK;
 }
 
 export function CommandPalette() {
@@ -70,6 +76,17 @@ export function CommandPalette() {
   }, [commands, query]);
   const results = useMemo(() => allResults.slice(0, maxResults), [allResults, maxResults]);
   const activeCommandId = results[active]?.id;
+
+  useEffect(() => {
+    const handleOpen = () => setOpen(true);
+    const handleToggle = () => setOpen((prev) => !prev);
+    window.addEventListener("keyflow:open-command-palette", handleOpen);
+    window.addEventListener("keyflow:toggle-command-palette", handleToggle);
+    return () => {
+      window.removeEventListener("keyflow:open-command-palette", handleOpen);
+      window.removeEventListener("keyflow:toggle-command-palette", handleToggle);
+    };
+  }, []);
 
   useEffect(() => {
     if (!enabled) {

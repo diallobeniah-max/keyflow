@@ -5044,6 +5044,34 @@ body {
   margin: 0 var(--space-1);
 }
 
+.notes-header-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto;
+  transition: background var(--motion-fast), color var(--motion-fast), border-color var(--motion-fast);
+}
+
+.notes-header-icon-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
+}
+
+.notes-header-icon-btn.is-active {
+  background: var(--color-bg-selected);
+  color: var(--color-accent);
+  border-color: var(--color-accent-border);
+}
+
 .notes-window-controls {
   display: flex;
   align-items: center;
@@ -5089,6 +5117,45 @@ body {
   line-height: 1;
 }
 
+.notes-floating-copy-btn {
+  position: absolute;
+  bottom: var(--space-4);
+  right: var(--space-5);
+  z-index: var(--z-dropdown);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-default);
+  box-shadow: var(--shadow-floating);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto;
+  transition: transform var(--motion-fast) var(--ease-spring), background var(--motion-fast), border-color var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast);
+}
+
+.notes-floating-copy-btn:hover {
+  transform: translateY(-2px) scale(1.06);
+  background: var(--color-bg-hover);
+  border-color: var(--color-accent);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-popup);
+}
+
+.notes-floating-copy-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.notes-floating-copy-btn.is-copied {
+  background: var(--color-success-soft);
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
 .notes-floating-new-btn {
   position: absolute;
   bottom: var(--space-4);
@@ -5121,17 +5188,6 @@ body {
   color: inherit;
   border-radius: var(--radius-xs);
   padding: var(--space-0) var(--space-1);
-}
-
-.notes-copy-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.notes-copy-btn.is-copied {
-  color: var(--color-success);
-  border-color: var(--color-success-soft);
 }
 
 .notes-save-pill {
@@ -5169,6 +5225,15 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: width var(--motion-default) var(--ease-desktop), opacity var(--motion-default) var(--ease-desktop), border-color var(--motion-default);
+}
+
+.notes-sidebar.is-collapsed {
+  width: 0 !important;
+  min-width: 0 !important;
+  opacity: 0;
+  border-right-color: transparent;
+  pointer-events: none;
 }
 
 .notes-sidebar-head {
