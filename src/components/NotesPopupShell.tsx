@@ -184,6 +184,22 @@ export function NotesPopupShell() {
       if (editorRef.current.innerHTML !== activeNote.content) {
         editorRef.current.innerHTML = activeNote.content || "";
       }
+      // Record baseline revision snapshot
+      setHistoryRevisions((prev) => {
+        if (!prev.some((r) => r.noteId === activeNote.id)) {
+          return [
+            {
+              id: "rev-" + Date.now(),
+              noteId: activeNote.id,
+              timestamp: activeNote.updatedAt || activeNote.createdAt || Date.now(),
+              title: activeNote.title,
+              content: activeNote.content,
+            },
+            ...prev,
+          ];
+        }
+        return prev;
+      });
     }
   }, [activeNote?.id]);
 
@@ -1487,20 +1503,24 @@ export function NotesPopupShell() {
                       </div>
                       <div className="notes-history-list">
                         {activeRevisions.length > 0 ? (
-                          activeRevisions.map((rev, idx) => (
-                            <button
-                              key={rev.id}
-                              type="button"
-                              className="notes-history-item"
-                              onClick={() => handleRestoreRevision(rev)}
-                            >
-                              <div className="notes-history-item-top">
-                                <span className="notes-history-item-time">{formatNoteDate(rev.timestamp)}</span>
-                                {idx === 0 && <span className="notes-history-item-current">Current</span>}
-                              </div>
-                              <span className="notes-history-item-preview truncate">{stripHtml(rev.content) || "(empty note)"}</span>
-                            </button>
-                          ))
+                          activeRevisions.map((rev, idx) => {
+                            const rawText = stripHtml(rev.content).trim() || "(empty note)";
+                            const snippet = rawText.length > 90 ? rawText.slice(0, 90) + "…" : rawText;
+                            return (
+                              <button
+                                key={rev.id}
+                                type="button"
+                                className="notes-history-item"
+                                onClick={() => handleRestoreRevision(rev)}
+                              >
+                                <div className="notes-history-item-top">
+                                  <span className="notes-history-item-time">{formatNoteDate(rev.timestamp)}</span>
+                                  {idx === 0 && <span className="notes-history-item-current">Current</span>}
+                                </div>
+                                <span className="notes-history-item-preview">{snippet}</span>
+                              </button>
+                            );
+                          })
                         ) : (
                           <div className="notes-history-empty">
                             <span>No previous revisions yet. Edits will appear here automatically.</span>
