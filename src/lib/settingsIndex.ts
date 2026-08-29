@@ -9,6 +9,7 @@ export interface SettingSearchItem {
   category:
     | "general"
     | "shortcuts"
+    | "commandPalette"
     | "hotCorners"
     | "alwaysOnTop"
     | "wasd"
@@ -167,6 +168,44 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
     description: "Suppress single printable key triggers during fast active typing bursts",
     keywords: ["typing", "typing protection", "accidental", "burst", "strict", "balanced"],
     anchorId: "row-sc-typing-prot",
+  },
+
+  // Command Palette
+  {
+    id: "cp-enable",
+    title: "Enable Command Palette",
+    category: "commandPalette",
+    categoryLabel: "Command Palette",
+    description: "Enable the quick searchable command overlay",
+    keywords: ["command palette", "ctrl k", "enable palette", "search commands", "spotlight"],
+    anchorId: "row-cp-enable",
+  },
+  {
+    id: "cp-shortcut",
+    title: "Activation shortcut",
+    category: "commandPalette",
+    categoryLabel: "Command Palette",
+    description: "Keyboard shortcut to summon the command palette (Ctrl+K, Ctrl+P, Alt+Space, etc.)",
+    keywords: ["shortcut", "hotkey", "ctrl k", "ctrl p", "alt space", "keybind", "open palette"],
+    anchorId: "row-cp-shortcut",
+  },
+  {
+    id: "cp-max-results",
+    title: "Maximum search results",
+    category: "commandPalette",
+    categoryLabel: "Command Palette",
+    description: "Limit number of matching items displayed in the search list",
+    keywords: ["limit", "results", "count", "search results", "items"],
+    anchorId: "row-cp-max-results",
+  },
+  {
+    id: "cp-categories",
+    title: "Show category badges",
+    category: "commandPalette",
+    categoryLabel: "Command Palette",
+    description: "Display category tags on command items",
+    keywords: ["categories", "tags", "labels", "category badges"],
+    anchorId: "row-cp-categories",
   },
 
   // Always on Top

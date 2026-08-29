@@ -203,6 +203,9 @@ export interface ShortcutSettings {
   emergencySafe: string;
   /** Enable the in-window searchable command registry shortcut. */
   commandPaletteEnabled: boolean;
+  commandPaletteShortcut?: string;
+  commandPaletteShowCategories?: boolean;
+  commandPaletteMaxResults?: number;
   defaultDoubleTap: number;
   defaultTripleTap: number;
   defaultHold: number;

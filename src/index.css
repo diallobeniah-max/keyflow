@@ -2928,44 +2928,11 @@ textarea.input {
    ========================================================================== */
 
 @keyframes toastIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes pageEnter {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes pageBackEnter {
-  from {
-    opacity: 0;
-    transform: translateX(-12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes pageForwardEnter {
-  from {
-    opacity: 0;
-    transform: translateX(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes tabPaneEnter {
   from {
     opacity: 0;
     transform: translateY(6px);
@@ -2976,10 +2943,54 @@ textarea.input {
   }
 }
 
+@keyframes pageBackEnter {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pageForwardEnter {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes tabPaneEnter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes modalEnter {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.97);
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sheetEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -3037,6 +3048,17 @@ textarea.input {
   100% { transform: scale(1); }
 }
 
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 /* Reusable Animation Utility Classes */
 .anim-page-enter {
   animation: pageEnter var(--motion-default) var(--ease-desktop) both;
@@ -3051,11 +3073,23 @@ textarea.input {
 }
 
 .anim-tab-enter {
-  animation: tabPaneEnter var(--motion-default) var(--ease-desktop) both;
+  animation: tabPaneEnter var(--motion-default) var(--ease-out-expo) both;
 }
 
 .anim-modal-enter {
-  animation: modalEnter var(--motion-default) var(--ease-desktop) both;
+  animation: modalEnter var(--motion-spring) var(--ease-spring) both;
+}
+
+.anim-sheet-enter {
+  animation: sheetEnter var(--motion-spring) var(--ease-spring) both;
+}
+
+.anim-fade-in {
+  animation: fadeIn var(--motion-fast) var(--ease-desktop) both;
+}
+
+.anim-scale-in {
+  animation: scaleIn var(--motion-default) var(--ease-spring) both;
 }
 
 .anim-modal-exit {
@@ -3689,14 +3723,14 @@ textarea.input {
   align-items: center;
   justify-content: center;
   z-index: var(--z-modal);
-  animation: fade-in var(--motion-fast);
-  padding: var(--space-4);
+  animation: fadeIn var(--motion-fast);
+  padding: var(--space-3);
 }
 
 .ios-modal-sheet {
   width: 100%;
-  max-width: 640px;
-  max-height: 88vh;
+  max-width: 600px;
+  max-height: 74vh;
   background: var(--color-bg-surface-elevated);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-xl);
@@ -3704,15 +3738,15 @@ textarea.input {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: modal-enter var(--motion-normal);
+  animation: modalEnter var(--motion-spring);
 }
 
 .ios-modal-drag-handle {
-  width: 36px;
+  width: 32px;
   height: 4px;
   border-radius: var(--radius-pill);
   background: var(--color-border-strong);
-  margin: var(--space-2) auto var(--space-0);
+  margin: var(--space-1) auto var(--space-0);
   flex-shrink: 0;
 }
 
@@ -3720,7 +3754,7 @@ textarea.input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-2) var(--space-4) var(--space-3);
+  padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--color-border-subtle);
   background: var(--color-bg-surface);
 }
@@ -3733,7 +3767,7 @@ textarea.input {
 }
 
 .ios-modal-title {
-  font-size: var(--type-section-size);
+  font-size: var(--type-card-size);
   font-weight: 700;
   margin: var(--space-0);
   color: var(--color-text-primary);
@@ -3748,16 +3782,17 @@ textarea.input {
 .ios-modal-body {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-4);
+  padding: var(--space-3);
   display: flex;
   flex-direction: column;
+  gap: var(--space-2);
 }
 
 .ios-modal-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-4);
   border-top: 1px solid var(--color-border-subtle);
   background: var(--color-bg-surface);
 }
@@ -5694,29 +5729,29 @@ body {
 .command-palette {
   display: flex;
   flex-direction: column;
-  width: min(720px, calc(100vw - var(--space-12)));
-  max-height: calc(100vh - var(--space-16));
+  width: min(580px, calc(100vw - var(--space-8)));
+  max-height: min(440px, 68vh);
   overflow: hidden;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-popup);
-  animation: popIn var(--motion-default);
+  animation: modalEnter var(--motion-spring);
 }
 
 .command-palette-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-5) var(--space-6);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .command-palette-title-wrap {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -5724,8 +5759,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--icon-btn-lg);
-  height: var(--icon-btn-lg);
+  width: var(--icon-btn-md);
+  height: var(--icon-btn-md);
   flex: 0 0 auto;
   border-radius: var(--radius-sm);
   background: var(--color-accent);
@@ -5736,15 +5771,15 @@ body {
   color: var(--color-accent);
   font-size: var(--type-caption-size);
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
 }
 
 .command-palette-header h2 {
-  margin: var(--space-1) var(--space-0) var(--space-0);
+  margin: var(--space-0);
   color: var(--color-text-primary);
-  font-size: var(--type-section-size);
-  line-height: var(--type-section-line);
-  font-weight: var(--type-section-weight);
+  font-size: var(--type-card-size);
+  line-height: var(--type-card-line);
+  font-weight: var(--type-card-weight);
 }
 
 .command-palette-close,
@@ -5832,7 +5867,7 @@ body {
   position: relative;
   display: flex;
   align-items: center;
-  margin: var(--space-4) var(--space-5) var(--space-2);
+  margin: var(--space-2) var(--space-4) var(--space-1);
 }
 
 .command-palette-search-icon {
@@ -5844,13 +5879,13 @@ body {
 
 .command-palette-search {
   width: 100%;
-  height: var(--control-h-lg);
+  height: var(--control-h-md);
   padding: var(--space-0) var(--space-10) var(--space-0) var(--space-8);
   background: var(--color-bg-input);
   border: 1px solid var(--color-accent-border);
   border-radius: var(--radius-md);
   color: var(--color-text-primary);
-  font-size: var(--type-body-large-size);
+  font-size: var(--type-body-size);
   outline: none;
 }
 
@@ -5921,8 +5956,8 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: var(--space-16);
-  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  padding: var(--space-1) var(--space-3);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -5941,8 +5976,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--icon-btn-lg);
-  height: var(--icon-btn-lg);
+  width: var(--icon-btn-sm);
+  height: var(--icon-btn-sm);
   flex: 0 0 auto;
   border-radius: var(--radius-sm);
   background: var(--color-bg-surface-elevated);

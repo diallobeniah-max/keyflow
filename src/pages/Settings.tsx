@@ -1,7 +1,7 @@
 import { ChangeEvent, CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import { ACCENT_PRESETS, HIGHLIGHT_PRESETS, HOT_CORNER_ACTIONS, SCREEN_TINT_PRESETS } from "../lib/constants";
-import { Button, Field, Input, PageIntro, Select, SettingsGroup, SettingsRow, Toggle } from "../components/ui";
+import { Button, Field, Input, PageIntro, Select, SettingsGroup, SettingsRow, Slider, Toggle } from "../components/ui";
 import { AppSelect } from "../components/ui/AppSelect";
 import { Icon } from "../components/Icon";
 import { IconPickerModal } from "../components/ui/IconPickerModal";
@@ -24,6 +24,7 @@ interface SectionTab {
 const SECTIONS: SectionTab[] = [
   { id: "general", label: "General", icon: "settings" },
   { id: "shortcuts", label: "Shortcuts & Gestures", icon: "shortcuts" },
+  { id: "commandPalette", label: "Command Palette", icon: "search" },
   { id: "hotCorners", label: "Hot Corners", icon: "window" },
   { id: "alwaysOnTop", label: "Always on Top", icon: "pinTop" },
   { id: "wasd", label: "WASD Navigation", icon: "keyboard" },
@@ -442,6 +443,73 @@ export function Settings() {
                 </SettingsRow>
               </SettingsGroup>
             </>
+          )}
+
+          {activeSection === "commandPalette" && (
+            <SettingsGroup title="Command Palette Settings" icon="search" desc="Configure the fast search overlay (Ctrl+K) for navigation and shortcuts">
+              <SettingsRow id="row-cp-enable" title="Enable Command Palette" desc="Global in-app searchable registry accessible anywhere in KeyFlow">
+                <Toggle
+                  label="Enable Command Palette"
+                  checked={settings.shortcuts.commandPaletteEnabled !== false}
+                  onChange={(v) => patch("shortcuts", { commandPaletteEnabled: v })}
+                />
+              </SettingsRow>
+
+              <SettingsRow id="row-cp-shortcut" title="Activation shortcut" desc="Keyboard shortcut used to open and toggle the command palette">
+                <div className="w-220">
+                  <Select
+                    value={settings.shortcuts.commandPaletteShortcut || "Ctrl+K"}
+                    onChange={(v: string) => patch("shortcuts", { commandPaletteShortcut: v })}
+                    options={[
+                      { value: "Ctrl+K", label: "Ctrl + K (Default)" },
+                      { value: "Ctrl+P", label: "Ctrl + P (Quick Open)" },
+                      { value: "Ctrl+Space", label: "Ctrl + Space" },
+                      { value: "Alt+Space", label: "Alt + Space (Spotlight style)" },
+                      { value: "Ctrl+Shift+P", label: "Ctrl + Shift + P (VS Code style)" },
+                      { value: "F1", label: "F1" },
+                    ]}
+                  />
+                </div>
+              </SettingsRow>
+
+              <SettingsRow id="row-cp-max-results" title="Maximum search results" desc={`Display up to ${settings.shortcuts.commandPaletteMaxResults ?? 8} matching commands in the list`}>
+                <div className="w-200">
+                  <Slider
+                    min={4}
+                    max={20}
+                    step={1}
+                    value={settings.shortcuts.commandPaletteMaxResults ?? 8}
+                    onChange={(v: number) => patch("shortcuts", { commandPaletteMaxResults: v })}
+                  />
+                </div>
+              </SettingsRow>
+
+              <SettingsRow id="row-cp-categories" title="Show category tags" desc="Display category badges (Navigation, Shortcuts, Settings, etc.) next to results">
+                <Toggle
+                  label="Show categories"
+                  checked={settings.shortcuts.commandPaletteShowCategories !== false}
+                  onChange={(v) => patch("shortcuts", { commandPaletteShowCategories: v })}
+                />
+              </SettingsRow>
+
+              <SettingsRow id="row-cp-test" title="Test Command Palette" desc="Open the command palette now to test your configured shortcut and results">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="search"
+                  onClick={() => {
+                    const evt = new KeyboardEvent("keydown", {
+                      key: (settings.shortcuts.commandPaletteShortcut || "Ctrl+K").toLowerCase().includes("k") ? "k" : "p",
+                      ctrlKey: true,
+                      bubbles: true,
+                    });
+                    window.dispatchEvent(evt);
+                  }}
+                >
+                  Open Palette ({settings.shortcuts.commandPaletteShortcut || "Ctrl+K"})
+                </Button>
+              </SettingsRow>
+            </SettingsGroup>
           )}
 
           {activeSection === "hotCorners" && (

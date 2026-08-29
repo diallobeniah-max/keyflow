@@ -7,8 +7,25 @@ import { Icon } from "./Icon";
 import { Button, Toggle } from "./ui";
 
 // The palette is intentionally renderer-local: Ctrl+K is available while the KeyFlow window is focused.
-function isCommandShortcut(event: KeyboardEvent): boolean {
-  return (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "k";
+function isCommandShortcut(event: KeyboardEvent, shortcutSetting?: string): boolean {
+  const target = (shortcutSetting || "Ctrl+K").trim().toLowerCase();
+  const isCtrl = event.ctrlKey || event.metaKey;
+  const isAlt = event.altKey;
+  const isShift = event.shiftKey;
+  const key = event.key.toLowerCase();
+
+  if (target === "ctrl+k") return isCtrl && !isAlt && !isShift && key === "k";
+  if (target === "ctrl+p") return isCtrl && !isAlt && !isShift && key === "p";
+  if (target === "ctrl+space") return isCtrl && !isAlt && !isShift && (key === " " || key === "space");
+  if (target === "alt+space") return isAlt && !isCtrl && !isShift && (key === " " || key === "space");
+  if (target === "ctrl+shift+p") return isCtrl && isShift && !isAlt && key === "p";
+  if (target === "ctrl+shift+k") return isCtrl && isShift && !isAlt && key === "k";
+  if (target === "f1") return key === "f1";
+
+  if (target.startsWith("ctrl+") && !isAlt && !isShift) {
+    return isCtrl && key === target.replace("ctrl+", "").toLowerCase();
+  }
+  return isCtrl && !isAlt && !isShift && key === "k";
 }
 
 export function CommandPalette() {
@@ -22,6 +39,9 @@ export function CommandPalette() {
   const addRecent = useStore((s) => s.addRecent);
   const toast = useStore((s) => s.toast);
   const enabled = data.settings.shortcuts.commandPaletteEnabled !== false;
+  const configuredShortcut = data.settings.shortcuts.commandPaletteShortcut || "Ctrl+K";
+  const showCategories = data.settings.shortcuts.commandPaletteShowCategories !== false;
+  const maxResults = data.settings.shortcuts.commandPaletteMaxResults || 8;
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -30,7 +50,8 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const commands = useMemo(() => createCommandRegistry(data), [data]);
-  const results = useMemo(() => searchCommands(commands, query), [commands, query]);
+  const allResults = useMemo(() => searchCommands(commands, query), [commands, query]);
+  const results = useMemo(() => allResults.slice(0, maxResults), [allResults, maxResults]);
   const activeCommandId = results[active]?.id;
 
   useEffect(() => {
@@ -40,7 +61,7 @@ export function CommandPalette() {
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isCommandShortcut(event)) {
+      if (isCommandShortcut(event, configuredShortcut)) {
         event.preventDefault();
         event.stopPropagation();
         setOpen((previous) => !previous);
@@ -61,7 +82,7 @@ export function CommandPalette() {
 
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [enabled, open]);
+  }, [enabled, open, configuredShortcut, previewOpen]);
 
   useEffect(() => {
     if (!open) {
@@ -208,7 +229,7 @@ export function CommandPalette() {
               <Icon name="close" size={13} />
             </button>
           ) : (
-            <kbd className="command-palette-keycap">Ctrl K</kbd>
+            <kbd className="command-palette-keycap">{configuredShortcut}</kbd>
           )}
         </div>
 
@@ -334,7 +355,7 @@ export function CommandPalette() {
                     <span className="command-palette-result-description">{command.description}</span>
                   </span>
                   <span className="command-palette-result-side">
-                    <span className="command-palette-category">{command.category}</span>
+                    {showCategories && <span className="command-palette-category">{command.category}</span>}
                     {command.shortcut && <kbd>{command.shortcut}</kbd>}
                   </span>
                 </button>

@@ -196,7 +196,7 @@ export function EditShortcutModal({ shortcutId, open, onClose }: EditShortcutMod
         {/* Modal Content Scroll Body */}
         <div className="ios-modal-body">
           {/* Shortcut Name & Profile */}
-          <div className="card mb-sm">
+          <div className="card p-sm mb-xs">
             <div className="grid cols-2 gap-sm">
               <Field label="Shortcut Name">
                 <Input
@@ -217,7 +217,7 @@ export function EditShortcutModal({ shortcutId, open, onClose }: EditShortcutMod
           </div>
 
           {/* Key & Modifiers Section */}
-          <div className="card mb-sm">
+          <div className="card p-sm mb-xs">
             <div className="row justify-between items-center mb-xs">
               <span className="bold small">Trigger Key & Modifiers</span>
               {draft.key && (
@@ -237,7 +237,7 @@ export function EditShortcutModal({ shortcutId, open, onClose }: EditShortcutMod
           </div>
 
           {/* Trigger Gesture Selector */}
-          <div className="card mb-sm">
+          <div className="card p-sm mb-xs">
             <div className="row justify-between items-center mb-xs">
               <span className="bold small">Activation Gesture</span>
               <span className="muted tiny">{TRIGGER_META[draft.trigger]?.desc}</span>
@@ -296,7 +296,7 @@ export function EditShortcutModal({ shortcutId, open, onClose }: EditShortcutMod
 
           {/* Action Configuration */}
           {draft.trigger !== "remap" && (
-            <div className="card mb-sm">
+            <div className="card p-sm mb-xs">
               <div className="row justify-between items-center mb-xs">
                 <span className="bold small">Assigned Action</span>
                 <span className="chip chip-subtle tiny">{ACTION_META[primaryAction.type]?.label}</span>
@@ -310,7 +310,7 @@ export function EditShortcutModal({ shortcutId, open, onClose }: EditShortcutMod
           )}
 
           {/* App Scope Filter */}
-          <div className="card mb-sm">
+          <div className="card p-sm mb-xs">
             <AppPicker
               value={draft.appScope}
               onChange={(scope) => set({ appScope: scope })}
