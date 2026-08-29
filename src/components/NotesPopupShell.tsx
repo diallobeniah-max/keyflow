@@ -725,7 +725,7 @@ export function NotesPopupShell() {
           </div>
         </div>
 
-        {/* Center: Note Title and Save Status Dot Indicator */}
+        {/* Center: Note Title, Save Status Dot Indicator, and + New Note Button */}
         <div className="notes-header-center">
           <span className="notes-center-title truncate">
             {activeNote?.title || "KeyFlow Notes"}
@@ -734,37 +734,18 @@ export function NotesPopupShell() {
             className={"notes-status-dot-indicator" + (saveStatus === "saving" ? " is-typing" : " is-saved")}
             title={saveStatus === "saving" ? "Typing & saving…" : "Saved"}
           />
+          <button
+            type="button"
+            className="notes-header-add-btn no-drag-region"
+            title="Create New Note (Ctrl+N)"
+            onClick={handleCreateNote}
+          >
+            <Icon name="plus" size={13} />
+          </button>
         </div>
 
-        {/* Right: Keyboard Shortcuts Button, Spotlight Search Toggle Button, and Close (X) */}
+        {/* Right: Window Close Button (Close only) */}
         <div className="notes-header-right no-drag-region">
-          <button
-            type="button"
-            className={"notes-header-icon-btn" + (shortcutsModalOpen ? " is-active" : "")}
-            title="Keyboard Shortcuts (Ctrl+/)"
-            onClick={() => setShortcutsModalOpen((v) => !v)}
-          >
-            <Icon name="keyboard" size={14} />
-          </button>
-
-          <button
-            type="button"
-            className={"notes-header-search-btn" + (spotlightOpen ? " is-active" : "")}
-            title="Search Notes & Files (Ctrl+K)"
-            onClick={() => {
-              setSpotlightOpen((v) => !v);
-              setSpotlightQuery("");
-              setSpotlightIndex(0);
-            }}
-          >
-            <Icon name="search" size={13} />
-            <span>Search</span>
-            <kbd className="notes-kbd-hint">Ctrl K</kbd>
-          </button>
-
-          <div className="notes-header-divider" />
-
-          {/* Window Control Buttons on Top Right (Close only) */}
           <div className="notes-window-controls no-drag-region">
             <button
               type="button"
@@ -817,8 +798,40 @@ export function NotesPopupShell() {
           style={sidebarOpen ? { width: `${sidebarWidth}px`, minWidth: `${sidebarWidth}px` } : {}}
         >
           <div className="notes-sidebar-head">
-            <span className="notes-sidebar-label">ALL NOTES</span>
-            <span className="notes-sidebar-total">{filteredNotes.length}</span>
+            <div className="row gap-xs items-center">
+              <span className="notes-sidebar-label">ALL NOTES</span>
+              <span className="notes-sidebar-total">{filteredNotes.length}</span>
+            </div>
+            <div className="row gap-xxs items-center no-drag-region">
+              <button
+                type="button"
+                className="notes-sidebar-action-btn"
+                title="Create New Note (Ctrl+N)"
+                onClick={handleCreateNote}
+              >
+                <Icon name="plus" size={13} />
+              </button>
+              <button
+                type="button"
+                className="notes-sidebar-action-btn"
+                title="Search Notes & Files (Ctrl+K)"
+                onClick={() => {
+                  setSpotlightOpen(true);
+                  setSpotlightQuery("");
+                  setSpotlightIndex(0);
+                }}
+              >
+                <Icon name="search" size={13} />
+              </button>
+              <button
+                type="button"
+                className="notes-sidebar-action-btn"
+                title="Keyboard Shortcuts (Ctrl+/)"
+                onClick={() => setShortcutsModalOpen(true)}
+              >
+                <Icon name="keyboard" size={13} />
+              </button>
+            </div>
           </div>
 
           <div className="notes-list-scroll">
@@ -868,11 +881,11 @@ export function NotesPopupShell() {
                             title={n.pinned ? "Unpin note" : "Pin note"}
                             onClick={(e) => handleTogglePin(n.id, e)}
                           >
-                            📌
+                            <Icon name="pin" size={12} />
                           </button>
                           <button
                             type="button"
-                            className="notes-item-btn notes-delete-trigger"
+                            className="notes-item-btn notes-item-del-btn"
                             title="Delete note"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -885,10 +898,8 @@ export function NotesPopupShell() {
                       )}
                     </div>
 
-                    <div className="notes-item-meta">
-                      <span className="notes-item-date">{dateStr}</span>
-                      <span className="notes-item-preview">{preview}</span>
-                    </div>
+                    <div className="notes-sidebar-item-snippet">{preview}</div>
+                    <div className="notes-sidebar-item-meta">{dateStr}</div>
                   </div>
                 );
               })
@@ -901,19 +912,9 @@ export function NotesPopupShell() {
           </div>
 
           <div className="notes-sidebar-foot">
-            <button
-              type="button"
-              className="btn btn-primary btn-sm notes-sidebar-new-btn"
-              title="New Note (Ctrl+N)"
-              onClick={handleCreateNote}
-            >
-              <Icon name="create" size={14} />
-              <span>New Note</span>
-              <kbd className="notes-kbd-hint">Ctrl+N</kbd>
-            </button>
             <div className="notes-sidebar-count-row">
               <span className="muted tiny">{notes.length} {notes.length === 1 ? "note" : "notes"}</span>
-              <span className="muted tiny">Esc to close</span>
+              <span className="muted tiny"><kbd className="notes-kbd-hint">Esc</kbd> close</span>
             </div>
           </div>
         </aside>

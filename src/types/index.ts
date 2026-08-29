@@ -272,6 +272,9 @@ export interface NotesSettings {
   showCharCount?: boolean;
   fontSize?: "small" | "default" | "large";
   spellCheck?: boolean;
+  enableSpotlight?: boolean;
+  defaultSidebarOpen?: boolean;
+  enableRevisionHistory?: boolean;
 }
 
 export interface AdvancedSettings {

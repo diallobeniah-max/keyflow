@@ -214,6 +214,59 @@ export function NotesSettingsPage() {
         ))}
       </div>
 
+      {/* Navigation & Shortcuts Card */}
+      <div className="card mb-md">
+        <div className="row gap-sm items-center mb-md">
+          <Icon name="shortcuts" size={18} />
+          <div>
+            <div className="bold">Navigation & Shortcuts</div>
+            <div className="tiny muted">Configure quick access keys and search behaviors</div>
+          </div>
+        </div>
+
+        <div className="settings-row">
+          <div className="settings-row-info">
+            <div className="settings-row-title">Spotlight Search (Ctrl+K)</div>
+            <div className="settings-row-desc">Quick search across all notes and recent files</div>
+          </div>
+          <div className="settings-row-control">
+            <Toggle
+              label="Enable Spotlight Search"
+              checked={settings.notes?.enableSpotlight ?? true}
+              onChange={(v) => patchSettings("notes", { enableSpotlight: v })}
+            />
+          </div>
+        </div>
+
+        <div className="settings-row">
+          <div className="settings-row-info">
+            <div className="settings-row-title">All Notes Sidebar (Ctrl+B)</div>
+            <div className="settings-row-desc">Open the All Notes sidebar by default when launching notes</div>
+          </div>
+          <div className="settings-row-control">
+            <Toggle
+              label="Default Sidebar Open"
+              checked={settings.notes?.defaultSidebarOpen ?? false}
+              onChange={(v) => patchSettings("notes", { defaultSidebarOpen: v })}
+            />
+          </div>
+        </div>
+
+        <div className="settings-row">
+          <div className="settings-row-info">
+            <div className="settings-row-title">Revision History</div>
+            <div className="settings-row-desc">Track recent note edits with right-click Undo/Redo recovery</div>
+          </div>
+          <div className="settings-row-control">
+            <Toggle
+              label="Track Revisions"
+              checked={settings.notes?.enableRevisionHistory ?? true}
+              onChange={(v) => patchSettings("notes", { enableRevisionHistory: v })}
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Notes Shortcut Card */}
       <div className="card mb-md">
         <div className="row gap-sm items-center mb-md">
