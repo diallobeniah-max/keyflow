@@ -629,23 +629,38 @@ export function Settings() {
                     />
                   </div>
                 </SettingsRow>
-                <SettingsRow id="row-hot-delay" title="Activation delay" desc="How long the mouse must rest in the corner before firing">
-                  <div className="w-260">
-                    <Slider
-                      min={100}
-                      max={1000}
-                      step={50}
-                      value={settings.hotCorners?.activationMs ?? 400}
-                      onChange={(v) => {
-                        const updated = { ...settings.hotCorners, activationMs: v };
-                        patch("hotCorners" as any, updated as any);
-                        window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
-                      }}
-                      showValue
-                      formatValue={(v) => `${v}ms`}
-                    />
-                  </div>
-                </SettingsRow>
+                {(() => {
+                  const customCorners = (["topLeft", "topRight", "bottomLeft", "bottomRight"] as HotCornerPosition[])
+                    .filter((pos) => settings.hotCorners?.corners?.[pos]?.delayMs !== undefined)
+                    .map((pos) => {
+                      const label = pos === "topLeft" ? "Top Left" : pos === "topRight" ? "Top Right" : pos === "bottomLeft" ? "Bottom Left" : "Bottom Right";
+                      return `${label} (${settings.hotCorners?.corners?.[pos]?.delayMs}ms)`;
+                    });
+
+                  const delayDesc = customCorners.length > 0
+                    ? `Default delay for unassigned corners • Custom overrides: ${customCorners.join(", ")}`
+                    : "Default delay before triggering. Customize specific corners below.";
+
+                  return (
+                    <SettingsRow id="row-hot-delay" title="Default activation delay" desc={delayDesc}>
+                      <div className="w-260">
+                        <Slider
+                          min={100}
+                          max={1000}
+                          step={50}
+                          value={settings.hotCorners?.activationMs ?? 400}
+                          onChange={(v) => {
+                            const updated = { ...settings.hotCorners, activationMs: v };
+                            patch("hotCorners" as any, updated as any);
+                            window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
+                          }}
+                          showValue
+                          formatValue={(v) => `${v}ms`}
+                        />
+                      </div>
+                    </SettingsRow>
+                  );
+                })()}
               </SettingsGroup>
 
               {/* Interactive Corner Stage */}
@@ -852,8 +867,27 @@ export function Settings() {
                           </div>
                           <div className="col gap-xs mt-xs">
                             <div className="spread items-center">
-                              <span className="tiny muted">Corner Delay</span>
-                              <span className="chip chip-subtle tiny bold">{cornerDelay}ms</span>
+                              <span className="tiny muted">{currentAction.delayMs !== undefined ? "Custom Delay" : "Corner Delay (Default)"}</span>
+                              <div className="row gap-xs items-center">
+                                <span className={"chip tiny bold " + (currentAction.delayMs !== undefined ? "chip-accent" : "chip-subtle")}>{cornerDelay}ms</span>
+                                {currentAction.delayMs !== undefined && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost btn-xs text-xs"
+                                    title="Reset to default delay"
+                                    onClick={() => {
+                                      const newAct: HotCornerAction = { ...currentAction };
+                                      delete (newAct as any).delayMs;
+                                      const corners = { ...(settings.hotCorners?.corners ?? {}), [pos]: newAct };
+                                      const updated = { ...settings.hotCorners, corners };
+                                      patch("hotCorners" as any, updated as any);
+                                      window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
+                                    }}
+                                  >
+                                    Reset
+                                  </button>
+                                )}
+                              </div>
                             </div>
                             <Slider
                               min={0}
@@ -900,18 +934,25 @@ export function Settings() {
                   onChange={(v) => patch("windowControl" as any, { highlightPinned: v } as any)}
                 />
               </SettingsRow>
-              <SettingsRow id="row-top-color" title="Pinned window highlight color" desc="Visual border highlight accent color">
-                <div className="row gap-xs">
-                  {HIGHLIGHT_PRESETS.map((preset) => (
-                    <button
-                      key={preset.value}
-                      type="button"
-                      className={"chip clickable" + (settings.windowControl?.highlightColor === preset.value ? " chip-accent" : " chip-subtle")}
-                      onClick={() => patch("windowControl" as any, { highlightColor: preset.value } as any)}
-                    >
-                      <span>{preset.label}</span>
-                    </button>
-                  ))}
+              <SettingsRow id="row-top-color" layout="stack" title="Pinned window highlight color" desc="Visual border highlight accent color">
+                <div className="row gap-xs wrap items-center">
+                  {HIGHLIGHT_PRESETS.map((preset) => {
+                    const isSelected = (settings.windowControl?.highlightColor ?? "#4F7CFF") === preset.value;
+                    return (
+                      <button
+                        key={preset.value}
+                        type="button"
+                        className={"chip clickable" + (isSelected ? " chip-accent" : " chip-subtle")}
+                        onClick={() => patch("windowControl" as any, { highlightColor: preset.value } as any)}
+                      >
+                        <span
+                          className="color-dot-sm"
+                          style={{ "--swatch-color": preset.value } as CSSProperties}
+                        />
+                        <span>{preset.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </SettingsRow>
               <SettingsRow id="row-top-sound" title="Sound feedback" desc="Play KeyFlow custom audio tones when pinning or unpinning">
