@@ -3158,27 +3158,27 @@ textarea.input {
 
 /* Reusable Animation Utility Classes */
 .anim-page-enter {
-  animation: pageEnter var(--motion-default) var(--ease-desktop) both;
+  animation: pageEnter var(--motion-default) both;
 }
 
 .anim-page-back {
-  animation: pageBackEnter var(--motion-default) var(--ease-desktop) both;
+  animation: pageBackEnter var(--motion-default) both;
 }
 
 .anim-page-forward {
-  animation: pageForwardEnter var(--motion-default) var(--ease-desktop) both;
+  animation: pageForwardEnter var(--motion-default) both;
 }
 
 .anim-tab-enter {
-  animation: tabPaneEnter var(--motion-default) var(--ease-out-expo) both;
+  animation: tabPaneEnter var(--motion-default) both;
 }
 
 .anim-modal-enter {
-  animation: modalEnter var(--motion-spring) var(--ease-spring) both;
+  animation: modalEnter var(--motion-spring) both;
 }
 
 .anim-sheet-enter {
-  animation: sheetEnter var(--motion-spring) var(--ease-spring) both;
+  animation: sheetEnter var(--motion-spring) both;
 }
 
 @keyframes fadeOut {
@@ -3187,44 +3187,36 @@ textarea.input {
 }
 
 .anim-fade-in {
-  animation: fadeIn var(--motion-fast) var(--ease-desktop) both;
+  animation: fadeIn var(--motion-fast) both;
 }
 
 .anim-fade-out {
-  animation: fadeOut var(--motion-fast) var(--ease-desktop) both;
+  animation: fadeOut var(--motion-fast) both;
 }
 
 .anim-scale-in {
-  animation: scaleIn var(--motion-default) var(--ease-spring) both;
+  animation: scaleIn var(--motion-default) both;
 }
 
 .anim-modal-exit {
-  animation: modalExit var(--motion-fast) var(--ease-desktop) both;
+  animation: modalExit var(--motion-fast) both;
 }
 
 .anim-dropdown-enter {
   transform-origin: top center;
-  animation: slideDownMenu var(--motion-fast) var(--ease-desktop) both;
+  animation: slideDownMenu var(--motion-fast) both;
 }
 
 .anim-accordion-enter {
-  animation: accordionExpand var(--motion-fast) var(--ease-desktop) both;
+  animation: accordionExpand var(--motion-fast) both;
 }
 
 .anim-card-enter {
-  animation: slideUpCard var(--motion-default) var(--ease-desktop) both;
+  animation: slideUpCard var(--motion-default) both;
 }
 
 .anim-badge-pop {
-  animation: badgePop var(--motion-default) var(--ease-desktop) both;
-}
-
-.anim-fade-in {
-  animation: fadeIn var(--motion-fast) var(--ease-desktop) both;
-}
-
-.anim-fade-out {
-  animation: fadeOut var(--motion-fast) var(--ease-desktop) both;
+  animation: badgePop var(--motion-default) both;
 }
 
 /* Staggered entrance delays for lists and card grids */
@@ -4542,7 +4534,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  animation: slideDownMenu var(--motion-fast) var(--ease-desktop) both;
+  animation: slideDownMenu var(--motion-fast) both;
 }
 
 .settings-search-palette-badge {
@@ -5921,9 +5913,8 @@ body {
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
-  background: var(--color-overlay-strong);
+  background: var(--color-overlay);
   backdrop-filter: blur(8px);
-  animation: fadeIn var(--motion-fast);
 }
 
 .command-palette-scrim.is-top {
