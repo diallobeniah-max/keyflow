@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Action } from "../types";
 import { useStore } from "../store/useStore";
 import { runActions } from "../lib/actions";
@@ -57,6 +58,17 @@ export function CommandPalette() {
   const [active, setActive] = useState(0);
   const [previewOpen, setPreviewOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
+
+  const openPalette = useCallback(() => {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setIsClosing(false);
+    setPreviewOpen(false);
+    setOpen(true);
+  }, []);
 
   const commands = useMemo(() => {
     try {
@@ -78,15 +90,21 @@ export function CommandPalette() {
   const activeCommandId = results[active]?.id;
 
   useEffect(() => {
-    const handleOpen = () => setOpen(true);
-    const handleToggle = () => setOpen((prev) => !prev);
+    const handleOpen = () => openPalette();
+    const handleToggle = () => {
+      if (open) {
+        setOpen(false);
+      } else {
+        openPalette();
+      }
+    };
     window.addEventListener("keyflow:open-command-palette", handleOpen);
     window.addEventListener("keyflow:toggle-command-palette", handleToggle);
     return () => {
       window.removeEventListener("keyflow:open-command-palette", handleOpen);
       window.removeEventListener("keyflow:toggle-command-palette", handleToggle);
     };
-  }, []);
+  }, [open, openPalette]);
 
   useEffect(() => {
     if (!enabled) {
@@ -98,7 +116,11 @@ export function CommandPalette() {
       if (isCommandShortcut(event, configuredShortcut)) {
         event.preventDefault();
         event.stopPropagation();
-        setOpen((previous) => !previous);
+        if (open) {
+          setOpen(false);
+        } else {
+          openPalette();
+        }
         return;
       }
       if (event.key === "Escape" && open) {
@@ -116,7 +138,7 @@ export function CommandPalette() {
 
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [enabled, open, configuredShortcut, previewOpen]);
+  }, [enabled, open, configuredShortcut, previewOpen, openPalette]);
 
   useEffect(() => {
     if (!open) {
@@ -184,10 +206,11 @@ export function CommandPalette() {
   const closePalette = () => {
     if (isClosing) return;
     setIsClosing(true);
-    window.setTimeout(() => {
+    closeTimerRef.current = window.setTimeout(() => {
       setOpen(false);
       setIsClosing(false);
       setPreviewOpen(false);
+      closeTimerRef.current = null;
     }, 130);
   };
 
@@ -205,7 +228,7 @@ export function CommandPalette() {
     setActive((current) => (current + delta + results.length) % results.length);
   };
 
-  return (
+  return createPortal(
     <div
       className={"command-palette-scrim " + (isClosing ? "anim-fade-out" : "anim-fade-in") + (position === "top" ? " is-top" : "")}
       role="presentation"
@@ -412,6 +435,7 @@ export function CommandPalette() {
           </div>
         )}
       </section>
-    </div>
+    </div>,
+    document.body
   );
 }

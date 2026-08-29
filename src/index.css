@@ -4606,6 +4606,17 @@ body {
   color: var(--color-text-primary);
 }
 
+.settings-search-command-trigger {
+  min-width: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.settings-search-command-trigger:hover {
+  color: var(--color-accent-hover);
+}
+
 .settings-search-input::placeholder {
   color: var(--color-text-muted);
 }
@@ -7267,12 +7278,16 @@ mark.notes-find-match.is-active {
 .command-palette-scrim {
   position: fixed;
   inset: var(--space-0);
-  z-index: var(--z-dialog);
+  width: 100vw;
+  height: 100vh;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
-  background: var(--color-overlay);
+  background: var(--color-overlay-strong);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .command-palette-scrim.is-top {

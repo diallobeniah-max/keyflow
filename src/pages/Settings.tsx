@@ -1,4 +1,4 @@
-import { ChangeEvent, CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, CSSProperties, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useStore } from "../store/useStore";
 import { ACCENT_PRESETS, HIGHLIGHT_PRESETS, HOT_CORNER_ACTIONS, SCREEN_TINT_PRESETS } from "../lib/constants";
@@ -8,7 +8,6 @@ import { Icon } from "../components/Icon";
 import { IconPickerModal } from "../components/ui/IconPickerModal";
 import { getSafeHyperKeySuggestions } from "../lib/conflict";
 import { createDefaultSettings } from "../lib/defaults";
-import { searchSettings } from "../lib/fuzzySearch";
 import type { SettingSearchItem } from "../lib/settingsIndex";
 import type { HotCornerAction, HotCornerPosition, HotCornerBuiltinAction, HotCornersCustomPreset, ScreenTintPreset, CustomCursorItem } from "../types";
 
@@ -53,8 +52,6 @@ export function Settings() {
   const setFocusTarget = useStore((s) => s.setSettingsFocusTarget);
 
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedIndex, setSelectedIndex] = useState(0);
   const [isAdjustingCornerArea, setIsAdjustingCornerArea] = useState(false);
   const [showSavePresetModal, setShowSavePresetModal] = useState(false);
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
@@ -65,7 +62,6 @@ export function Settings() {
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [isDraggingCursor, setIsDraggingCursor] = useState(false);
   const cursorInputRef = useRef<HTMLInputElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (focusTarget) {
@@ -82,41 +78,8 @@ export function Settings() {
     }
   }, [focusTarget, setFocusTarget]);
 
-  const searchResults = useMemo(() => searchSettings(searchQuery, 8), [searchQuery]);
-
-  const handleSelectResult = (item: SettingSearchItem) => {
-    setActiveSection(item.category);
-    setSearchQuery("");
-    setSelectedIndex(0);
-    setTimeout(() => {
-      const el = document.getElementById(item.anchorId);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        el.classList.add("setting-row-highlight");
-        setTimeout(() => {
-          el.classList.remove("setting-row-highlight");
-        }, 1800);
-      }
-    }, 60);
-  };
-
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!searchResults.length) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setSelectedIndex((prev) => Math.min(prev + 1, searchResults.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSelectedIndex((prev) => Math.max(prev - 1, 0));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      const target = searchResults[selectedIndex] ?? searchResults[0];
-      if (target) handleSelectResult(target.item);
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      setSearchQuery("");
-      setSelectedIndex(0);
-    }
+  const openCommandPalette = () => {
+    window.dispatchEvent(new CustomEvent("keyflow:open-command-palette"));
   };
 
   const exportJson = () => {
@@ -169,74 +132,29 @@ export function Settings() {
         description="Configure desktop behaviors, visual appearance, gesture timings, and privacy settings."
       />
 
-      {/* Settings Search Bar */}
+      {/* One command search surface for Settings and the rest of KeyFlow. */}
       <div className="settings-search-wrapper mb-md">
         <div className="settings-search-box">
           <Icon name="search" size={16} className="settings-search-icon" />
-          <input
-            ref={searchInputRef}
-            type="text"
-            className="settings-search-input"
-            placeholder="Search settings (e.g. 'hyper', 'color', 'typing')…"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setSelectedIndex(0);
-            }}
-            onKeyDown={handleSearchKeyDown}
-          />
-          {searchQuery ? (
-            <button
-              type="button"
-              className="settings-search-clear"
-              title="Clear search"
-              onClick={() => {
-                setSearchQuery("");
-                setSelectedIndex(0);
-                searchInputRef.current?.focus();
-              }}
-            >
-              <Icon name="close" size={14} />
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="settings-search-palette-badge"
-              title="Open full Command Palette (Ctrl+K)"
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent("keyflow:open-command-palette"));
-              }}
-            >
-              <Icon name="command" size={12} />
-              <span>Ctrl+K</span>
-            </button>
-          )}
+          <button
+            type="button"
+            className="settings-search-input settings-search-command-trigger"
+            aria-label="Search all commands and settings"
+            title="Search all commands and settings (Ctrl+K)"
+            onClick={openCommandPalette}
+          >
+            Search commands and settings…
+          </button>
+          <button
+            type="button"
+            className="settings-search-palette-badge"
+            title="Open full Command Palette (Ctrl+K)"
+            onClick={openCommandPalette}
+          >
+            <Icon name="command" size={12} />
+            <span>Ctrl+K</span>
+          </button>
         </div>
-
-        {/* Live Search Results Dropdown */}
-        {searchQuery.trim().length > 0 && (
-          <div className="settings-search-dropdown animate-fade-in" role="listbox">
-            {searchResults.length > 0 ? (
-              searchResults.map((res, i) => (
-                <button
-                  key={res.item.id}
-                  type="button"
-                  className={"settings-search-result-item" + (i === selectedIndex ? " is-selected" : "")}
-                  onClick={() => handleSelectResult(res.item)}
-                  onMouseEnter={() => setSelectedIndex(i)}
-                >
-                  <div className="settings-search-result-header">
-                    <span className="font-medium text-main">{res.item.title}</span>
-                    <span className="chip chip-accent tiny">{res.item.categoryLabel}</span>
-                  </div>
-                  <div className="tiny muted">{res.item.description}</div>
-                </button>
-              ))
-            ) : (
-              <div className="p-sm text-center muted tiny">No matching settings found for "{searchQuery}"</div>
-            )}
-          </div>
-        )}
       </div>
 
       <div className="settings-layout">
@@ -567,14 +485,7 @@ export function Settings() {
                   variant="secondary"
                   size="sm"
                   icon="search"
-                  onClick={() => {
-                    const evt = new KeyboardEvent("keydown", {
-                      key: (settings.shortcuts.commandPaletteShortcut || "Ctrl+K").toLowerCase().includes("k") ? "k" : "p",
-                      ctrlKey: true,
-                      bubbles: true,
-                    });
-                    window.dispatchEvent(evt);
-                  }}
+                  onClick={openCommandPalette}
                 >
                   Open Palette ({settings.shortcuts.commandPaletteShortcut || "Ctrl+K"})
                 </Button>
