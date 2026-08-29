@@ -67,8 +67,8 @@ const EDITOR_SHORTCUTS = [
 
 const APP_SHORTCUTS = [
   { id: "spotlight", label: "Search all notes & files", keys: ["Ctrl", "K"] },
+  { id: "sidebar", label: "Toggle All Notes sidebar", keys: ["Ctrl", "B"] },
   { id: "newNote", label: "Create new note", keys: ["Ctrl", "N"] },
-  { id: "sidebar", label: "Toggle All Notes sidebar", keys: ["Ctrl", "Shift", "S"] },
   { id: "help", label: "Show keyboard shortcuts", keys: ["Ctrl", "/"] },
   { id: "close", label: "Close Notes window", keys: ["Esc"] },
 ];
@@ -207,8 +207,11 @@ export function NotesPopupShell() {
         handleCreateNote();
         return;
       }
-      // Toggle sidebar: Ctrl+Shift+S
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "s") {
+      // Toggle sidebar: Ctrl+B or Ctrl+Shift+S
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key.toLowerCase() === "b" || (e.shiftKey && e.key.toLowerCase() === "s"))
+      ) {
         e.preventDefault();
         setSidebarOpen((v) => !v);
         return;
@@ -656,7 +659,7 @@ export function NotesPopupShell() {
           <button
             type="button"
             className={"notes-header-icon-btn" + (sidebarOpen ? " is-active" : "")}
-            title={sidebarOpen ? "Hide All Notes sidebar" : "Show All Notes"}
+            title={sidebarOpen ? "Hide All Notes sidebar (Ctrl+B)" : "Show All Notes (Ctrl+B)"}
             onClick={() => setSidebarOpen((v) => !v)}
           >
             <Icon name="shortcuts" size={15} />
