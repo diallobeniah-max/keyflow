@@ -4,6 +4,7 @@ import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { PopupMenu } from "./components/PopupMenu";
 import { CommandPalette } from "./components/CommandPalette";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ToastHost } from "./components/ui";
 import { Dashboard } from "./pages/Dashboard";
 import { Shortcuts } from "./pages/Shortcuts";
@@ -124,11 +125,15 @@ export default function App() {
         )}
         <main className="main">
           <TopBar />
-          <Router />
+          <ErrorBoundary>
+            <Router />
+          </ErrorBoundary>
         </main>
       </div>
       <PopupMenu />
-      <CommandPalette />
+      <ErrorBoundary>
+        <CommandPalette />
+      </ErrorBoundary>
       <ToastHost />
       {!onboardingDone && <Onboarding />}
     </div>

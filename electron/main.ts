@@ -112,7 +112,7 @@ function createWindow(): void {
     frame: false,
     show: false,
     icon: existsSync(iconPath) ? iconPath : undefined,
-    backgroundColor: "#0B1630",
+    backgroundColor: "#121316",
     webPreferences: {
       preload: PRELOAD_PATH,
       contextIsolation: true,

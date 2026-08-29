@@ -5914,7 +5914,6 @@ body {
   justify-content: center;
   padding: var(--space-4);
   background: var(--color-overlay);
-  backdrop-filter: blur(8px);
 }
 
 .command-palette-scrim.is-top {

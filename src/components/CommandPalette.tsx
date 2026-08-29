@@ -38,12 +38,12 @@ export function CommandPalette() {
   const setSettingsFocusTarget = useStore((s) => s.setSettingsFocusTarget);
   const addRecent = useStore((s) => s.addRecent);
   const toast = useStore((s) => s.toast);
-  const enabled = data.settings.shortcuts.commandPaletteEnabled !== false;
-  const configuredShortcut = data.settings.shortcuts.commandPaletteShortcut || "Ctrl+K";
-  const showCategories = data.settings.shortcuts.commandPaletteShowCategories !== false;
-  const maxResults = data.settings.shortcuts.commandPaletteMaxResults || 8;
-  const windowMode = data.settings.shortcuts.commandPaletteWindowMode ?? "expanded";
-  const position = data.settings.shortcuts.commandPalettePosition ?? "center";
+  const enabled = data?.settings?.shortcuts?.commandPaletteEnabled !== false;
+  const configuredShortcut = data?.settings?.shortcuts?.commandPaletteShortcut || "Ctrl+K";
+  const showCategories = data?.settings?.shortcuts?.commandPaletteShowCategories !== false;
+  const maxResults = data?.settings?.shortcuts?.commandPaletteMaxResults || 8;
+  const windowMode = data?.settings?.shortcuts?.commandPaletteWindowMode ?? "expanded";
+  const position = data?.settings?.shortcuts?.commandPalettePosition ?? "center";
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -51,8 +51,22 @@ export function CommandPalette() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const commands = useMemo(() => createCommandRegistry(data), [data]);
-  const allResults = useMemo(() => searchCommands(commands, query), [commands, query]);
+  const commands = useMemo(() => {
+    try {
+      return createCommandRegistry(data);
+    } catch (err) {
+      console.error("[CommandPalette] Failed to build commands:", err);
+      return [];
+    }
+  }, [data]);
+  const allResults = useMemo(() => {
+    try {
+      return searchCommands(commands, query);
+    } catch (err) {
+      console.error("[CommandPalette] Failed to search commands:", err);
+      return [];
+    }
+  }, [commands, query]);
   const results = useMemo(() => allResults.slice(0, maxResults), [allResults, maxResults]);
   const activeCommandId = results[active]?.id;
 

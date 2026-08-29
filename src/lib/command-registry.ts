@@ -224,31 +224,37 @@ export function createCommandRegistry(data: PersistedState): CommandDefinition[]
     )
   );
 
-  const shortcuts = data.shortcuts.map((shortcut) => {
-    const meta = ACTION_META[shortcut.actions[0]?.type] ?? ACTION_META.openApp;
-    const label = shortcut.name || meta.label;
-    const enabled = shortcut.enabled;
-    return command(
-      {
-        id: `shortcut.${shortcut.id}`,
-        title: enabled ? `Run ${label}` : `Open ${label}`,
-        description: `${meta.label} · ${formatTriggerLabel(shortcut)}${enabled ? "" : " · Disabled"}`,
-        category: "Shortcuts",
-        icon: meta.icon,
-        keywords: [shortcut.key, meta.label, meta.category, formatTriggerLabel(shortcut)],
-        shortcut: formatShortcutLabel(shortcut.modifiers, shortcut.key),
-        disabled: !enabled,
-      },
-      ({ navigate, runShortcut, toast }) => {
-        if (!enabled) {
-          navigate("shortcuts");
-          toast(`${label} is disabled`, "warning");
-          return;
+  const shortcuts: CommandDefinition[] = (data.shortcuts || [])
+    .filter((s): s is NonNullable<typeof s> => Boolean(s && s.id))
+    .map((shortcut) => {
+      const actionType = shortcut.actions?.[0]?.type;
+      const meta = (actionType && ACTION_META[actionType]) || ACTION_META.openApp;
+      const label = shortcut.name || meta.label || "Shortcut";
+      const enabled = shortcut.enabled !== false;
+      const triggerLabel = shortcut.trigger ? formatTriggerLabel(shortcut) : "Shortcut";
+      const keyLabel = shortcut.key || "";
+      const modifiers = Array.isArray(shortcut.modifiers) ? shortcut.modifiers : [];
+      return command(
+        {
+          id: `shortcut.${shortcut.id}`,
+          title: enabled ? `Run ${label}` : `Open ${label}`,
+          description: `${meta.label} · ${triggerLabel}${enabled ? "" : " · Disabled"}`,
+          category: "Shortcuts",
+          icon: meta.icon || "shortcuts",
+          keywords: [keyLabel, meta.label, meta.category || "", triggerLabel],
+          shortcut: formatShortcutLabel(modifiers, keyLabel),
+          disabled: !enabled,
+        },
+        ({ navigate, runShortcut, toast }) => {
+          if (!enabled) {
+            navigate("shortcuts");
+            toast(`${label} is disabled`, "warning");
+            return;
+          }
+          runShortcut(shortcut);
         }
-        runShortcut(shortcut);
-      }
-    );
-  });
+      );
+    });
 
   return [...quickActions, ...navigation, ...shortcuts, ...settings];
 }
