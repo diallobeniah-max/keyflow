@@ -56,11 +56,44 @@ function stripHtml(html: string): string {
   return tmp.textContent || tmp.innerText || "";
 }
 
+const EDITOR_SHORTCUTS = [
+  { id: "undo", label: "Undo change", keys: ["Ctrl", "Z"] },
+  { id: "redo", label: "Redo change", keys: ["Ctrl", "Y"] },
+  { id: "slash", label: "Slash commands palette", keys: ["/"] },
+  { id: "find", label: "Find in current note", keys: ["Ctrl", "F"] },
+  { id: "pin", label: "Toggle pin note", keys: ["Ctrl", "P"] },
+  { id: "export", label: "Export formats", keys: ["Ctrl", "E"] },
+];
+
+const APP_SHORTCUTS = [
+  { id: "spotlight", label: "Search all notes & files", keys: ["Ctrl", "K"] },
+  { id: "newNote", label: "Create new note", keys: ["Ctrl", "N"] },
+  { id: "sidebar", label: "Toggle All Notes sidebar", keys: ["Ctrl", "Shift", "S"] },
+  { id: "help", label: "Show keyboard shortcuts", keys: ["Ctrl", "/"] },
+  { id: "close", label: "Close Notes window", keys: ["Esc"] },
+];
+
 export function NotesPopupShell() {
   const [notes, setNotes] = useState<Note[]>([DEFAULT_WELCOME_NOTE]);
   const [activeNoteId, setActiveNoteId] = useState<string | null>("welcome-note");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchBarOpen, setSearchBarOpen] = useState(false);
+  const [spotlightOpen, setSpotlightOpen] = useState(false);
+  const [spotlightQuery, setSpotlightQuery] = useState("");
+  const [spotlightIndex, setSpotlightIndex] = useState(0);
+  const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
+  const [shortcutEnabledState, setShortcutEnabledState] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem("keyflow:notes-shortcuts-disabled");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [historyMenuOpen, setHistoryMenuOpen] = useState(false);
+  const [historyRevisions, setHistoryRevisions] = useState<
+    { id: string; noteId: string; timestamp: number; title: string; content: string }[]
+  >([]);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
   const [saveLocation, setSaveLocation] = useState<string>("");
   const [folderPopoverOpen, setFolderPopoverOpen] = useState(false);
@@ -88,6 +121,7 @@ export function NotesPopupShell() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const saveTimerRef = useRef<any>(null);
   const fabLeaveTimeoutRef = useRef<any>(null);
+  const suppressStrayKeyUntilRef = useRef<number>(Date.now() + 350);
 
   useEffect(() => {
     if (!isResizingSidebar) return;
@@ -145,17 +179,72 @@ export function NotesPopupShell() {
     }
   }, [activeNote?.id]);
 
-  // Global keyboard shortcuts (Ctrl+N for new note, Ctrl+F for search, Esc to close)
+  // Global keyboard shortcuts
   useEffect(() => {
+    const handleFocus = () => {
+      suppressStrayKeyUntilRef.current = Date.now() + 350;
+    };
+    window.addEventListener("focus", handleFocus);
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
+      // Spotlight search: Ctrl+K
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSpotlightOpen((v) => !v);
+        setSpotlightQuery("");
+        setSpotlightIndex(0);
+        return;
+      }
+      // Shortcuts modal: Ctrl+/
+      if ((e.ctrlKey || e.metaKey) && e.key === "/") {
+        e.preventDefault();
+        setShortcutsModalOpen((v) => !v);
+        return;
+      }
+      // New note: Ctrl+N
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n" && !e.shiftKey) {
         e.preventDefault();
         handleCreateNote();
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+        return;
+      }
+      // Toggle sidebar: Ctrl+Shift+S
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        searchInputRef.current?.focus();
-      } else if (e.key === "Escape") {
-        if (searchQuery) {
+        setSidebarOpen((v) => !v);
+        return;
+      }
+      // Toggle pin: Ctrl+P
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p" && activeNote) {
+        e.preventDefault();
+        handleTogglePin(activeNote.id, e as any);
+        return;
+      }
+      // Toggle export menu: Ctrl+E
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "e") {
+        e.preventDefault();
+        setFabMenuOpen(true);
+        setExportMenuOpen(true);
+        return;
+      }
+      // Find in current note: Ctrl+F
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setSearchBarOpen(true);
+        setTimeout(() => searchInputRef.current?.focus(), 50);
+        return;
+      }
+      // Escape
+      if (e.key === "Escape") {
+        if (spotlightOpen) {
+          setSpotlightOpen(false);
+        } else if (shortcutsModalOpen) {
+          setShortcutsModalOpen(false);
+        } else if (historyMenuOpen) {
+          setHistoryMenuOpen(false);
+        } else if (folderPopoverOpen) {
+          setFolderPopoverOpen(false);
+        } else if (searchBarOpen) {
+          setSearchBarOpen(false);
           setSearchQuery("");
         } else {
           window.electronAPI?.notes?.close?.();
@@ -163,8 +252,11 @@ export function NotesPopupShell() {
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [notes, searchQuery]);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [notes, activeNote, spotlightOpen, shortcutsModalOpen, historyMenuOpen, folderPopoverOpen, searchBarOpen, searchQuery]);
 
   const handleCreateNote = () => {
     const newNote: Note = {
@@ -324,6 +416,31 @@ export function NotesPopupShell() {
     }
   };
 
+  const recordRevision = (note: Note) => {
+    setHistoryRevisions((prev) => {
+      if (prev.length > 0 && prev[0].noteId === note.id && prev[0].content === note.content) {
+        return prev;
+      }
+      const newRev = {
+        id: "rev-" + Date.now(),
+        noteId: note.id,
+        timestamp: Date.now(),
+        title: note.title,
+        content: note.content,
+      };
+      return [newRev, ...prev].slice(0, 20);
+    });
+  };
+
+  const handleRestoreRevision = (rev: { id: string; noteId: string; timestamp: number; title: string; content: string }) => {
+    if (!activeNote || activeNote.id !== rev.noteId) return;
+    setHistoryMenuOpen(false);
+    if (editorRef.current) {
+      editorRef.current.innerHTML = rev.content;
+    }
+    triggerAutosave(rev.title, rev.content);
+  };
+
   const triggerAutosave = (newTitle?: string, newContent?: string) => {
     if (!activeNote) return;
     setSaveStatus("saving");
@@ -343,9 +460,11 @@ export function NotesPopupShell() {
       if (window.electronAPI?.notes?.save) {
         window.electronAPI.notes.save(updatedNote).then(() => {
           setSaveStatus("saved");
+          recordRevision(updatedNote);
         });
       } else {
         setSaveStatus("saved");
+        recordRevision(updatedNote);
       }
     }, 300);
   };
@@ -500,6 +619,21 @@ export function NotesPopupShell() {
     );
   }, [sortedNotes, searchQuery]);
 
+  const activeRevisions = useMemo(() => {
+    if (!activeNote) return [];
+    return historyRevisions.filter((r) => r.noteId === activeNote.id);
+  }, [historyRevisions, activeNote?.id]);
+
+  const spotlightFilteredNotes = useMemo(() => {
+    if (!spotlightQuery.trim()) {
+      return notes;
+    }
+    const q = spotlightQuery.toLowerCase().trim();
+    return notes.filter(
+      (n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q)
+    );
+  }, [notes, spotlightQuery]);
+
   const plainText = useMemo(() => {
     return activeNote ? stripHtml(activeNote.content) : "";
   }, [activeNote?.content]);
@@ -599,21 +733,30 @@ export function NotesPopupShell() {
           />
         </div>
 
-        {/* Right: Search Toggle Button and Close (X) */}
+        {/* Right: Keyboard Shortcuts Button, Spotlight Search Toggle Button, and Close (X) */}
         <div className="notes-header-right no-drag-region">
           <button
             type="button"
-            className={"notes-header-search-btn" + (searchBarOpen ? " is-active" : "")}
-            title={searchBarOpen ? "Hide search" : "Search notes (Ctrl+F)"}
+            className={"notes-header-icon-btn" + (shortcutsModalOpen ? " is-active" : "")}
+            title="Keyboard Shortcuts (Ctrl+/)"
+            onClick={() => setShortcutsModalOpen((v) => !v)}
+          >
+            <Icon name="keyboard" size={14} />
+          </button>
+
+          <button
+            type="button"
+            className={"notes-header-search-btn" + (spotlightOpen ? " is-active" : "")}
+            title="Search Notes & Files (Ctrl+K)"
             onClick={() => {
-              setSearchBarOpen((v) => !v);
-              if (!searchBarOpen) {
-                setTimeout(() => searchInputRef.current?.focus(), 50);
-              }
+              setSpotlightOpen((v) => !v);
+              setSpotlightQuery("");
+              setSpotlightIndex(0);
             }}
           >
             <Icon name="search" size={13} />
             <span>Search</span>
+            <kbd className="notes-kbd-hint">Ctrl K</kbd>
           </button>
 
           <div className="notes-header-divider" />
@@ -948,37 +1091,95 @@ export function NotesPopupShell() {
 
                 <div className="notes-toolbar-divider" />
 
-                {/* History */}
-                <div className="notes-toolbar-group">
+                {/* History & Undo/Redo */}
+                <div className="notes-toolbar-group notes-history-group-anchor">
                   <button
                     type="button"
                     className="notes-toolbar-btn"
-                    title="Undo (Ctrl+Z)"
+                    title="Undo (Ctrl+Z) · Right-click for revision history"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => execCommand("undo")}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setHistoryMenuOpen((v) => !v);
+                    }}
                   >
-                    ↩
+                    <Icon name="undo" size={13} />
                   </button>
                   <button
                     type="button"
                     className="notes-toolbar-btn"
-                    title="Redo (Ctrl+Y)"
+                    title="Redo (Ctrl+Y) · Right-click for revision history"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => execCommand("redo")}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setHistoryMenuOpen((v) => !v);
+                    }}
                   >
-                    ↪
+                    <Icon name="redo" size={13} />
                   </button>
+                  <button
+                    type="button"
+                    className={"notes-toolbar-btn" + (historyMenuOpen ? " is-active" : "")}
+                    title="Recent Revisions & History"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setHistoryMenuOpen((v) => !v)}
+                  >
+                    <Icon name="history" size={13} />
+                  </button>
+
+                  {/* History Revisions Popover */}
+                  {historyMenuOpen && (
+                    <div className="notes-history-popover anim-scale-in" onMouseDown={(e) => e.stopPropagation()}>
+                      <div className="notes-history-popover-head">
+                        <span className="notes-history-popover-title">Recent Revisions</span>
+                        <button
+                          type="button"
+                          className="notes-popover-close-btn"
+                          onClick={() => setHistoryMenuOpen(false)}
+                          title="Close"
+                        >
+                          <Icon name="close" size={11} />
+                        </button>
+                      </div>
+                      <div className="notes-history-list">
+                        {activeRevisions.length > 0 ? (
+                          activeRevisions.map((rev, idx) => (
+                            <button
+                              key={rev.id}
+                              type="button"
+                              className="notes-history-item"
+                              onClick={() => handleRestoreRevision(rev)}
+                            >
+                              <div className="notes-history-item-top">
+                                <span className="notes-history-item-time">{formatNoteDate(rev.timestamp)}</span>
+                                {idx === 0 && <span className="notes-history-item-current">Current</span>}
+                              </div>
+                              <span className="notes-history-item-preview truncate">{stripHtml(rev.content) || "(empty note)"}</span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="notes-history-empty">
+                            <span>No previous revisions yet. Edits will appear here automatically.</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="notes-toolbar-spacer" />
 
+                {/* Professional Pin Button */}
                 <button
                   type="button"
-                  className="notes-pin-toggle-btn"
+                  className={"notes-pin-toggle-btn" + (activeNote.pinned ? " is-pinned" : "")}
                   title={activeNote.pinned ? "Unpin note" : "Pin note to top"}
                   onClick={(e) => handleTogglePin(activeNote.id, e)}
                 >
-                  <span>{activeNote.pinned ? "📌 Pinned" : "📌 Pin"}</span>
+                  <Icon name="pin" size={13} />
+                  <span>{activeNote.pinned ? "Pinned" : "Pin"}</span>
                 </button>
               </div>
 
@@ -988,6 +1189,18 @@ export function NotesPopupShell() {
                 contentEditable
                 className="notes-editor-content"
                 data-placeholder="Start typing your note here… (Type / for commands)"
+                onKeyDown={(e) => {
+                  if (
+                    Date.now() < suppressStrayKeyUntilRef.current &&
+                    e.key.length === 1 &&
+                    !e.ctrlKey &&
+                    !e.altKey &&
+                    !e.metaKey
+                  ) {
+                    e.preventDefault();
+                    return;
+                  }
+                }}
                 onInput={() => {
                   if (editorRef.current) {
                     triggerAutosave(undefined, editorRef.current.innerHTML);
@@ -1155,6 +1368,212 @@ export function NotesPopupShell() {
           )}
         </main>
       </div>
+
+      {/* Spotlight Command / Note Search Modal (Ctrl+K) */}
+      {spotlightOpen && (
+        <div className="notes-spotlight-backdrop anim-fade-in no-drag-region" onClick={() => setSpotlightOpen(false)}>
+          <div className="notes-spotlight-modal anim-scale-in" onClick={(e) => e.stopPropagation()}>
+            <div className="notes-spotlight-search-row">
+              <Icon name="search" size={15} className="text-accent" />
+              <input
+                autoFocus
+                type="text"
+                className="notes-spotlight-input"
+                placeholder="Search notes and files…"
+                value={spotlightQuery}
+                onChange={(e) => {
+                  setSpotlightQuery(e.target.value);
+                  setSpotlightIndex(0);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setSpotlightOpen(false);
+                  } else if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setSpotlightIndex((prev) => (spotlightFilteredNotes.length ? (prev + 1) % spotlightFilteredNotes.length : 0));
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setSpotlightIndex((prev) => (spotlightFilteredNotes.length ? (prev - 1 + spotlightFilteredNotes.length) % spotlightFilteredNotes.length : 0));
+                  } else if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (spotlightFilteredNotes[spotlightIndex]) {
+                      setActiveNoteId(spotlightFilteredNotes[spotlightIndex].id);
+                      setSpotlightOpen(false);
+                    }
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="notes-spotlight-close-btn"
+                onClick={() => setSpotlightOpen(false)}
+                title="Close (Esc)"
+              >
+                <Icon name="close" size={13} />
+              </button>
+            </div>
+
+            <div className="notes-spotlight-results">
+              {!spotlightQuery.trim() && activeNote && (
+                <div className="notes-spotlight-section">
+                  <div className="notes-spotlight-section-title">Last opened</div>
+                  <button
+                    type="button"
+                    className={"notes-spotlight-item" + (spotlightIndex === 0 ? " is-selected" : "")}
+                    onClick={() => {
+                      setActiveNoteId(activeNote.id);
+                      setSpotlightOpen(false);
+                    }}
+                  >
+                    <span className="notes-spotlight-item-icon">
+                      <Icon name="file" size={15} />
+                    </span>
+                    <div className="notes-spotlight-item-text">
+                      <span className="notes-spotlight-item-title">{activeNote.title}</span>
+                      <span className="notes-spotlight-item-date">{formatNoteDate(activeNote.updatedAt || activeNote.createdAt)}</span>
+                    </div>
+                  </button>
+                </div>
+              )}
+
+              <div className="notes-spotlight-section">
+                <div className="notes-spotlight-section-title">
+                  {spotlightQuery.trim() ? "Search Results" : "Recent notes"}
+                </div>
+                {spotlightFilteredNotes.length > 0 ? (
+                  spotlightFilteredNotes.map((n, idx) => {
+                    const isSelected = (!spotlightQuery.trim() && activeNote) ? idx === spotlightIndex - 1 : idx === spotlightIndex;
+                    return (
+                      <button
+                        key={n.id}
+                        type="button"
+                        className={"notes-spotlight-item" + (isSelected ? " is-selected" : "")}
+                        onClick={() => {
+                          setActiveNoteId(n.id);
+                          setSpotlightOpen(false);
+                        }}
+                      >
+                        <span className="notes-spotlight-item-icon">
+                          <Icon name={n.pinned ? "pin" : "file"} size={15} />
+                        </span>
+                        <div className="notes-spotlight-item-text">
+                          <span className="notes-spotlight-item-title">{n.title}</span>
+                          <span className="notes-spotlight-item-snippet">{stripHtml(n.content).slice(0, 70)}</span>
+                        </div>
+                        <span className="notes-spotlight-item-date">{formatNoteDate(n.updatedAt || n.createdAt)}</span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="notes-spotlight-empty">
+                    <Icon name="search" size={22} className="muted mb-xs" />
+                    <span>No notes found matching &ldquo;{spotlightQuery}&rdquo;</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="notes-spotlight-footer">
+              <div className="row gap-xs items-center tiny muted">
+                <span><kbd className="notes-kbd-hint">↑</kbd><kbd className="notes-kbd-hint">↓</kbd> navigate</span>
+                <span>·</span>
+                <span><kbd className="notes-kbd-hint">↵</kbd> open</span>
+                <span>·</span>
+                <span><kbd className="notes-kbd-hint">esc</kbd> close</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Keyboard Shortcuts Modal (Ctrl+/) */}
+      {shortcutsModalOpen && (
+        <div className="notes-spotlight-backdrop anim-fade-in no-drag-region" onClick={() => setShortcutsModalOpen(false)}>
+          <div className="notes-shortcuts-modal anim-scale-in" onClick={(e) => e.stopPropagation()}>
+            <div className="notes-shortcuts-modal-head">
+              <div>
+                <h3 className="notes-shortcuts-modal-title">Keyboard shortcuts</h3>
+                <p className="notes-shortcuts-modal-subtitle">To change a shortcut, select the key combination, and then type the new keys.</p>
+              </div>
+              <button
+                type="button"
+                className="notes-popover-close-btn"
+                onClick={() => setShortcutsModalOpen(false)}
+                title="Close"
+              >
+                <Icon name="close" size={14} />
+              </button>
+            </div>
+
+            <div className="notes-shortcuts-modal-body">
+              <div className="notes-shortcuts-section">
+                <div className="notes-shortcuts-section-heading">Composer & Editor</div>
+                {EDITOR_SHORTCUTS.map((item) => (
+                  <div key={item.id} className="notes-shortcut-row">
+                    <label className="notes-shortcut-toggle-wrap">
+                      <input
+                        type="checkbox"
+                        checked={shortcutEnabledState[item.id] ?? true}
+                        onChange={(e) => {
+                          const updated = { ...shortcutEnabledState, [item.id]: e.target.checked };
+                          setShortcutEnabledState(updated);
+                          localStorage.setItem("keyflow:notes-shortcuts-disabled", JSON.stringify(updated));
+                        }}
+                        className="notes-shortcut-checkbox"
+                      />
+                      <span className="notes-shortcut-label">{item.label}</span>
+                    </label>
+                    <div className="notes-shortcut-keys">
+                      {item.keys.map((k) => (
+                        <kbd key={k} className="notes-kbd-hint">{k}</kbd>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="notes-shortcuts-section">
+                <div className="notes-shortcuts-section-heading">App & Navigation</div>
+                {APP_SHORTCUTS.map((item) => (
+                  <div key={item.id} className="notes-shortcut-row">
+                    <label className="notes-shortcut-toggle-wrap">
+                      <input
+                        type="checkbox"
+                        checked={shortcutEnabledState[item.id] ?? true}
+                        onChange={(e) => {
+                          const updated = { ...shortcutEnabledState, [item.id]: e.target.checked };
+                          setShortcutEnabledState(updated);
+                          localStorage.setItem("keyflow:notes-shortcuts-disabled", JSON.stringify(updated));
+                        }}
+                        className="notes-shortcut-checkbox"
+                      />
+                      <span className="notes-shortcut-label">{item.label}</span>
+                    </label>
+                    <div className="notes-shortcut-keys">
+                      {item.keys.map((k) => (
+                        <kbd key={k} className="notes-kbd-hint">{k}</kbd>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="notes-shortcuts-modal-footer">
+              <button
+                type="button"
+                className="btn btn-subtle btn-sm"
+                onClick={() => {
+                  setShortcutEnabledState({});
+                  localStorage.removeItem("keyflow:notes-shortcuts-disabled");
+                }}
+              >
+                Restore defaults
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
