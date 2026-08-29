@@ -7,7 +7,7 @@ interface HotCornerConfig {
   activationMs?: number;
   cooldownMs?: number;
   cornerSize?: number;
-  corners?: Record<CornerPosition, { type: "builtin" | "shortcut"; action?: string; shortcutId?: string }>;
+  corners?: Record<CornerPosition, { type: "builtin" | "shortcut"; action?: string; shortcutId?: string; delayMs?: number }>;
 }
 
 interface HotCornersOptions {
@@ -88,7 +88,9 @@ export class HotCornersManager {
       const cooldownMs = clamp(this.config.cooldownMs ?? 800, 0, 10_000);
       if (now - (this.lastTriggeredAt.get(key) ?? 0) < cooldownMs) return;
 
-      const activationMs = clamp(this.config.activationMs ?? 400, 0, 10_000);
+      const cornerAction = this.config.corners?.[corner];
+      const specificDelay = cornerAction?.delayMs ?? this.config.activationMs ?? 400;
+      const activationMs = clamp(specificDelay, 0, 10_000);
       if (now - this.candidate.enteredAt < activationMs) return;
 
       this.candidate.fired = true;

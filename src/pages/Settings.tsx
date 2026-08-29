@@ -608,13 +608,18 @@ export function Settings() {
                   />
                 </SettingsRow>
                 <SettingsRow id="row-hot-size" title="Corner activation area" desc="Hit-target size in pixels for each display corner">
-                  <div className="w-260">
+                  <div
+                    className="w-260"
+                    onMouseEnter={() => setIsAdjustingCornerArea(true)}
+                    onMouseLeave={() => setIsAdjustingCornerArea(false)}
+                  >
                     <Slider
                       min={16}
-                      max={48}
+                      max={64}
                       step={4}
                       value={settings.hotCorners?.cornerSize ?? 24}
                       onChange={(v) => {
+                        setIsAdjustingCornerArea(true);
                         const updated = { ...settings.hotCorners, cornerSize: v };
                         patch("hotCorners" as any, updated as any);
                         window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
@@ -775,14 +780,36 @@ export function Settings() {
                 </div>
 
                 <div className="hot-corners-canvas" style={{ "--zone-size": `${settings.hotCorners?.cornerSize ?? 24}px` } as CSSProperties}>
-                  {isAdjustingCornerArea && (
-                    <>
-                      <div className="hot-corners-active-zone-preview hot-corners-active-zone-preview--tl is-active" />
-                      <div className="hot-corners-active-zone-preview hot-corners-active-zone-preview--tr is-active" />
-                      <div className="hot-corners-active-zone-preview hot-corners-active-zone-preview--bl is-active" />
-                      <div className="hot-corners-active-zone-preview hot-corners-active-zone-preview--br is-active" />
-                    </>
-                  )}
+                  {/* Visual Hot Corner Hit-Target Indicators */}
+                  {(() => {
+                    const isConfigured = (c?: HotCornerAction) => {
+                      if (!c) return false;
+                      return c.type === "builtin" ? c.action !== "none" : Boolean((c as any).shortcutId);
+                    };
+                    const tlActive = isAdjustingCornerArea || isConfigured(settings.hotCorners?.corners?.topLeft);
+                    const trActive = isAdjustingCornerArea || isConfigured(settings.hotCorners?.corners?.topRight);
+                    const blActive = isAdjustingCornerArea || isConfigured(settings.hotCorners?.corners?.bottomLeft);
+                    const brActive = isAdjustingCornerArea || isConfigured(settings.hotCorners?.corners?.bottomRight);
+                    const size = settings.hotCorners?.cornerSize ?? 24;
+
+                    return (
+                      <>
+                        <div className={"hot-corners-active-zone-preview hot-corners-active-zone-preview--tl" + (tlActive ? " is-active" : "")}>
+                          <span className="hot-corners-zone-tag">{size}px</span>
+                        </div>
+                        <div className={"hot-corners-active-zone-preview hot-corners-active-zone-preview--tr" + (trActive ? " is-active" : "")}>
+                          <span className="hot-corners-zone-tag">{size}px</span>
+                        </div>
+                        <div className={"hot-corners-active-zone-preview hot-corners-active-zone-preview--bl" + (blActive ? " is-active" : "")}>
+                          <span className="hot-corners-zone-tag">{size}px</span>
+                        </div>
+                        <div className={"hot-corners-active-zone-preview hot-corners-active-zone-preview--br" + (brActive ? " is-active" : "")}>
+                          <span className="hot-corners-zone-tag">{size}px</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+
                   <div className="hot-corners-grid-layout">
                     {(["topLeft", "topRight", "bottomLeft", "bottomRight"] as HotCornerPosition[]).map((pos) => {
                       const currentAction = settings.hotCorners?.corners?.[pos] ?? { type: "builtin", action: "none" };
@@ -791,6 +818,7 @@ export function Settings() {
                       const arrow = pos === "topLeft" ? "↖" : pos === "topRight" ? "↗" : pos === "bottomLeft" ? "↙" : "↘";
                       const label = pos === "topLeft" ? "Top Left" : pos === "topRight" ? "Top Right" : pos === "bottomLeft" ? "Bottom Left" : "Bottom Right";
                       const isActive = isBuiltin ? currentAction.action !== "none" : !!(currentAction as any).shortcutId;
+                      const cornerDelay = currentAction.delayMs ?? settings.hotCorners?.activationMs ?? 400;
 
                       const options = [
                         ...HOT_CORNER_ACTIONS.map((a) => ({ value: a.value, label: a.label })),
@@ -810,9 +838,9 @@ export function Settings() {
                               onChange={(val) => {
                                 let newAct: HotCornerAction;
                                 if (val.startsWith("sc:")) {
-                                  newAct = { type: "shortcut", shortcutId: val.slice(3) };
+                                  newAct = { type: "shortcut", shortcutId: val.slice(3), delayMs: currentAction.delayMs };
                                 } else {
-                                  newAct = { type: "builtin", action: val as HotCornerBuiltinAction };
+                                  newAct = { type: "builtin", action: val as HotCornerBuiltinAction, delayMs: currentAction.delayMs };
                                 }
                                 const corners = { ...(settings.hotCorners?.corners ?? {}), [pos]: newAct };
                                 const updated = { ...settings.hotCorners, corners };
@@ -820,6 +848,25 @@ export function Settings() {
                                 window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
                               }}
                               options={options}
+                            />
+                          </div>
+                          <div className="col gap-xs mt-xs">
+                            <div className="spread items-center">
+                              <span className="tiny muted">Corner Delay</span>
+                              <span className="chip chip-subtle tiny bold">{cornerDelay}ms</span>
+                            </div>
+                            <Slider
+                              min={0}
+                              max={1000}
+                              step={25}
+                              value={cornerDelay}
+                              onChange={(delayVal) => {
+                                const newAct: HotCornerAction = { ...currentAction, delayMs: delayVal };
+                                const corners = { ...(settings.hotCorners?.corners ?? {}), [pos]: newAct };
+                                const updated = { ...settings.hotCorners, corners };
+                                patch("hotCorners" as any, updated as any);
+                                window.electronAPI?.hotCorners?.configure?.(updated, data.shortcuts);
+                              }}
                             />
                           </div>
                         </div>
@@ -890,7 +937,7 @@ export function Settings() {
                 <div className="w-160">
                   <AppSelect
                     value={String(settings.wasdNavigation?.cursorSize ?? 32)}
-                    onChange={(v) => patch("wasdNavigation" as any, { cursorSize: Number(v) } as any)}
+                    onChange={(v) => patch("wasdNavigation" as any, { ...settings.wasdNavigation, cursorSize: Number(v) } as any)}
                     options={[
                       { value: "24", label: "Small (24px)" },
                       { value: "32", label: "Default (32px)" },
@@ -979,7 +1026,7 @@ export function Settings() {
               </SettingsRow>
 
               {/* Drag & Drop Cursor Upload Zone */}
-              <SettingsRow id="row-wasd-upload" title="Upload Custom Cursor" desc="Drag and drop any mouse format (.cur, .ani, .png, .svg, .ico, .webp, .jpg, .bmp)">
+              <SettingsRow id="row-wasd-upload" layout="stack" title="Upload Custom Cursor" desc="Drag and drop any mouse format (.cur, .ani, .png, .svg, .ico, .webp, .jpg, .bmp)">
                 <div
                   className={"wasd-cursor-dropzone" + (isDraggingCursor ? " is-dragging" : "")}
                   onDragOver={(e) => {
@@ -1018,7 +1065,7 @@ export function Settings() {
                   <input
                     ref={cursorInputRef}
                     type="file"
-                    className="visually-hidden"
+                    className="visually-hidden sr-only"
                     accept=".cur,.ani,.png,.svg,.ico,.webp,.jpg,.jpeg,.bmp"
                     onChange={(e) => {
                       if (e.target.files && e.target.files.length > 0) {
@@ -1045,8 +1092,8 @@ export function Settings() {
                       }
                     }}
                   />
-                  <Icon name="upload" size={18} />
-                  <div>
+                  <Icon name="upload" size={22} />
+                  <div className="col gap-xs items-center text-center">
                     <div className="small bold">Drag & Drop cursor file here or click to browse</div>
                     <div className="tiny muted">Supports .cur, .ani, .png, .svg, .ico, .webp, .jpg, .bmp</div>
                   </div>

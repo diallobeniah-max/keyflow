@@ -330,8 +330,8 @@ export type HotCornerBuiltinAction =
   | "nextDesktop";
 
 export type HotCornerAction =
-  | { type: "builtin"; action: HotCornerBuiltinAction }
-  | { type: "shortcut"; shortcutId: string };
+  | { type: "builtin"; action: HotCornerBuiltinAction; delayMs?: number }
+  | { type: "shortcut"; shortcutId: string; delayMs?: number };
 
 export interface HotCornersCustomPreset {
   id: string;

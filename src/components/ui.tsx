@@ -480,15 +480,19 @@ export function SettingsRow({
   children,
   action,
   id,
+  layout = "inline",
+  className,
 }: {
   title: string;
   desc?: string;
   children?: React.ReactNode;
   action?: React.ReactNode;
   id?: string;
+  layout?: "inline" | "stack";
+  className?: string;
 }) {
   return (
-    <div className="settings-row" id={id}>
+    <div className={["settings-row", layout === "stack" ? "is-stack" : "", className].filter(Boolean).join(" ")} id={id}>
       <div className="settings-row-info">
         <div className="settings-row-title">{title}</div>
         {desc && <div className="settings-row-desc">{desc}</div>}
