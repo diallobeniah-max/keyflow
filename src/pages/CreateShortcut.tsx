@@ -84,25 +84,11 @@ function defaultBlankShortcut(profileId: string, pending?: { key: string; mouse?
   };
 }
 
-function simulateShortcut(s: Shortcut) {
-  const e = getEngine();
-  if (s.trigger === "remap") return; // remap is a native per-key behavior, not a gesture
-  if (s.trigger === "double") {
-    e.simulateTap(s.key, s.modifiers);
-    setTimeout(() => e.simulateTap(s.key, s.modifiers), 70);
-    return;
+async function testShortcut(s: Shortcut) {
+  if (s.actions && s.actions.length > 0) {
+    useStore.getState().toast(`Testing: ${deriveFriendlyName(s)}`, "success");
+    await runActions(s.actions);
   }
-  if (s.trigger === "triple") {
-    e.simulateTap(s.key, s.modifiers);
-    setTimeout(() => e.simulateTap(s.key, s.modifiers), 70);
-    setTimeout(() => e.simulateTap(s.key, s.modifiers), 140);
-    return;
-  }
-  if (s.trigger === "longPress" || s.trigger === "hold") {
-    e.simulateHold(s.key, s.modifiers, s.timing.holdDuration + 150);
-    return;
-  }
-  e.simulateTap(s.key, s.modifiers);
 }
 
 function deriveFriendlyName(shortcut: Shortcut): string {
@@ -261,7 +247,7 @@ export function CreateShortcut() {
         description="Choose a key or mouse button, select a trigger pattern, add actions, test it, and save."
         usage="Pick a key combination, set the activation gesture, add your actions, and save."
       >
-        <Button variant="secondary" icon="play" onClick={() => simulateShortcut(draft)}>
+        <Button variant="secondary" icon="play" onClick={() => void testShortcut(draft)}>
           Test
         </Button>
         <Button variant="primary" icon="check" disabled={hasError} onClick={save}>

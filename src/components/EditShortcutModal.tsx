@@ -5,6 +5,7 @@ import { ACTION_META, REMAP_TARGETS, TRIGGER_META } from "../lib/constants";
 import { analyzeShortcutConflicts, allTapGesturesTaken, getGestureAvailability } from "../lib/conflict";
 import { getEngine } from "../lib/engine";
 import { resolveShortcutBehavior } from "../lib/defaults";
+import { runActions } from "../lib/actions";
 import { SimpleActionPicker } from "./SimpleActionPicker";
 import { ActionListEditor } from "./ActionEditor";
 import { AppPicker } from "./AppPicker";
@@ -23,25 +24,11 @@ function deriveFriendlyName(shortcut: Shortcut): string {
   return `${keyPart} (${triggerLabel}) → ${actionLabel}`;
 }
 
-function simulateShortcut(s: Shortcut) {
-  const e = getEngine();
-  if (s.trigger === "remap") return;
-  if (s.trigger === "double") {
-    e.simulateTap(s.key, s.modifiers);
-    setTimeout(() => e.simulateTap(s.key, s.modifiers), 70);
-    return;
+async function testShortcut(s: Shortcut) {
+  if (s.actions && s.actions.length > 0) {
+    useStore.getState().toast(`Testing: ${deriveFriendlyName(s)}`, "success");
+    await runActions(s.actions);
   }
-  if (s.trigger === "triple") {
-    e.simulateTap(s.key, s.modifiers);
-    setTimeout(() => e.simulateTap(s.key, s.modifiers), 70);
-    setTimeout(() => e.simulateTap(s.key, s.modifiers), 140);
-    return;
-  }
-  if (s.trigger === "longPress" || s.trigger === "hold") {
-    e.simulateHold(s.key, s.modifiers, (s.timing?.holdDuration ?? 500) + 150);
-    return;
-  }
-  e.simulateTap(s.key, s.modifiers);
 }
 
 interface EditShortcutModalProps {
@@ -436,7 +423,7 @@ export function EditShortcutModal({ shortcutId, open, onClose }: EditShortcutMod
               variant="secondary"
               size="sm"
               icon="play"
-              onClick={() => simulateShortcut(draft)}
+              onClick={() => void testShortcut(draft)}
             >
               Test
             </Button>

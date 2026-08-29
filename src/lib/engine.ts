@@ -3,12 +3,12 @@ import { useStore } from "../store/useStore";
 import { ACTION_META } from "./constants.ts";
 import { runActions } from "./actions";
 
-function modsFromEvent(e: KeyboardEvent | MouseEvent): ModifierKey[] {
+function modsFromEvent(e: KeyboardEvent | MouseEvent, currentKeyToken?: string): ModifierKey[] {
   const m: ModifierKey[] = [];
-  if (e.ctrlKey) m.push("Ctrl");
-  if (e.altKey) m.push("Alt");
-  if (e.shiftKey) m.push("Shift");
-  if (e.metaKey) m.push("Win");
+  if (e.ctrlKey && currentKeyToken !== "Ctrl") m.push("Ctrl");
+  if (e.altKey && currentKeyToken !== "Alt") m.push("Alt");
+  if (e.shiftKey && currentKeyToken !== "Shift") m.push("Shift");
+  if (e.metaKey && currentKeyToken !== "Win") m.push("Win");
   return m;
 }
 
@@ -181,16 +181,22 @@ class Engine {
   }
 
   private onKeyDown = (e: KeyboardEvent) => {
+    const token = tokenFromKey(e);
+    const mods = modsFromEvent(e, token);
     if (this.nextCapture) {
       const cb = this.nextCapture;
       this.nextCapture = null;
       e.preventDefault();
-      cb(tokenFromKey(e), modsFromEvent(e));
+      cb(token, mods);
       return;
     }
-    if (this.capture && !this.desktopNative && !e.repeat && !isEditableTarget(e.target)) this.press(tokenFromKey(e), modsFromEvent(e), e);
+    if (this.capture && !this.desktopNative && !e.repeat && !isEditableTarget(e.target)) this.press(token, mods, e);
   };
-  private onKeyUp = (e: KeyboardEvent) => { if (this.capture && !this.desktopNative) this.release(tokenFromKey(e), modsFromEvent(e)); };
+  private onKeyUp = (e: KeyboardEvent) => {
+    const token = tokenFromKey(e);
+    const mods = modsFromEvent(e, token);
+    if (this.capture && !this.desktopNative) this.release(token, mods);
+  };
   private onMouseDown = (e: MouseEvent) => {
     if (this.nextCapture) {
       const cb = this.nextCapture;

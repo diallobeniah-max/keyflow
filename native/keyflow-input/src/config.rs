@@ -314,9 +314,17 @@ impl Config {
         if self.paused || self.bypass {
             return KeyBehavior::Pass;
         }
+        let generic_vk = match vk {
+            0xA0 | 0xA1 => Some(0x10), // Shift
+            0xA2 | 0xA3 => Some(0x11), // Ctrl
+            0xA4 | 0xA5 => Some(0x12), // Alt
+            0x5B | 0x5C => Some(0x5B), // Win
+            _ => None,
+        };
         let mut resolved: Option<KeyBehavior> = None;
         for entry in &self.scoped {
-            if entry.vk != vk {
+            let matches_vk = entry.vk == vk || (generic_vk == Some(entry.vk));
+            if !matches_vk {
                 continue;
             }
             if app_scope::scope_matches(&entry.scope, active) {
@@ -329,8 +337,18 @@ impl Config {
         if let Some(&b) = self.behavior.get(&vk) {
             return b;
         }
+        if let Some(gvk) = generic_vk {
+            if let Some(&b) = self.behavior.get(&gvk) {
+                return b;
+            }
+        }
         if let Some(&b) = self.keys.get(&vk) {
             return b;
+        }
+        if let Some(gvk) = generic_vk {
+            if let Some(&b) = self.keys.get(&gvk) {
+                return b;
+            }
         }
         KeyBehavior::Pass
     }

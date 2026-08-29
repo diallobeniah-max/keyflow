@@ -1013,7 +1013,16 @@ impl TriggerEngine {
 }
 
 fn matches_key(rule: &Rule, ev: KeyEvent) -> bool {
-    if rule.vk != ev.vk {
+    let vk_matches = rule.vk == ev.vk
+        || (rule.vk == 0x10 && (ev.vk == 0xA0 || ev.vk == 0xA1 || ev.vk == 0x10))
+        || (rule.vk == 0x11 && (ev.vk == 0xA2 || ev.vk == 0xA3 || ev.vk == 0x11))
+        || (rule.vk == 0x12 && (ev.vk == 0xA4 || ev.vk == 0xA5 || ev.vk == 0x12))
+        || (rule.vk == 0x5B && (ev.vk == 0x5B || ev.vk == 0x5C))
+        || (ev.vk == 0x10 && (rule.vk == 0xA0 || rule.vk == 0xA1 || rule.vk == 0x10))
+        || (ev.vk == 0x11 && (rule.vk == 0xA2 || rule.vk == 0xA3 || rule.vk == 0x11))
+        || (ev.vk == 0x12 && (rule.vk == 0xA4 || rule.vk == 0xA5 || rule.vk == 0x12))
+        || (ev.vk == 0x5B && (rule.vk == 0x5B || rule.vk == 0x5C));
+    if !vk_matches {
         return false;
     }
     if rule.special_scan != 0 {
@@ -2266,4 +2275,25 @@ mod tests {
             assert_eq!(e.gestures.len(), 0, "cycle {cycle} left stale gesture state");
         }
     }
+
+    #[test]
+    fn double_tap_shift_modifier_rule_matches() {
+        let mut e = TriggerEngine::new();
+        no_typing(&mut e);
+        // Rule configured with generic Shift (0x10) and double tap
+        let shift_double = rule("sc-shift-notes", 0x10, TriggerKind::Double);
+        e.reload(vec![shift_double]);
+
+        // Physical Left Shift (0xA0) tapped once
+        let f1 = down(&mut e, 0xA0, 100);
+        assert_eq!(f1.len(), 0, "first tap must not fire double tap");
+        up(&mut e, 0xA0, 150);
+
+        // Physical Left Shift (0xA0) tapped second time within window
+        let f2 = down(&mut e, 0xA0, 250);
+        assert_eq!(f2.len(), 1, "second tap of Shift must fire double tap rule");
+        assert_eq!(f2[0].id, "sc-shift-notes");
+        up(&mut e, 0xA0, 300);
+    }
 }
+
