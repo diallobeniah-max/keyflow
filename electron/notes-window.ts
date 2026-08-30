@@ -27,11 +27,11 @@ interface NotesConfig {
   windowSizePreset?: NotesWindowSizePreset;
   followMouseOnOpen?: boolean;
   windowBounds?: { width: number; height: number };
-  windowPresetSizes?: Partial<Record<"comfortable" | "compact", NotesWindowSize>>;
+  windowPresetSizes?: Partial<Record<"large" | "compact" | "comfortable", NotesWindowSize>>;
   customPresets?: NotesCustomPreset[];
 }
 
-export type NotesWindowSizePreset = "comfortable" | "compact" | string;
+export type NotesWindowSizePreset = "large" | "compact" | "comfortable" | string;
 
 export interface NotesWindowSize {
   width: number;
@@ -41,26 +41,32 @@ export interface NotesWindowSize {
 export interface NotesWindowPreferences {
   windowSizePreset: NotesWindowSizePreset;
   followMouseOnOpen: boolean;
-  windowPresetSizes: Record<"comfortable" | "compact", NotesWindowSize>;
+  windowPresetSizes: Record<"large" | "compact", NotesWindowSize> & { comfortable?: NotesWindowSize };
   customPresets?: NotesCustomPreset[];
 }
 
-const NOTES_WINDOW_PRESETS: Record<"comfortable" | "compact", NotesWindowSize> = {
+const NOTES_WINDOW_PRESETS: Record<"large" | "compact", NotesWindowSize> = {
   // A focused working window that stays comfortably inside a standard laptop display.
-  comfortable: { width: 960, height: 800 },
+  large: { width: 960, height: 800 },
   compact: { width: 700, height: 640 },
 };
 
 const DEFAULT_NOTES_WINDOW_PREFERENCES: NotesWindowPreferences = {
-  windowSizePreset: "comfortable",
+  windowSizePreset: "large",
   followMouseOnOpen: true,
-  windowPresetSizes: NOTES_WINDOW_PRESETS,
+  windowPresetSizes: {
+    large: NOTES_WINDOW_PRESETS.large,
+    compact: NOTES_WINDOW_PRESETS.compact,
+    comfortable: NOTES_WINDOW_PRESETS.large,
+  },
   customPresets: [],
 };
 
 class NotesWindowService {
   private window: BrowserWindow | null = null;
   private configPath: string;
+  private isTestMode: boolean = false;
+  private testPresetInfo: { presetId: string; presetName: string } | null = null;
 
   constructor() {
     this.configPath = join(app.getPath("userData"), "keyflow-notes-config.json");
@@ -100,12 +106,18 @@ class NotesWindowService {
         }))
       : [];
 
+    let presetKey = config.windowSizePreset === "comfortable" ? "large" : (config.windowSizePreset || "large");
+    const rawSizes = config.windowPresetSizes as any;
+    const largeSize = toValidSize(rawSizes?.large ?? rawSizes?.comfortable, NOTES_WINDOW_PRESETS.large);
+    const compactSize = toValidSize(rawSizes?.compact, NOTES_WINDOW_PRESETS.compact);
+
     return {
-      windowSizePreset: config.windowSizePreset || DEFAULT_NOTES_WINDOW_PREFERENCES.windowSizePreset,
+      windowSizePreset: presetKey,
       followMouseOnOpen: config.followMouseOnOpen !== false,
       windowPresetSizes: {
-        comfortable: toValidSize(config.windowPresetSizes?.comfortable, NOTES_WINDOW_PRESETS.comfortable),
-        compact: toValidSize(config.windowPresetSizes?.compact, NOTES_WINDOW_PRESETS.compact),
+        large: largeSize,
+        compact: compactSize,
+        comfortable: largeSize,
       },
       customPresets,
     };
@@ -120,7 +132,7 @@ class NotesWindowService {
     const custom = preferences.customPresets?.find((p) => p.id === preferences.windowSizePreset);
     const preset = custom
       ? { width: custom.width, height: custom.height }
-      : (preferences.windowPresetSizes[preferences.windowSizePreset as "comfortable" | "compact"] ?? preferences.windowPresetSizes.comfortable);
+      : (preferences.windowPresetSizes[preferences.windowSizePreset as "large" | "compact"] ?? preferences.windowPresetSizes.large);
     const saved = config.windowBounds;
     return {
       width: Math.max(560, Math.min(saved?.width ?? preset.width, 1600)),
@@ -137,12 +149,15 @@ class NotesWindowService {
   public updatePreferences(patch: Partial<NotesWindowPreferences>): NotesWindowPreferences {
     const config = this.getConfig();
     const current = this.getWindowPreferences(config);
+    const targetPreset = patch.windowSizePreset === "comfortable" ? "large" : (patch.windowSizePreset || current.windowSizePreset);
+
     const next: NotesWindowPreferences = {
-      windowSizePreset: patch.windowSizePreset || current.windowSizePreset,
+      windowSizePreset: targetPreset,
       followMouseOnOpen: typeof patch.followMouseOnOpen === "boolean" ? patch.followMouseOnOpen : current.followMouseOnOpen,
       windowPresetSizes: {
-        comfortable: patch.windowPresetSizes?.comfortable ?? current.windowPresetSizes.comfortable,
+        large: patch.windowPresetSizes?.large ?? (patch.windowPresetSizes as any)?.comfortable ?? current.windowPresetSizes.large,
         compact: patch.windowPresetSizes?.compact ?? current.windowPresetSizes.compact,
+        comfortable: patch.windowPresetSizes?.large ?? (patch.windowPresetSizes as any)?.comfortable ?? current.windowPresetSizes.large,
       },
       customPresets: patch.customPresets ?? current.customPresets ?? [],
     };
@@ -154,7 +169,7 @@ class NotesWindowService {
       ...(isChangingPreset ? { windowBounds: undefined } : {}),
     });
 
-    if (isChangingPreset || patch.windowPresetSizes?.[next.windowSizePreset as "comfortable" | "compact"] || patch.customPresets) {
+    if (isChangingPreset || patch.windowPresetSizes?.[next.windowSizePreset as "large" | "compact"] || patch.customPresets) {
       this.applyWindowSize();
     }
     return next;
@@ -162,23 +177,24 @@ class NotesWindowService {
 
   public saveCurrentWindowSizeAsPreset(preset: NotesWindowSizePreset): NotesWindowPreferences {
     const current = this.getWindowPreferences();
+    const normalizedKey = preset === "comfortable" ? "large" : preset;
     const [width, height] = this.window && !this.window.isDestroyed()
       ? this.window.getSize()
-      : (preset === "comfortable" || preset === "compact"
-          ? [current.windowPresetSizes[preset as "comfortable" | "compact"].width, current.windowPresetSizes[preset as "comfortable" | "compact"].height]
-          : [current.customPresets?.find((p) => p.id === preset)?.width ?? 800, current.customPresets?.find((p) => p.id === preset)?.height ?? 600]);
+      : (normalizedKey === "large" || normalizedKey === "compact"
+          ? [current.windowPresetSizes[normalizedKey as "large" | "compact"].width, current.windowPresetSizes[normalizedKey as "large" | "compact"].height]
+          : [current.customPresets?.find((p) => p.id === normalizedKey)?.width ?? 800, current.customPresets?.find((p) => p.id === normalizedKey)?.height ?? 600]);
 
-    if (preset === "comfortable" || preset === "compact") {
+    if (normalizedKey === "large" || normalizedKey === "compact") {
       return this.updatePreferences({
         windowPresetSizes: {
           ...current.windowPresetSizes,
-          [preset]: { width, height },
+          [normalizedKey]: { width, height },
         },
       });
     }
 
     const updatedCustom = (current.customPresets ?? []).map((cp) =>
-      cp.id === preset ? { ...cp, width, height } : cp
+      cp.id === normalizedKey ? { ...cp, width, height } : cp
     );
     return this.updatePreferences({
       customPresets: updatedCustom,
@@ -200,156 +216,107 @@ class NotesWindowService {
     return app.getPath("userData");
   }
 
-  public getNotesPath(): string {
+  public async selectSaveLocation(): Promise<{ success: boolean; path?: string }> {
+    const res = await dialog.showOpenDialog({
+      title: "Select Notes Storage Folder",
+      properties: ["openDirectory", "createDirectory"],
+      defaultPath: this.getSaveLocation(),
+    });
+
+    if (!res.canceled && res.filePaths.length > 0) {
+      const selected = res.filePaths[0];
+      this.setSaveLocation(selected);
+      return { success: true, path: selected };
+    }
+    return { success: false };
+  }
+
+  public setSaveLocation(dirPath: string): { success: boolean } {
+    try {
+      if (!existsSync(dirPath)) {
+        mkdirSync(dirPath, { recursive: true });
+      }
+      this.saveConfig({ ...this.getConfig(), customSaveDirectory: dirPath });
+      return { success: true };
+    } catch (err) {
+      console.error("[Notes] Failed to set save location:", err);
+      return { success: false };
+    }
+  }
+
+  private getNotesFilePath(): string {
     return join(this.getSaveLocation(), "keyflow-notes.json");
   }
 
   public getNotes(): NoteItem[] {
-    const notesPath = this.getNotesPath();
-    let shouldPersistInitial = !existsSync(notesPath);
+    const filePath = this.getNotesFilePath();
     try {
-      if (existsSync(notesPath)) {
-        const raw = readFileSync(notesPath, "utf-8");
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-        // Keep an intentionally empty list recoverable in memory without
-        // rewriting the user's file until they create another note.
-        shouldPersistInitial = false;
+      if (existsSync(filePath)) {
+        const raw = readFileSync(filePath, "utf-8");
+        return JSON.parse(raw);
       }
     } catch (err) {
-      console.error("[Notes] Failed to read notes.json:", err);
-      // Never overwrite a malformed notes file automatically; it may still be
-      // recoverable by the user. A later explicit save writes a new valid file.
-      shouldPersistInitial = false;
+      console.error("[Notes] Error reading notes:", err);
     }
-
-    // Persist the first note immediately so a renderer refresh cannot make it disappear.
-    const initialNotes: NoteItem[] = [
-      {
-        id: "welcome-note",
-        title: "Welcome to KeyFlow Notes 📝",
-        pinned: true,
-        content: `<h2>KeyFlow Floating Notepad</h2>
-<p>A fast, distraction-free markdown notepad that floats seamlessly above your desktop and apps.</p>
-<h3>⚡ Key Features</h3>
-<ul>
-  <li><b>Rich Formatting:</b> Bold, italic, underline, strikethrough, headings, lists, quotes, and code blocks.</li>
-  <li><b>Raycast Slash Commands:</b> Type <code>/</code> to insert headings, lists, tables, callouts, and more.</li>
-  <li><b>Custom Save Directory:</b> Set your own folder to auto-save and sync all notes across apps.</li>
-  <li><b>Instant Autosave:</b> Never lose your thoughts with continuous debounced saving.</li>
-</ul>`,
-        createdAt: Date.now() - 3600000,
-        updatedAt: Date.now(),
-      },
-    ];
-    if (shouldPersistInitial) this.writeNotes(initialNotes);
-    return initialNotes;
+    return [];
   }
 
-  public saveNote(note: NoteItem): NoteItem[] {
+  public saveNote(note: NoteItem): { success: boolean; id: string } {
     const notes = this.getNotes();
     const idx = notes.findIndex((n) => n.id === note.id);
     if (idx >= 0) {
-      notes[idx] = { ...note, updatedAt: Date.now() };
+      notes[idx] = { ...notes[idx], ...note, updatedAt: Date.now() };
     } else {
       notes.unshift({ ...note, createdAt: Date.now(), updatedAt: Date.now() });
     }
-    this.writeNotes(notes);
-    return notes;
-  }
 
-  public deleteNote(id: string): NoteItem[] {
-    const notes = this.getNotes().filter((n) => n.id !== id);
-    this.writeNotes(notes);
-    return notes;
-  }
-
-  public async selectSaveLocation(): Promise<{ path: string; notes: NoteItem[] } | null> {
-    const win = this.window && !this.window.isDestroyed() ? this.window : undefined;
-    const result = await dialog.showOpenDialog(win!, {
-      title: "Select KeyFlow Notes Storage Directory",
-      defaultPath: this.getSaveLocation(),
-      properties: ["openDirectory", "createDirectory"],
-    });
-
-    if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
-      return null;
-    }
-
-    const chosenDir = result.filePaths[0];
-    return this.setSaveLocation(chosenDir);
-  }
-
-  public setSaveLocation(dirPath: string): { path: string; notes: NoteItem[] } {
-    // Read the current source before changing the config. Otherwise getNotes()
-    // would point at the new empty directory and the user's existing notes would
-    // be replaced by the default seed note.
-    const sourceNotes = this.getNotes();
-
-    if (!existsSync(dirPath)) {
-      mkdirSync(dirPath, { recursive: true });
-    }
-
-    // Save configuration
-    this.saveConfig({ ...this.getConfig(), customSaveDirectory: dirPath });
-
-    const targetJson = join(dirPath, "keyflow-notes.json");
-    let loadedNotes: NoteItem[] = [];
-
-    if (existsSync(targetJson)) {
-      try {
-        const raw = readFileSync(targetJson, "utf-8");
-        loadedNotes = JSON.parse(raw);
-      } catch (e) {
-        console.error("[Notes] Failed to parse notes in selected dir:", e);
+    try {
+      const filePath = this.getNotesFilePath();
+      const dir = dirname(filePath);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
       }
+      writeFileSync(filePath, JSON.stringify(notes, null, 2), "utf-8");
+      return { success: true, id: note.id };
+    } catch (err) {
+      console.error("[Notes] Error saving note:", err);
+      return { success: false, id: note.id };
     }
+  }
 
-    // If destination folder was empty, migrate current notes to it
-    if (!loadedNotes || loadedNotes.length === 0) {
-      loadedNotes = sourceNotes;
-      writeFileSync(targetJson, JSON.stringify(loadedNotes, null, 2), "utf-8");
+  public deleteNote(id: string): { success: boolean } {
+    let notes = this.getNotes();
+    notes = notes.filter((n) => n.id !== id);
+    try {
+      const filePath = this.getNotesFilePath();
+      writeFileSync(filePath, JSON.stringify(notes, null, 2), "utf-8");
+      return { success: true };
+    } catch (err) {
+      console.error("[Notes] Error deleting note:", err);
+      return { success: false };
     }
-
-    return { path: dirPath, notes: loadedNotes };
   }
 
   public async pickFile(options: { type?: "image" | "video" | "file" }): Promise<string | null> {
-    const win = this.window && !this.window.isDestroyed() ? this.window : undefined;
-    let filters = [{ name: "All Files", extensions: ["*"] }];
-
+    const filters = [];
     if (options.type === "image") {
-      filters = [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"] }];
+      filters.push({ name: "Images", extensions: ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"] });
     } else if (options.type === "video") {
-      filters = [{ name: "Videos", extensions: ["mp4", "webm", "mkv", "mov", "avi"] }];
+      filters.push({ name: "Videos", extensions: ["mp4", "webm", "ogg", "mov"] });
+    } else {
+      filters.push({ name: "All Files", extensions: ["*"] });
     }
 
-    const result = await dialog.showOpenDialog(win!, {
-      title: `Select ${options.type || "File"} for Note`,
+    const res = await dialog.showOpenDialog({
+      title: "Select File to Insert",
       properties: ["openFile"],
       filters,
     });
 
-    if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
-      return null;
+    if (!res.canceled && res.filePaths.length > 0) {
+      return res.filePaths[0];
     }
-
-    return result.filePaths[0];
-  }
-
-  private writeNotes(notes: NoteItem[]) {
-    try {
-      const saveDir = this.getSaveLocation();
-      if (!existsSync(saveDir)) {
-        mkdirSync(saveDir, { recursive: true });
-      }
-      const notesPath = this.getNotesPath();
-      writeFileSync(notesPath, JSON.stringify(notes, null, 2), "utf-8");
-    } catch (err) {
-      console.error("[Notes] Failed to write notes.json:", err);
-    }
+    return null;
   }
 
   public createOrGetWindow(): BrowserWindow {
@@ -357,26 +324,32 @@ class NotesWindowService {
       return this.window;
     }
 
-    const candidates = [
-      join(__dirname, "../build/icon.ico"),
-      join(process.cwd(), "build/icon.ico"),
-      join(app.getAppPath(), "build/icon.ico"),
-    ];
-    const iconPath = candidates.find((p) => existsSync(p));
+    const { width, height } = this.getInitialWindowSize();
 
-    const initialSize = this.getInitialWindowSize();
+    let iconPath: string | undefined;
+    const isPackaged = app.isPackaged;
+    if (isPackaged) {
+      const packagedIcon = join(process.resourcesPath, "icon.png");
+      if (existsSync(packagedIcon)) iconPath = packagedIcon;
+    } else {
+      const devIcon = join(__dirname, "../public/icon.png");
+      if (existsSync(devIcon)) iconPath = devIcon;
+    }
+
     this.window = new BrowserWindow({
-      width: initialSize.width,
-      height: initialSize.height,
+      width,
+      height,
       minWidth: 560,
       minHeight: 520,
-      frame: false,
-      resizable: true,
       show: false,
-      backgroundColor: "#0d1117",
-      paintWhenInitiallyHidden: true,
+      frame: false,
+      transparent: true,
+      backgroundColor: "#00000000",
       alwaysOnTop: true,
-      skipTaskbar: false,
+      skipTaskbar: true,
+      resizable: true,
+      fullscreenable: false,
+      hasShadow: true,
       icon: iconPath,
       webPreferences: {
         preload: join(__dirname, "preload.js"),
@@ -394,27 +367,74 @@ class NotesWindowService {
       this.window.loadFile(join(__dirname, "../dist/index.html"), { search: "?window=notes" });
     }
 
-    this.window.once("ready-to-show", () => {
-      // Pre-render is complete
-    });
-
     this.window.on("closed", () => {
       this.window = null;
+      this.isTestMode = false;
+      this.testPresetInfo = null;
     });
 
     this.window.on("resize", () => {
       if (!this.window || this.window.isDestroyed() || this.window.isMaximized() || this.window.isMinimized()) return;
-      const [width, height] = this.window.getSize();
-      this.saveConfig({ ...this.getConfig(), windowBounds: { width, height } });
+      const [w, h] = this.window.getSize();
+      this.saveConfig({ ...this.getConfig(), windowBounds: { width: w, height: h } });
     });
 
     return this.window;
   }
 
+  public openTestMode(presetId?: string, presetName?: string) {
+    this.isTestMode = true;
+    const targetId = presetId === "comfortable" ? "large" : (presetId || "large");
+    this.testPresetInfo = {
+      presetId: targetId,
+      presetName: presetName || (targetId === "compact" ? "Compact" : "Large"),
+    };
+    this.updatePreferences({ windowSizePreset: targetId });
+
+    const win = this.createOrGetWindow();
+    if (!win.isVisible()) {
+      if (this.getPreferences().followMouseOnOpen) {
+        const cursor = screen.getCursorScreenPoint();
+        const display = screen.getDisplayNearestPoint(cursor);
+        const bounds = display.workArea;
+
+        const [w, h] = win.getSize();
+        const x = Math.max(bounds.x + 20, Math.min(cursor.x - Math.round(w / 2), bounds.x + bounds.width - w - 20));
+        const y = Math.max(bounds.y + 20, Math.min(cursor.y - 40, bounds.y + bounds.height - h - 20));
+
+        win.setPosition(x, y, false);
+      }
+      win.show();
+    }
+    win.focus();
+
+    const sendTestState = () => {
+      if (win && !win.isDestroyed() && win.webContents) {
+        win.webContents.send("notes:test-mode-state", {
+          active: true,
+          presetId: this.testPresetInfo?.presetId || "large",
+          presetName: this.testPresetInfo?.presetName || "Large",
+        });
+      }
+    };
+
+    if (win.webContents.isLoading()) {
+      win.once("ready-to-show", sendTestState);
+    } else {
+      sendTestState();
+    }
+  }
+
   public toggle() {
+    this.isTestMode = false;
+    this.testPresetInfo = null;
+
     const win = this.createOrGetWindow();
     if (win.isVisible()) {
       win.hide();
+      if (win.webContents) {
+        win.webContents.send("notes:test-mode-state", { active: false });
+      }
     } else {
       if (this.getPreferences().followMouseOnOpen) {
         const cursor = screen.getCursorScreenPoint();
@@ -428,27 +448,35 @@ class NotesWindowService {
         win.setPosition(x, y, false);
       }
 
-      if (win.webContents.isLoading()) {
-        win.once("ready-to-show", () => {
+      const notifyShow = () => {
+        if (win && !win.isDestroyed()) {
           win.showInactive();
           win.moveTop();
           setTimeout(() => {
-            if (win && !win.isDestroyed()) win.focus();
+            if (win && !win.isDestroyed()) {
+              win.focus();
+              win.webContents.send("notes:test-mode-state", { active: false });
+            }
           }, 50);
-        });
+        }
+      };
+
+      if (win.webContents.isLoading()) {
+        win.once("ready-to-show", notifyShow);
       } else {
-        win.showInactive();
-        win.moveTop();
-        setTimeout(() => {
-          if (win && !win.isDestroyed()) win.focus();
-        }, 50);
+        notifyShow();
       }
     }
   }
 
   public hide() {
+    this.isTestMode = false;
+    this.testPresetInfo = null;
     if (this.window && !this.window.isDestroyed() && this.window.isVisible()) {
       this.window.hide();
+      if (this.window.webContents) {
+        this.window.webContents.send("notes:test-mode-state", { active: false });
+      }
     }
   }
 
@@ -458,6 +486,13 @@ class NotesWindowService {
     ipcMain.handle("notes:delete", (_e, id: string) => this.deleteNote(id));
     ipcMain.handle("notes:close", () => this.hide());
     ipcMain.handle("notes:toggle", () => this.toggle());
+    ipcMain.handle("notes:open-test-mode", (_e, options?: { presetId?: string; presetName?: string }) => {
+      this.openTestMode(options?.presetId, options?.presetName);
+      return { success: true };
+    });
+    ipcMain.handle("notes:get-test-mode", () => {
+      return { active: this.isTestMode, ...(this.testPresetInfo || {}) };
+    });
     ipcMain.handle("notes:get-save-location", () => this.getSaveLocation());
     ipcMain.handle("notes:select-save-location", () => this.selectSaveLocation());
     ipcMain.handle("notes:set-save-location", (_e, dirPath: string) => this.setSaveLocation(dirPath));

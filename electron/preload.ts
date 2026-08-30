@@ -19,6 +19,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getPlatform: () => ipcRenderer.invoke("app:get-platform"),
     getLoginItemSettings: () => ipcRenderer.invoke("app:get-login-item-settings"),
     setLoginItemSettings: (config) => ipcRenderer.invoke("app:set-login-item-settings", config),
+    updateTray: (settings) => ipcRenderer.invoke("app:update-tray", settings),
+    onTrayTogglePause: (callback) => {
+      const handler = () => callback();
+      ipcRenderer.on("tray:toggle-pause", handler);
+      return () => ipcRenderer.removeListener("tray:toggle-pause", handler);
+    },
+    onTrayOpenSettings: (callback) => {
+      const handler = () => callback();
+      ipcRenderer.on("tray:open-settings", handler);
+      return () => ipcRenderer.removeListener("tray:open-settings", handler);
+    },
   },
   actions: {
     run: (action) => ipcRenderer.invoke("action:run", action),
@@ -142,9 +153,22 @@ contextBridge.exposeInMainWorld("electronAPI", {
     delete: (id) => ipcRenderer.invoke("notes:delete", id),
     close: () => ipcRenderer.invoke("notes:close"),
     toggle: () => ipcRenderer.invoke("notes:toggle"),
+    openTestMode: (options) => ipcRenderer.invoke("notes:open-test-mode", options),
+    getTestMode: () => ipcRenderer.invoke("notes:get-test-mode"),
+    onTestModeState: (callback) => {
+      const handler = (_event, state) => callback(state);
+      ipcRenderer.on("notes:test-mode-state", handler);
+      return () => {
+        ipcRenderer.removeListener("notes:test-mode-state", handler);
+      };
+    },
     getSaveLocation: () => ipcRenderer.invoke("notes:get-save-location"),
     selectSaveLocation: () => ipcRenderer.invoke("notes:select-save-location"),
     setSaveLocation: (dirPath) => ipcRenderer.invoke("notes:set-save-location", dirPath),
+    getPreferences: () => ipcRenderer.invoke("notes:get-preferences"),
+    updatePreferences: (patch) => ipcRenderer.invoke("notes:update-preferences", patch),
+    resetWindowSize: () => ipcRenderer.invoke("notes:reset-window-size"),
+    saveCurrentWindowSize: (preset) => ipcRenderer.invoke("notes:save-current-window-size", preset),
     pickFile: (options) => ipcRenderer.invoke("notes:pick-file", options),
     minimize: () => ipcRenderer.invoke("notes:minimize"),
     maximize: () => ipcRenderer.invoke("notes:maximize"),

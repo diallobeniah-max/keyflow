@@ -11,6 +11,9 @@ interface AppInfo {
   getPlatform: () => Promise<string>;
   getLoginItemSettings: () => Promise<{ openAtLogin: boolean; openAsHidden?: boolean }>;
   setLoginItemSettings: (config: { openAtLogin: boolean; openAsHidden?: boolean }) => Promise<{ openAtLogin: boolean; openAsHidden?: boolean }>;
+  updateTray: (settings: { enabled: boolean; theme?: "dark" | "light" | "system"; paused?: boolean }) => Promise<boolean>;
+  onTrayTogglePause: (callback: () => void) => () => void;
+  onTrayOpenSettings: (callback: () => void) => () => void;
 }
 
 interface ActionResult {
@@ -118,15 +121,28 @@ interface NotesItem {
   updatedAt: number;
 }
 
+interface NotesWindowPreferences {
+  windowSizePreset: "comfortable" | "compact";
+  followMouseOnOpen: boolean;
+  windowPresetSizes: Record<"comfortable" | "compact", { width: number; height: number }>;
+}
+
 interface NotesAPI {
   getAll: () => Promise<NotesItem[]>;
   save: (note: NotesItem) => Promise<NotesItem[]>;
   delete: (id: string) => Promise<NotesItem[]>;
   close: () => Promise<void>;
   toggle: () => Promise<void>;
+  openTestMode?: (options?: { presetId?: string; presetName?: string }) => Promise<{ success: boolean }>;
+  getTestMode?: () => Promise<{ active: boolean; presetId?: string; presetName?: string }>;
+  onTestModeState?: (callback: (state: { active: boolean; presetId?: string; presetName?: string }) => void) => () => void;
   getSaveLocation?: () => Promise<string>;
   selectSaveLocation?: () => Promise<{ path: string; notes: NotesItem[] } | null>;
   setSaveLocation?: (dirPath: string) => Promise<{ path: string; notes: NotesItem[] }>;
+  getPreferences?: () => Promise<NotesWindowPreferences>;
+  updatePreferences?: (patch: Partial<NotesWindowPreferences>) => Promise<NotesWindowPreferences>;
+  resetWindowSize?: () => Promise<NotesWindowPreferences>;
+  saveCurrentWindowSize?: (preset: string) => Promise<NotesWindowPreferences>;
   pickFile?: (options: { type?: "image" | "video" | "file" }) => Promise<string | null>;
   minimize?: () => Promise<void>;
   maximize?: () => Promise<void>;

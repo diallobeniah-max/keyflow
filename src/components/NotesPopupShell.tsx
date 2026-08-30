@@ -153,46 +153,49 @@ export function NotesPopupShell() {
     range: Range;
   } | null>(null);
 
-  // Test Mode State & Live Window Dimensions
-  const [testModeInfo, setTestModeInfo] = useState<{ active: boolean; presetId: string; presetName: string } | null>(() => {
-    try {
-      const saved = localStorage.getItem("keyflow:notes-test-mode");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.active && Date.now() - (parsed.timestamp || 0) < 1800000) {
-          return parsed;
-        }
-      }
-    } catch {}
-    return null;
-  });
-
+  // Test Mode State & Live Window Dimensions (Only active when opened via Test Mode button)
+  const [testModeInfo, setTestModeInfo] = useState<{ active: boolean; presetId: string; presetName: string } | null>(null);
   const [liveWindowSize, setLiveWindowSize] = useState<{ width: number; height: number }>({
     width: window.innerWidth,
     height: window.innerHeight,
   });
+  const [hudToast, setHudToast] = useState<string | null>(null);
+  const [showSaveNewPopover, setShowSaveNewPopover] = useState(false);
 
   useEffect(() => {
+    // Query initial test mode state from Electron
+    window.electronAPI?.notes?.getTestMode?.().then((res: any) => {
+      if (res?.active) {
+        setTestModeInfo({
+          active: true,
+          presetId: res.presetId || "large",
+          presetName: res.presetName || (res.presetId === "compact" ? "Compact" : "Large"),
+        });
+      }
+    });
+
+    // Listen for live test mode IPC events from Electron
+    const unsub = window.electronAPI?.notes?.onTestModeState?.((state: any) => {
+      if (state?.active) {
+        setTestModeInfo({
+          active: true,
+          presetId: state.presetId || "large",
+          presetName: state.presetName || (state.presetId === "compact" ? "Compact" : "Large"),
+        });
+      } else {
+        setTestModeInfo(null);
+      }
+    });
+
     const handleResize = () => {
       setLiveWindowSize({ width: window.innerWidth, height: window.innerHeight });
     };
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
-  useEffect(() => {
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === "keyflow:notes-test-mode") {
-        try {
-          const parsed = e.newValue ? JSON.parse(e.newValue) : null;
-          setTestModeInfo(parsed?.active ? parsed : null);
-        } catch {
-          setTestModeInfo(null);
-        }
-      }
+    return () => {
+      unsub?.();
+      window.removeEventListener("resize", handleResize);
     };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -497,44 +500,61 @@ export function NotesPopupShell() {
   const handleTestModeUpdatePreset = async () => {
     if (!testModeInfo) return;
     const { width, height } = liveWindowSize;
-    if (testModeInfo.presetId === "comfortable" || testModeInfo.presetId === "compact") {
+    const targetPresetId = testModeInfo.presetId === "comfortable" ? "large" : testModeInfo.presetId;
+    const targetName = testModeInfo.presetName || (targetPresetId === "compact" ? "Compact" : "Large");
+
+    if (targetPresetId === "large" || targetPresetId === "compact") {
       await updateNotesPreferences({
         windowPresetSizes: {
           ...notesPreferences.windowPresetSizes,
-          [testModeInfo.presetId]: { width, height },
-        },
+          [targetPresetId]: { width, height },
+        } as any,
       });
     } else {
       const customs = (notesPreferences as any).customPresets || [];
       const updated = customs.map((cp: any) =>
-        cp.id === testModeInfo.presetId ? { ...cp, width, height } : cp
+        cp.id === targetPresetId ? { ...cp, width, height } : cp
       );
       await updateNotesPreferences({
         customPresets: updated,
       });
     }
+
+    if (window.electronAPI?.notes?.saveCurrentWindowSize) {
+      await window.electronAPI.notes.saveCurrentWindowSize(targetPresetId);
+    }
+
+    setHudToast(`✓ Updated ${targetName} to ${width} × ${height} px`);
+    setTimeout(() => setHudToast(null), 2500);
+
     localStorage.setItem(
       "keyflow:notes-preset-updated",
-      JSON.stringify({ presetId: testModeInfo.presetId, width, height, ts: Date.now() })
+      JSON.stringify({ presetId: targetPresetId, width, height, ts: Date.now() })
     );
   };
 
   const handleTestModeSaveAsNew = async () => {
     const { width, height } = liveWindowSize;
-    const name = `Preset ${width}×${height}`;
+    const name = `Custom (${width} × ${height})`;
     const id = "note-size-" + Date.now().toString(36);
     const newPreset = { id, name, width, height };
     const customs = [...((notesPreferences as any).customPresets || []), newPreset];
+
     await updateNotesPreferences({
-      windowSizePreset: id as any,
+      windowSizePreset: id,
       customPresets: customs,
     });
+
+    if (window.electronAPI?.notes?.saveCurrentWindowSize) {
+      await window.electronAPI.notes.saveCurrentWindowSize(id);
+    }
+
     const nextInfo = { active: true, presetId: id, presetName: name };
     setTestModeInfo(nextInfo);
-    localStorage.setItem(
-      "keyflow:notes-test-mode",
-      JSON.stringify({ ...nextInfo, timestamp: Date.now() })
-    );
+
+    setHudToast(`✓ Saved new preset "${name}"`);
+    setTimeout(() => setHudToast(null), 2500);
+
     localStorage.setItem(
       "keyflow:notes-preset-updated",
       JSON.stringify({ presetId: id, width, height, ts: Date.now() })
@@ -542,27 +562,25 @@ export function NotesPopupShell() {
   };
 
   const handleTestModeDeletePreset = async () => {
-    if (!testModeInfo || testModeInfo.presetId === "comfortable" || testModeInfo.presetId === "compact") return;
+    if (!testModeInfo || testModeInfo.presetId === "large" || testModeInfo.presetId === "comfortable" || testModeInfo.presetId === "compact") return;
     const customs = ((notesPreferences as any).customPresets || []).filter((cp: any) => cp.id !== testModeInfo.presetId);
     await updateNotesPreferences({
-      windowSizePreset: "comfortable",
+      windowSizePreset: "large",
       customPresets: customs,
     });
-    const nextInfo = { active: true, presetId: "comfortable", presetName: "Comfortable" };
+    const nextInfo = { active: true, presetId: "large", presetName: "Large" };
     setTestModeInfo(nextInfo);
-    localStorage.setItem(
-      "keyflow:notes-test-mode",
-      JSON.stringify({ ...nextInfo, timestamp: Date.now() })
-    );
+    setHudToast("✓ Custom preset deleted");
+    setTimeout(() => setHudToast(null), 2500);
+
     localStorage.setItem(
       "keyflow:notes-preset-updated",
-      JSON.stringify({ presetId: "comfortable", ts: Date.now() })
+      JSON.stringify({ presetId: "large", ts: Date.now() })
     );
   };
 
   const handleTestModeExit = () => {
     setTestModeInfo(null);
-    localStorage.removeItem("keyflow:notes-test-mode");
   };
 
   const checkSlashCommand = () => {
@@ -1248,6 +1266,13 @@ export function NotesPopupShell() {
       {/* Test Mode Floating HUD Pill */}
       {testModeInfo?.active && (
         <div className="notes-test-mode-hud no-drag-region anim-slide-up">
+          {hudToast && (
+            <div className="notes-test-hud-toast">
+              <Icon name="check" size={13} />
+              <span>{hudToast}</span>
+            </div>
+          )}
+
           <div className="notes-test-mode-hud-pill">
             <div className="notes-test-mode-hud-indicator">
               <span className="notes-test-mode-pulse" />
@@ -1268,17 +1293,41 @@ export function NotesPopupShell() {
                 <span>Update</span>
               </button>
 
-              <button
-                type="button"
-                className="btn btn-secondary btn-xs notes-test-hud-btn"
-                title="Save current dimensions as a new custom preset"
-                onClick={handleTestModeSaveAsNew}
+              <div
+                className="relative inline-flex items-center"
+                onMouseEnter={() => setShowSaveNewPopover(true)}
+                onMouseLeave={() => setShowSaveNewPopover(false)}
               >
-                <Icon name="plus" size={11} />
-                <span>Save as New</span>
-              </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-xs notes-test-hud-btn"
+                  title="Save current dimensions as a new custom preset"
+                  onClick={handleTestModeSaveAsNew}
+                >
+                  <Icon name="plus" size={11} />
+                  <span>Save as New</span>
+                </button>
 
-              {testModeInfo.presetId !== "comfortable" && testModeInfo.presetId !== "compact" && (
+                {showSaveNewPopover && (
+                  <div className="notes-test-sizes-popover anim-slide-up">
+                    <div className="notes-test-popover-header">Standard & Recent Sizes</div>
+                    <div className="notes-test-popover-item is-current">
+                      <span>Live Window</span>
+                      <span className="font-mono">{liveWindowSize.width} × {liveWindowSize.height}</span>
+                    </div>
+                    <div className="notes-test-popover-item">
+                      <span>Compact</span>
+                      <span className="font-mono">700 × 640</span>
+                    </div>
+                    <div className="notes-test-popover-item">
+                      <span>Large</span>
+                      <span className="font-mono">960 × 800</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {testModeInfo.presetId !== "large" && testModeInfo.presetId !== "comfortable" && testModeInfo.presetId !== "compact" && (
                 <button
                   type="button"
                   className="btn btn-danger btn-xs notes-test-hud-btn"

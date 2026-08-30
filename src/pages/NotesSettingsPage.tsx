@@ -113,13 +113,13 @@ export function NotesSettingsPage() {
   const [windowPreferences, setWindowPreferences] = useState<{
     windowSizePreset: string;
     followMouseOnOpen: boolean;
-    windowPresetSizes: Record<"comfortable" | "compact", { width: number; height: number }>;
+    windowPresetSizes: Record<"large" | "compact", { width: number; height: number }> & { comfortable?: { width: number; height: number } };
     customPresets?: CustomPreset[];
   }>({
-    windowSizePreset: settings.notes?.windowSizePreset ?? "comfortable",
+    windowSizePreset: settings.notes?.windowSizePreset === "comfortable" ? "large" : (settings.notes?.windowSizePreset ?? "large"),
     followMouseOnOpen: settings.notes?.followMouseOnOpen ?? true,
     windowPresetSizes: {
-      comfortable: { width: 960, height: 800 },
+      large: { width: 960, height: 800 },
       compact: { width: 700, height: 640 },
     },
     customPresets: (settings.notes as any)?.customWindowPresets ?? [],
@@ -138,11 +138,8 @@ export function NotesSettingsPage() {
   useEffect(() => {
     window.electronAPI?.notes?.getPreferences?.().then((preferences: any) => {
       if (preferences) {
-        setWindowPreferences((prev) => ({
-          ...prev,
-          ...preferences,
-          customPresets: preferences.customPresets ?? (settings.notes as any)?.customWindowPresets ?? prev.customPresets ?? [],
-        }));
+        const normalized = normalizeWindowPrefs(preferences);
+        if (normalized) setWindowPreferences(normalized);
       }
     });
 
@@ -150,11 +147,8 @@ export function NotesSettingsPage() {
       if (e.key === "keyflow:notes-preset-updated") {
         window.electronAPI?.notes?.getPreferences?.().then((preferences: any) => {
           if (preferences) {
-            setWindowPreferences((prev) => ({
-              ...prev,
-              ...preferences,
-              customPresets: preferences.customPresets ?? (settings.notes as any)?.customWindowPresets ?? prev.customPresets ?? [],
-            }));
+            const normalized = normalizeWindowPrefs(preferences);
+            if (normalized) setWindowPreferences(normalized);
           }
         });
       }
@@ -166,10 +160,10 @@ export function NotesSettingsPage() {
   const allPresets = useMemo(() => {
     const list: Array<{ id: string; name: string; width: number; height: number; isBuiltin: boolean }> = [
       {
-        id: "comfortable",
-        name: "Comfortable",
-        width: windowPreferences.windowPresetSizes.comfortable.width,
-        height: windowPreferences.windowPresetSizes.comfortable.height,
+        id: "large",
+        name: "Large",
+        width: (windowPreferences.windowPresetSizes as any)?.large?.width ?? (windowPreferences.windowPresetSizes as any)?.comfortable?.width ?? 960,
+        height: (windowPreferences.windowPresetSizes as any)?.large?.height ?? (windowPreferences.windowPresetSizes as any)?.comfortable?.height ?? 800,
         isBuiltin: true,
       },
       {
@@ -245,14 +239,28 @@ export function NotesSettingsPage() {
     patchSettings("notes", { defaultSlashCommands: current });
   };
 
+  const normalizeWindowPrefs = (prefs: any) => {
+    if (!prefs) return null;
+    const rawSizes = prefs.windowPresetSizes || {};
+    const largeSize = rawSizes.large || rawSizes.comfortable || { width: 960, height: 800 };
+    const compactSize = rawSizes.compact || { width: 700, height: 640 };
+    return {
+      windowSizePreset: prefs.windowSizePreset === "comfortable" ? "large" : (prefs.windowSizePreset || "large"),
+      followMouseOnOpen: prefs.followMouseOnOpen !== false,
+      windowPresetSizes: {
+        large: largeSize,
+        compact: compactSize,
+        comfortable: largeSize,
+      },
+      customPresets: prefs.customPresets || [],
+    };
+  };
+
   const patchWindowPreferences = async (patch: any) => {
     const next = await window.electronAPI?.notes?.updatePreferences?.(patch);
     if (next) {
-      setWindowPreferences((prev) => ({
-        ...prev,
-        ...next,
-        customPresets: (next as any).customPresets ?? patch.customPresets ?? prev.customPresets,
-      }));
+      const normalized = normalizeWindowPrefs(next);
+      if (normalized) setWindowPreferences(normalized);
     } else {
       setWindowPreferences((prev) => ({ ...prev, ...patch }));
     }
@@ -264,7 +272,10 @@ export function NotesSettingsPage() {
 
   const handleResetWindowSize = async () => {
     const next = await window.electronAPI?.notes?.resetWindowSize?.();
-    if (next) setWindowPreferences((prev) => ({ ...prev, ...next }));
+    if (next) {
+      const normalized = normalizeWindowPrefs(next);
+      if (normalized) setWindowPreferences(normalized);
+    }
     toast("Notes window size reset to active preset", "info");
   };
 
@@ -287,11 +298,12 @@ export function NotesSettingsPage() {
     const width = Math.max(560, Math.min(Number(sizeDraft.width) || 800, 1600));
     const height = Math.max(520, Math.min(Number(sizeDraft.height) || 640, 1200));
 
-    if (editingPresetId === "comfortable" || editingPresetId === "compact") {
+    if (editingPresetId === "large" || editingPresetId === "comfortable" || editingPresetId === "compact") {
+      const pid = editingPresetId === "comfortable" ? "large" : editingPresetId;
       await patchWindowPreferences({
         windowPresetSizes: {
           ...windowPreferences.windowPresetSizes,
-          [editingPresetId]: { width, height },
+          [pid]: { width, height },
         },
       });
     } else {
@@ -325,7 +337,7 @@ export function NotesSettingsPage() {
 
   const handleDeleteCustomPreset = async (presetId: string) => {
     const updatedCustoms = (windowPreferences.customPresets || []).filter((cp) => cp.id !== presetId);
-    const nextActive = windowPreferences.windowSizePreset === presetId ? "comfortable" : windowPreferences.windowSizePreset;
+    const nextActive = windowPreferences.windowSizePreset === presetId ? "large" : windowPreferences.windowSizePreset;
 
     await patchWindowPreferences({
       windowSizePreset: nextActive,
@@ -338,7 +350,8 @@ export function NotesSettingsPage() {
   const saveCurrentWindowSize = async (presetId: string) => {
     const next = await window.electronAPI?.notes?.saveCurrentWindowSize?.(presetId as any);
     if (next) {
-      setWindowPreferences((prev) => ({ ...prev, ...next }));
+      const normalized = normalizeWindowPrefs(next);
+      if (normalized) setWindowPreferences(normalized);
       patchSettings("notes", next as any);
     }
     const target = allPresets.find((p) => p.id === presetId);
@@ -347,20 +360,19 @@ export function NotesSettingsPage() {
 
   const handleTestNotesWindow = async (presetId?: string) => {
     const targetPreset = presetId ? allPresets.find((p) => p.id === presetId) : activePreset;
-    if (targetPreset && targetPreset.id !== windowPreferences.windowSizePreset) {
-      await patchWindowPreferences({ windowSizePreset: targetPreset.id });
+    const pid = targetPreset?.id === "comfortable" ? "large" : (targetPreset?.id || "large");
+    const pname = targetPreset?.name || (pid === "compact" ? "Compact" : "Large");
+
+    if (pid !== windowPreferences.windowSizePreset) {
+      await patchWindowPreferences({ windowSizePreset: pid });
     }
-    localStorage.setItem(
-      "keyflow:notes-test-mode",
-      JSON.stringify({
-        active: true,
-        presetId: targetPreset?.id || "comfortable",
-        presetName: targetPreset?.name || "Comfortable",
-        timestamp: Date.now(),
-      })
-    );
-    await window.electronAPI?.notes?.toggle?.();
-    toast(`Opened Notes in Test Mode (${targetPreset?.name || "active"} size)`, "info");
+
+    if (window.electronAPI?.notes?.openTestMode) {
+      await window.electronAPI.notes.openTestMode({ presetId: pid, presetName: pname });
+    } else {
+      await window.electronAPI?.notes?.toggle?.();
+    }
+    toast(`Opened Notes in Test Mode (${pname} size)`, "info");
   };
 
   const handleTopSizeLiveChange = async (wStr: string, hStr: string, liveApply = false) => {
@@ -369,11 +381,12 @@ export function NotesSettingsPage() {
     const w = Number(wStr);
     const h = Number(hStr);
     if (Number.isFinite(w) && Number.isFinite(h) && w >= 560 && h >= 520 && liveApply) {
-      if (activePreset.id === "comfortable" || activePreset.id === "compact") {
+      if (activePreset.id === "large" || activePreset.id === "comfortable" || activePreset.id === "compact") {
+        const pid = activePreset.id === "comfortable" ? "large" : activePreset.id;
         await patchWindowPreferences({
           windowPresetSizes: {
             ...windowPreferences.windowPresetSizes,
-            [activePreset.id]: { width: w, height: h },
+            [pid]: { width: w, height: h },
           },
         });
       } else {
@@ -389,11 +402,12 @@ export function NotesSettingsPage() {
     const w = Math.max(560, Math.min(Number(topWidthDraft) || activePreset.width, 1600));
     const h = Math.max(520, Math.min(Number(topHeightDraft) || activePreset.height, 1200));
 
-    if (activePreset.id === "comfortable" || activePreset.id === "compact") {
+    if (activePreset.id === "large" || activePreset.id === "comfortable" || activePreset.id === "compact") {
+      const pid = activePreset.id === "comfortable" ? "large" : activePreset.id;
       await patchWindowPreferences({
         windowPresetSizes: {
           ...windowPreferences.windowPresetSizes,
-          [activePreset.id]: { width: w, height: h },
+          [pid]: { width: w, height: h },
         },
       });
     } else {
