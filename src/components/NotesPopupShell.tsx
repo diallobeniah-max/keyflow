@@ -1245,58 +1245,59 @@ export function NotesPopupShell() {
 
   return (
     <div className={"notes-popup-root" + (testModeInfo?.active ? " is-test-mode" : "")}>
-      {/* Test Mode Control Strip */}
+      {/* Test Mode Floating HUD Pill */}
       {testModeInfo?.active && (
-        <div className="notes-test-mode-bar no-drag-region">
-          <div className="notes-test-mode-badge">
-            <span className="notes-test-mode-pulse" />
-            <span className="bold">Test Mode</span>
-            <span className="notes-test-mode-dim">{liveWindowSize.width} × {liveWindowSize.height} px</span>
-            <span className="notes-test-mode-preset-name">({testModeInfo.presetName || "Custom"})</span>
-          </div>
+        <div className="notes-test-mode-hud no-drag-region anim-slide-up">
+          <div className="notes-test-mode-hud-pill">
+            <div className="notes-test-mode-hud-indicator">
+              <span className="notes-test-mode-pulse" />
+              <span className="notes-test-mode-hud-title">{testModeInfo.presetName || "Test Size"}</span>
+              <span className="notes-test-mode-hud-dim">{liveWindowSize.width} × {liveWindowSize.height} px</span>
+            </div>
 
-          <div className="notes-test-mode-actions">
-            <button
-              type="button"
-              className="btn btn-primary btn-xs"
-              title="Update active preset to current window dimensions"
-              onClick={handleTestModeUpdatePreset}
-            >
-              <Icon name="check" size={12} />
-              <span>Update Preset</span>
-            </button>
+            <div className="notes-test-mode-hud-sep" />
 
-            <button
-              type="button"
-              className="btn btn-secondary btn-xs"
-              title="Save current dimensions as a new custom preset"
-              onClick={handleTestModeSaveAsNew}
-            >
-              <Icon name="plus" size={12} />
-              <span>Save as New</span>
-            </button>
-
-            {testModeInfo.presetId !== "comfortable" && testModeInfo.presetId !== "compact" && (
+            <div className="notes-test-mode-hud-actions">
               <button
                 type="button"
-                className="btn btn-danger btn-xs"
-                title="Delete this custom preset"
-                onClick={handleTestModeDeletePreset}
+                className="btn btn-primary btn-xs notes-test-hud-btn"
+                title="Update this preset to current window size"
+                onClick={handleTestModeUpdatePreset}
               >
-                <Icon name="trash" size={12} />
-                <span>Delete</span>
+                <Icon name="check" size={11} />
+                <span>Update</span>
               </button>
-            )}
 
-            <button
-              type="button"
-              className="btn btn-ghost btn-xs"
-              title="Exit test mode"
-              onClick={handleTestModeExit}
-            >
-              <Icon name="close" size={12} />
-              <span>Exit</span>
-            </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-xs notes-test-hud-btn"
+                title="Save current dimensions as a new custom preset"
+                onClick={handleTestModeSaveAsNew}
+              >
+                <Icon name="plus" size={11} />
+                <span>Save as New</span>
+              </button>
+
+              {testModeInfo.presetId !== "comfortable" && testModeInfo.presetId !== "compact" && (
+                <button
+                  type="button"
+                  className="btn btn-danger btn-xs notes-test-hud-btn"
+                  title="Delete this custom preset"
+                  onClick={handleTestModeDeletePreset}
+                >
+                  <Icon name="trash" size={11} />
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="btn btn-ghost btn-xs notes-test-hud-btn notes-test-close-btn"
+                title="Exit test mode"
+                onClick={handleTestModeExit}
+              >
+                <Icon name="close" size={11} />
+              </button>
+            </div>
           </div>
         </div>
       )}
