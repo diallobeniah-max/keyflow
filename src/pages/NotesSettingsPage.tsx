@@ -871,46 +871,56 @@ export function NotesSettingsPage() {
           <Icon name="command" size={18} />
           <div>
             <div className="bold">Slash Commands</div>
-            <div className="tiny muted">Enable or disable commands in the floating editor</div>
+            <div className="tiny muted">Enable or disable commands and preview them live in the editor</div>
           </div>
         </div>
 
-        {Object.entries(commandsByCategory).map(([category, cmds]) => (
-          <div key={category} className="mb-md">
-            <div className="small bold muted uppercase mb-xs">{category}</div>
-            {cmds.map((cmd) => {
-              const isEnabled =
-                settings.notes?.defaultSlashCommands === undefined
-                  ? true
-                  : settings.notes.defaultSlashCommands.includes(cmd.id);
-              const isPreviewing = previewCommandId === cmd.id;
+        <div className="slash-commands-layout">
+          <div className="slash-commands-list">
+            {Object.entries(commandsByCategory).map(([category, cmds]) => (
+              <div key={category} className="mb-md">
+                <div className="small bold muted uppercase mb-xs">{category}</div>
+                {cmds.map((cmd) => {
+                  const isEnabled =
+                    settings.notes?.defaultSlashCommands === undefined
+                      ? true
+                      : settings.notes.defaultSlashCommands.includes(cmd.id);
+                  const isPreviewing = previewCommandId === cmd.id;
 
-              return (
-                <div
-                  key={cmd.id}
-                  className={"settings-row" + (isPreviewing ? " setting-row-highlight" : "")}
-                  onMouseEnter={() => setPreviewCommandId(cmd.id)}
-                >
-                  <div className="settings-row-info">
-                    <div className="row gap-xs items-center">
-                      <Icon name={cmd.icon as any} size={14} />
-                      <div className="settings-row-title">{cmd.label}</div>
-                      <span className="chip chip-subtle tiny font-mono">{cmd.id}</span>
+                  return (
+                    <div
+                      key={cmd.id}
+                      className={"settings-row slash-command-row" + (isPreviewing ? " setting-row-highlight is-previewing" : "")}
+                      onMouseEnter={() => setPreviewCommandId(cmd.id)}
+                      onClick={() => setPreviewCommandId(cmd.id)}
+                    >
+                      <div className="settings-row-info">
+                        <div className="row gap-xs items-center">
+                          <Icon name={cmd.icon as any} size={14} />
+                          <div className="settings-row-title">{cmd.label}</div>
+                          <span className="chip chip-subtle tiny font-mono">/{cmd.id}</span>
+                        </div>
+                        <div className="settings-row-desc">{cmd.hint}</div>
+                      </div>
+                      <div className="settings-row-control" onClick={(e) => e.stopPropagation()}>
+                        <Toggle
+                          label={`Enable ${cmd.label}`}
+                          checked={isEnabled}
+                          onChange={(v) => handleToggleCommand(cmd.id, v)}
+                        />
+                      </div>
                     </div>
-                    <div className="settings-row-desc">{cmd.hint}</div>
-                  </div>
-                  <div className="settings-row-control">
-                    <Toggle
-                      label={`Enable ${cmd.label}`}
-                      checked={isEnabled}
-                      onChange={(v) => handleToggleCommand(cmd.id, v)}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            ))}
           </div>
-        ))}
+
+          {/* Sticky Live Preview Panel on Hover */}
+          <div className="slash-commands-preview-sticky">
+            <SlashCommandLivePreview commandId={previewCommandId} />
+          </div>
+        </div>
       </div>
 
       {/* Notes Shortcut Card */}
@@ -964,6 +974,131 @@ export function NotesSettingsPage() {
           onClose={() => setEditingShortcutId(null)}
         />
       )}
+    </div>
+  );
+}
+
+function SlashCommandLivePreview({ commandId }: { commandId: string }) {
+  const cmd = SLASH_COMMANDS.find((c) => c.id === commandId) || SLASH_COMMANDS[0];
+
+  return (
+    <div className="slash-command-preview-card">
+      <div className="slash-command-preview-header">
+        <div className="row gap-xs items-center">
+          <Icon name={cmd.icon as any} size={15} />
+          <span className="bold small">{cmd.label}</span>
+        </div>
+        <span className="chip chip-accent tiny font-mono">/{cmd.id}</span>
+      </div>
+
+      <div className="slash-command-preview-viewport">
+        <div className="slash-command-preview-canvas">
+          <div className="slash-command-preview-doc-title">Project Notes & Ideas 📝</div>
+          <div className="slash-command-preview-output">
+            {(() => {
+              switch (cmd.id) {
+                case "text":
+                  return <p className="notes-preview-p">This is a standard body paragraph in KeyFlow Notes with clean typography and natural line height.</p>;
+                case "h1":
+                  return <h1 className="notes-preview-h1"># 1. Executive Summary</h1>;
+                case "h2":
+                  return <h2 className="notes-preview-h2">## Key Objectives & Deliverables</h2>;
+                case "h3":
+                  return <h3 className="notes-preview-h3">### Design System Architecture</h3>;
+                case "h4":
+                  return <h4 className="notes-preview-h4">#### Component Token Specs</h4>;
+                case "h5":
+                  return <h5 className="notes-preview-h5">##### Low-level win32 hooks</h5>;
+                case "divider":
+                  return (
+                    <div className="notes-preview-divider-wrap">
+                      <p className="notes-preview-p muted tiny">Section content above</p>
+                      <hr className="notes-preview-hr" />
+                      <p className="notes-preview-p muted tiny">Section content below</p>
+                    </div>
+                  );
+                case "bullet":
+                  return (
+                    <ul className="notes-preview-ul">
+                      <li>Ultra-fast global shortcuts</li>
+                      <li>Interactive hot display corners</li>
+                      <li>Floating notes with markdown preview</li>
+                    </ul>
+                  );
+                case "number":
+                  return (
+                    <ol className="notes-preview-ol">
+                      <li>Configure your trigger gesture</li>
+                      <li>Attach actions or workflows</li>
+                      <li>Execute instantly from any app</li>
+                    </ol>
+                  );
+                case "todo":
+                  return (
+                    <div className="notes-preview-todo-list">
+                      <label className="notes-preview-todo is-done">
+                        <input type="checkbox" defaultChecked readOnly />
+                        <span>Review system architecture</span>
+                      </label>
+                      <label className="notes-preview-todo">
+                        <input type="checkbox" readOnly />
+                        <span>Deploy Raycast-style previews</span>
+                      </label>
+                    </div>
+                  );
+                case "quote":
+                  return (
+                    <blockquote className="notes-preview-quote">
+                      "Simplicity is the prerequisite for reliability."
+                      <span className="notes-preview-quote-author">— Edsger W. Dijkstra</span>
+                    </blockquote>
+                  );
+                case "callout":
+                  return (
+                    <div className="notes-preview-callout">
+                      <span className="notes-preview-callout-icon">💡</span>
+                      <div>
+                        <div className="bold small">Pro Tip</div>
+                        <div className="tiny">Type /{cmd.id} anywhere in your notes to insert this block instantly.</div>
+                      </div>
+                    </div>
+                  );
+                case "code":
+                  return (
+                    <pre className="notes-preview-code">
+                      <code>{`function onShortcut(shortcut) {\n  console.log("Fired:", shortcut.name);\n  electronAPI.actions.run(shortcut.actions);\n}`}</code>
+                    </pre>
+                  );
+                case "table":
+                  return (
+                    <table className="notes-preview-table">
+                      <thead>
+                        <tr><th>Feature</th><th>Status</th><th>Shortcut</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr><td>Notes Popup</td><td><span className="chip chip-accent tiny">Active</span></td><td><span className="key-badge">Shift × 2</span></td></tr>
+                        <tr><td>Spotlight</td><td><span className="chip chip-subtle tiny">Ready</span></td><td><span className="key-badge">Ctrl+K</span></td></tr>
+                      </tbody>
+                    </table>
+                  );
+                case "emoji":
+                  return (
+                    <div className="row gap-sm items-center">
+                      <span className="notes-preview-emojis">⭐ 🚀 ✨ ⚡ 🎯 💡</span>
+                      <span className="tiny muted">Quick star & reaction emoji</span>
+                    </div>
+                  );
+                default:
+                  return <p className="notes-preview-p">{cmd.label}: {cmd.hint}</p>;
+              }
+            })()}
+          </div>
+        </div>
+      </div>
+
+      <div className="slash-command-preview-foot tiny muted">
+        <span>Usage hint: Type <b className="text-accent">/{cmd.id}</b> in note editor</span>
+      </div>
     </div>
   );
 }
