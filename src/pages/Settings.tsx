@@ -12,11 +12,51 @@ import type { SettingSearchItem } from "../lib/settingsIndex";
 import type { AppIconId, HotCornerAction, HotCornerPosition, HotCornerBuiltinAction, HotCornersCustomPreset, ScreenTintPreset, CustomCursorItem, PersistedState } from "../types";
 
 const DEFAULT_ACCENT = createDefaultSettings().appearance.accent;
-const APP_ICON_OPTIONS: Array<{ id: AppIconId; label: string; tag: string; src: string }> = [
-  { id: "monochrome", label: "Black & White", tag: "Default", src: "/app-icons/keyflow-monochrome.png" },
-  { id: "blue", label: "KeyFlow Blue", tag: "Electric", src: "/app-icons/keyflow-blue.png" },
-  { id: "green", label: "Emerald", tag: "Fresh", src: "/app-icons/keyflow-green.png" },
-  { id: "red", label: "Rose", tag: "Vibrant", src: "/app-icons/keyflow-red.png" },
+const APP_ICON_OPTIONS: Array<{
+  id: AppIconId;
+  title: string;
+  subtitle: string;
+  tag: string;
+  description: string;
+  themeClass: string;
+  src: string;
+}> = [
+  {
+    id: "monochrome",
+    title: "Obsidian Noir",
+    subtitle: "Monochrome Stealth",
+    tag: "Stealth Classic",
+    description: "Matte black titanium keycap with crisp silver velocity streak",
+    themeClass: "theme-noir",
+    src: "/app-icons/keyflow-monochrome.png",
+  },
+  {
+    id: "blue",
+    title: "Cobalt Surge",
+    subtitle: "Electric Sapphire",
+    tag: "Signature Blue",
+    description: "Electric cerulean keycap with hyper-speed neon luminescence",
+    themeClass: "theme-cobalt",
+    src: "/app-icons/keyflow-blue.png",
+  },
+  {
+    id: "green",
+    title: "Emerald Matrix",
+    subtitle: "Cyber Aurora",
+    tag: "Cyber Aurora",
+    description: "Vibrant glowing emerald keycap with high-velocity radiance",
+    themeClass: "theme-emerald",
+    src: "/app-icons/keyflow-green.png",
+  },
+  {
+    id: "red",
+    title: "Crimson Velocity",
+    subtitle: "Ignition Flare",
+    tag: "Ignition Flare",
+    description: "High-octane scarlet keycap with supercharged dynamic trail",
+    themeClass: "theme-crimson",
+    src: "/app-icons/keyflow-red.png",
+  },
 ];
 const accentPreset = (label: (typeof ACCENT_PRESETS)[number]["label"]) =>
   ACCENT_PRESETS.find((preset) => preset.label === label)?.value ?? ACCENT_PRESETS[0].value;
@@ -1320,51 +1360,93 @@ export function Settings() {
           )}
 
           {activeSection === "appIcon" && (
-            <SettingsGroup title="App Icon" icon="sparkles" desc="Choose the icon used for the KeyFlow window and notification-area tray icon.">
-              <SettingsRow id="row-app-icon" layout="stack" title="Choose an icon" desc="Changes apply immediately. Black & White is the default KeyFlow icon.">
-                <div className="app-icon-picker" role="radiogroup" aria-label="KeyFlow app icon">
-                  {APP_ICON_OPTIONS.map((option) => {
-                    const selected = (settings.appearance.appIcon ?? "monochrome") === option.id;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        className={`app-icon-card${selected ? " is-selected" : ""}`}
-                        role="radio"
-                        aria-checked={selected}
-                        aria-label={`${option.label} app icon${selected ? ", selected" : ""}`}
-                        onClick={() => patch("appearance", {
-                          appIcon: option.id,
-                          ...(settings.appearance.syncAccentWithAppIcon ? { accent: APP_ICON_ACCENTS[option.id] } : {}),
-                        })}
-                      >
-                        {selected && (
+            <SettingsGroup
+              title="App Icon Edition"
+              icon="sparkles"
+              desc="Choose the official icon aesthetic for the KeyFlow window, taskbar, and notification-area tray icon."
+            >
+              <div className="app-icon-section-header">
+                <div className="bold font-md">Icon Themes & Editions</div>
+                <div className="tiny muted mt-xxs">Select your preferred icon aesthetic. Changes apply instantly across desktop surfaces.</div>
+              </div>
+
+              <div className="app-icon-showcase-grid" role="radiogroup" aria-label="KeyFlow app icon theme">
+                {APP_ICON_OPTIONS.map((option) => {
+                  const selected = (settings.appearance.appIcon ?? "monochrome") === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`app-icon-showcase-card ${option.themeClass}${selected ? " is-selected" : ""}`}
+                      role="radio"
+                      aria-checked={selected}
+                      aria-label={`${option.title} app icon (${option.tag})${selected ? ", selected" : ""}`}
+                      onClick={() => patch("appearance", {
+                        appIcon: option.id,
+                        ...(settings.appearance.syncAccentWithAppIcon ? { accent: APP_ICON_ACCENTS[option.id] } : {}),
+                      })}
+                    >
+                      {/* Top Header Row */}
+                      <div className="app-icon-card-top">
+                        <span className="app-icon-tag-pill">{option.tag}</span>
+                        {selected ? (
                           <div className="app-icon-badge">
                             <Icon name="check" size={12} />
                           </div>
+                        ) : (
+                          <div className="app-icon-accent-dot" />
                         )}
-                        <div className="app-icon-preview-wrap">
-                          <img src={option.src} alt="" className="app-icon-preview-img" />
+                      </div>
+
+                      {/* 3D Hero Icon Preview with Ambient Glow */}
+                      <div className="app-icon-hero-wrap">
+                        <div className="app-icon-pedestal-glow" />
+                        <img src={option.src} alt={option.title} className="app-icon-hero-img" />
+                      </div>
+
+                      {/* Fancy Title & Aesthetic Description */}
+                      <div className="app-icon-content">
+                        <div className="app-icon-hero-title">{option.title}</div>
+                        <div className="app-icon-hero-subtitle">{option.subtitle}</div>
+                        <div className="app-icon-hero-desc">{option.description}</div>
+                      </div>
+
+                      {/* Bottom Status / Selection Button */}
+                      <div className="app-icon-card-footer">
+                        <div className={`app-icon-status-btn${selected ? " is-active" : ""}`}>
+                          {selected ? (
+                            <>
+                              <Icon name="check" size={12} />
+                              <span>Active Theme</span>
+                            </>
+                          ) : (
+                            <span>Set as Active</span>
+                          )}
                         </div>
-                        <div className="app-icon-info">
-                          <div className="app-icon-title">{option.label}</div>
-                          <div className="app-icon-tag">{selected ? "Active" : option.tag}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="settings-row mt-md">
+                <div className="settings-row-info">
+                  <div className="settings-row-title">Match accent color to app icon</div>
+                  <div className="settings-row-desc">
+                    Automatically sync KeyFlow's UI accent hue with your active icon theme (Slate, Blue, Emerald, or Rose).
+                  </div>
                 </div>
-              </SettingsRow>
-              <SettingsRow id="row-app-icon-accent" title="Match accent color to app icon" desc="Update KeyFlow's accent automatically when you choose a blue, green, red, or monochrome icon">
-                <Toggle
-                  label="Match accent to icon"
-                  checked={settings.appearance.syncAccentWithAppIcon ?? false}
-                  onChange={(v) => patch("appearance", {
-                    syncAccentWithAppIcon: v,
-                    ...(v ? { accent: APP_ICON_ACCENTS[settings.appearance.appIcon ?? "monochrome"] } : {}),
-                  })}
-                />
-              </SettingsRow>
+                <div className="settings-row-control">
+                  <Toggle
+                    label="Match accent to icon"
+                    checked={settings.appearance.syncAccentWithAppIcon ?? false}
+                    onChange={(v) => patch("appearance", {
+                      syncAccentWithAppIcon: v,
+                      ...(v ? { accent: APP_ICON_ACCENTS[settings.appearance.appIcon ?? "monochrome"] } : {}),
+                    })}
+                  />
+                </div>
+              </div>
             </SettingsGroup>
           )}
 
