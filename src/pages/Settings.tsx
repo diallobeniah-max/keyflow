@@ -12,11 +12,11 @@ import type { SettingSearchItem } from "../lib/settingsIndex";
 import type { AppIconId, HotCornerAction, HotCornerPosition, HotCornerBuiltinAction, HotCornersCustomPreset, ScreenTintPreset, CustomCursorItem, PersistedState } from "../types";
 
 const DEFAULT_ACCENT = createDefaultSettings().appearance.accent;
-const APP_ICON_OPTIONS: Array<{ id: AppIconId; label: string; src: string }> = [
-  { id: "monochrome", label: "Black & White", src: "/app-icons/keyflow-monochrome.png" },
-  { id: "blue", label: "Blue", src: "/app-icons/keyflow-blue.png" },
-  { id: "green", label: "Green", src: "/app-icons/keyflow-green.png" },
-  { id: "red", label: "Red", src: "/app-icons/keyflow-red.png" },
+const APP_ICON_OPTIONS: Array<{ id: AppIconId; label: string; tag: string; src: string }> = [
+  { id: "monochrome", label: "Black & White", tag: "Default", src: "/app-icons/keyflow-monochrome.png" },
+  { id: "blue", label: "KeyFlow Blue", tag: "Electric", src: "/app-icons/keyflow-blue.png" },
+  { id: "green", label: "Emerald", tag: "Fresh", src: "/app-icons/keyflow-green.png" },
+  { id: "red", label: "Rose", tag: "Vibrant", src: "/app-icons/keyflow-red.png" },
 ];
 const accentPreset = (label: (typeof ACCENT_PRESETS)[number]["label"]) =>
   ACCENT_PRESETS.find((preset) => preset.label === label)?.value ?? ACCENT_PRESETS[0].value;
@@ -1329,7 +1329,7 @@ export function Settings() {
                       <button
                         key={option.id}
                         type="button"
-                        className={`app-icon-option${selected ? " is-selected" : ""}`}
+                        className={`app-icon-card${selected ? " is-selected" : ""}`}
                         role="radio"
                         aria-checked={selected}
                         aria-label={`${option.label} app icon${selected ? ", selected" : ""}`}
@@ -1338,8 +1338,18 @@ export function Settings() {
                           ...(settings.appearance.syncAccentWithAppIcon ? { accent: APP_ICON_ACCENTS[option.id] } : {}),
                         })}
                       >
-                        <img src={option.src} alt="" className="app-icon-option-preview" />
-                        <span>{option.label}</span>
+                        {selected && (
+                          <div className="app-icon-badge">
+                            <Icon name="check" size={12} />
+                          </div>
+                        )}
+                        <div className="app-icon-preview-wrap">
+                          <img src={option.src} alt="" className="app-icon-preview-img" />
+                        </div>
+                        <div className="app-icon-info">
+                          <div className="app-icon-title">{option.label}</div>
+                          <div className="app-icon-tag">{selected ? "Active" : option.tag}</div>
+                        </div>
                       </button>
                     );
                   })}

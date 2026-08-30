@@ -2051,46 +2051,123 @@ textarea.input {
 
 .app-icon-picker {
   display: grid;
-  grid-template-columns: repeat(4, minmax(84px, 1fr));
-  gap: var(--space-2);
-  width: min(100%, 440px);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+  width: 100%;
+  margin-top: var(--space-1);
 }
 
-.app-icon-option {
+@media (max-width: 720px) {
+  .app-icon-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.app-icon-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-3) var(--space-3);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-elevated);
+  color: var(--color-text-secondary);
+  font: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: transform var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-fast), background var(--motion-fast);
+  text-align: center;
+}
+
+.app-icon-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-accent-border);
+  background: var(--color-bg-hover);
+  box-shadow: var(--shadow-card);
+}
+
+.app-icon-card:focus-visible {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus);
+}
+
+.app-icon-card.is-selected {
+  border: 1.5px solid var(--color-accent) !important;
+  background: var(--color-bg-surface-elevated);
+  color: var(--color-text-primary);
+  box-shadow: 0 0 0 1px var(--color-accent-soft), 0 8px 24px var(--color-accent-soft);
+}
+
+.app-icon-badge {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px var(--color-accent-soft);
+}
+
+.app-icon-preview-wrap {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--motion-fast);
+}
+
+.app-icon-card:hover .app-icon-preview-wrap {
+  transform: scale(1.06);
+}
+
+.app-icon-preview-img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  filter: drop-shadow(var(--shadow-md));
+}
+
+.app-icon-info {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-2);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-surface-elevated);
-  color: var(--color-text-secondary);
-  font: inherit;
-  font-size: var(--type-caption-size);
-  cursor: pointer;
+  width: 100%;
 }
 
-.app-icon-option:hover,
-.app-icon-option:focus-visible {
-  border-color: var(--color-accent-border);
-  background: var(--color-bg-hover);
-}
-
-.app-icon-option:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
-.app-icon-option.is-selected {
-  border-color: var(--color-accent);
+.app-icon-title {
+  font-size: var(--type-body-size);
+  font-weight: 600;
   color: var(--color-text-primary);
+  white-space: nowrap;
+  letter-spacing: -0.01em;
 }
 
-.app-icon-option-preview {
-  width: 52px;
-  height: 52px;
-  object-fit: contain;
+.app-icon-tag {
+  font-size: var(--type-tiny-size);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: var(--space-0) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.app-icon-card.is-selected .app-icon-tag {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-border);
+  font-weight: 600;
 }
 
 .visually-hidden,
