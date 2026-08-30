@@ -101,6 +101,22 @@ export function initNativeInput(): void {
     }).catch((error: unknown) => console.warn("[startup] configure failed", error));
   };
 
+  const syncTray = () => {
+    const state = useStore.getState();
+    const appearanceTheme = state.data.settings.appearance.theme;
+    void eapi.appInfo?.updateTray?.({
+      enabled: !!state.data.settings.general.minimizeToTray,
+      theme: appearanceTheme,
+      paused: state.paused || state.safeMode,
+      appIcon: state.data.settings.appearance.appIcon ?? "monochrome",
+    }).catch((error: unknown) => console.warn("[tray] configure failed", error));
+  };
+
+  const syncAppIcon = () => {
+    const appIcon = useStore.getState().data.settings.appearance.appIcon ?? "monochrome";
+    void eapi.appInfo?.updateIcon?.(appIcon).catch((error: unknown) => console.warn("[app-icon] configure failed", error));
+  };
+
   const syncBackup = () => {
     const dataSettings = useStore.getState().data.settings.data;
     const fullData = useStore.getState().data;
@@ -210,6 +226,17 @@ export function initNativeInput(): void {
     if (state.data.settings.general !== previous.data.settings.general) {
       syncStartup();
     }
+    if (
+      state.data.settings.general !== previous.data.settings.general ||
+      state.data.settings.appearance !== previous.data.settings.appearance ||
+      state.paused !== previous.paused ||
+      state.safeMode !== previous.safeMode
+    ) {
+      syncTray();
+    }
+    if (state.data.settings.appearance !== previous.data.settings.appearance) {
+      syncAppIcon();
+    }
 
     if (state.data.settings.data !== previous.data.settings.data || state.data !== previous.data) {
       syncBackup();
@@ -218,6 +245,8 @@ export function initNativeInput(): void {
 
   syncShortcuts();
   syncStartup();
+  syncTray();
+  syncAppIcon();
   syncBackup();
   pushPopupSnapshot();
   const initialState = useStore.getState();
@@ -226,5 +255,15 @@ export function initNativeInput(): void {
 
   eapi.input.getWasdNavigationState?.().then((active: boolean) => useStore.getState().setWasdNavigationActive(active)).catch(() => {});
 
-  cleanupFns = [unsub1, unsub2, ...(unsubNav ? [unsubNav] : []), ...(unsubHc ? [unsubHc] : [])];
+  const unsubTrayPause = eapi.appInfo?.onTrayTogglePause?.(() => useStore.getState().togglePaused());
+  const unsubTraySettings = eapi.appInfo?.onTrayOpenSettings?.(() => useStore.getState().setPage("settings"));
+
+  cleanupFns = [
+    unsub1,
+    unsub2,
+    ...(unsubNav ? [unsubNav] : []),
+    ...(unsubHc ? [unsubHc] : []),
+    ...(unsubTrayPause ? [unsubTrayPause] : []),
+    ...(unsubTraySettings ? [unsubTraySettings] : []),
+  ];
 }

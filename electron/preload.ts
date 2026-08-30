@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getLoginItemSettings: () => ipcRenderer.invoke("app:get-login-item-settings"),
     setLoginItemSettings: (config) => ipcRenderer.invoke("app:set-login-item-settings", config),
     updateTray: (settings) => ipcRenderer.invoke("app:update-tray", settings),
+    updateIcon: (icon) => ipcRenderer.invoke("app:update-icon", icon),
     onTrayTogglePause: (callback) => {
       const handler = () => callback();
       ipcRenderer.on("tray:toggle-pause", handler);
@@ -154,7 +155,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     close: () => ipcRenderer.invoke("notes:close"),
     toggle: () => ipcRenderer.invoke("notes:toggle"),
     openTestMode: (options) => ipcRenderer.invoke("notes:open-test-mode", options),
+    exitTestMode: () => ipcRenderer.invoke("notes:exit-test-mode"),
     getTestMode: () => ipcRenderer.invoke("notes:get-test-mode"),
+    syncTestMode: () => ipcRenderer.invoke("notes:sync-test-mode"),
     onTestModeState: (callback) => {
       const handler = (_event, state) => callback(state);
       ipcRenderer.on("notes:test-mode-state", handler);

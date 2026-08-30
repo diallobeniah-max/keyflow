@@ -39,9 +39,10 @@ export function Dashboard() {
   const favorites = data.shortcuts.filter((s) => s.favorite);
   const displayedShortcuts = favorites.length > 0 ? favorites : data.shortcuts.slice(0, 6);
 
-  const hyperEnabled = !!data.settings.shortcuts?.hyperKeyEnabled;
-  const hyperKey = data.settings.shortcuts?.hyperKey || "CapsLock";
-  const soundEnabled = !!data.settings.general?.soundFeedback;
+  const hyperConfig = data.settings.shortcuts?.hyperKeyConfig;
+  const hyperEnabled = hyperConfig?.enabled ?? false;
+  const hyperKey = hyperConfig?.key || "CapsLock";
+  const soundEnabled = data.settings.audio?.enabled ?? true;
   const dragZonesEnabled = !!data.settings.dragSwitcher?.enabled;
   const repeatProtection = !!data.settings.shortcuts?.keyRepeatProtection;
 
@@ -169,7 +170,17 @@ export function Dashboard() {
             <Toggle
               label="Toggle Super Key"
               checked={hyperEnabled}
-              onChange={() => patch("shortcuts", { hyperKeyEnabled: !hyperEnabled })}
+              onChange={() => patch("shortcuts", {
+                hyperKeyConfig: {
+                  ...(hyperConfig ?? {
+                    key: "AltRight",
+                    includeShift: false,
+                    tapActionId: "showPopup",
+                    suppressOriginal: true,
+                  }),
+                  enabled: !hyperEnabled,
+                },
+              })}
             />
           </div>
           <p className="muted tiny mb-sm">
@@ -342,7 +353,7 @@ export function Dashboard() {
             <Toggle
               label="Toggle Sound Feedback"
               checked={soundEnabled}
-              onChange={() => patch("general", { soundFeedback: !soundEnabled })}
+              onChange={() => patch("audio", { enabled: !soundEnabled })}
             />
           </div>
           <p className="muted tiny mb-sm">

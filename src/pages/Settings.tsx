@@ -9,9 +9,24 @@ import { IconPickerModal } from "../components/ui/IconPickerModal";
 import { getSafeHyperKeySuggestions } from "../lib/conflict";
 import { createDefaultSettings } from "../lib/defaults";
 import type { SettingSearchItem } from "../lib/settingsIndex";
-import type { HotCornerAction, HotCornerPosition, HotCornerBuiltinAction, HotCornersCustomPreset, ScreenTintPreset, CustomCursorItem } from "../types";
+import type { AppIconId, HotCornerAction, HotCornerPosition, HotCornerBuiltinAction, HotCornersCustomPreset, ScreenTintPreset, CustomCursorItem, PersistedState } from "../types";
 
 const DEFAULT_ACCENT = createDefaultSettings().appearance.accent;
+const APP_ICON_OPTIONS: Array<{ id: AppIconId; label: string; src: string }> = [
+  { id: "monochrome", label: "Black & White", src: "/app-icons/keyflow-monochrome.png" },
+  { id: "blue", label: "Blue", src: "/app-icons/keyflow-blue.png" },
+  { id: "green", label: "Green", src: "/app-icons/keyflow-green.png" },
+  { id: "red", label: "Red", src: "/app-icons/keyflow-red.png" },
+];
+const accentPreset = (label: (typeof ACCENT_PRESETS)[number]["label"]) =>
+  ACCENT_PRESETS.find((preset) => preset.label === label)?.value ?? ACCENT_PRESETS[0].value;
+
+const APP_ICON_ACCENTS: Record<AppIconId, string> = {
+  monochrome: accentPreset("Slate"),
+  blue: accentPreset("KeyFlow Blue"),
+  green: accentPreset("Emerald"),
+  red: accentPreset("Rose"),
+};
 
 type SettingsSection = SettingSearchItem["category"];
 
@@ -31,6 +46,7 @@ const SECTIONS: SectionTab[] = [
   { id: "screenTint", label: "Screen Tint", icon: "sun" },
   { id: "popup", label: "Popup Menu", icon: "popup" },
   { id: "appearance", label: "Appearance", icon: "monitor" },
+  { id: "appIcon", label: "App Icon", icon: "sparkles" },
   { id: "privacy", label: "Privacy & Safety", icon: "shield" },
   { id: "data", label: "Data & Backup", icon: "folder" },
   { id: "advanced", label: "Advanced", icon: "terminal" },
@@ -92,10 +108,31 @@ export function Settings() {
     URL.revokeObjectURL(url);
   };
 
-  const importJson = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const importJson = async (e: ChangeEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
-    file.text().then((txt) => importState(JSON.parse(txt)));
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      const backup = parsed as Partial<PersistedState>;
+      if (
+        !parsed ||
+        typeof parsed !== "object" ||
+        !Array.isArray(backup.profiles) ||
+        !Array.isArray(backup.shortcuts) ||
+        !Array.isArray(backup.library) ||
+        !backup.settings ||
+        typeof backup.settings !== "object"
+      ) {
+        throw new Error("invalid-backup");
+      }
+      importState(backup as PersistedState);
+      setBackupStatus("Backup imported successfully.");
+    } catch {
+      setBackupStatus("Could not import that file. Choose a valid KeyFlow backup.");
+    } finally {
+      input.value = "";
+    }
   };
 
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
@@ -1270,6 +1307,52 @@ export function Settings() {
                   label="Reduce motion"
                   checked={settings.appearance.reduceMotion}
                   onChange={(v) => patch("appearance", { reduceMotion: v })}
+                />
+              </SettingsRow>
+              <SettingsRow id="row-app-hover-help" title="Hover help" desc="Show contextual explanations and keyboard hints when you hover controls">
+                <Toggle
+                  label="Show hover help"
+                  checked={settings.appearance.showHoverHelp !== false}
+                  onChange={(v) => patch("appearance", { showHoverHelp: v })}
+                />
+              </SettingsRow>
+            </SettingsGroup>
+          )}
+
+          {activeSection === "appIcon" && (
+            <SettingsGroup title="App Icon" icon="sparkles" desc="Choose the icon used for the KeyFlow window and notification-area tray icon.">
+              <SettingsRow id="row-app-icon" layout="stack" title="Choose an icon" desc="Changes apply immediately. Black & White is the default KeyFlow icon.">
+                <div className="app-icon-picker" role="radiogroup" aria-label="KeyFlow app icon">
+                  {APP_ICON_OPTIONS.map((option) => {
+                    const selected = (settings.appearance.appIcon ?? "monochrome") === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={`app-icon-option${selected ? " is-selected" : ""}`}
+                        role="radio"
+                        aria-checked={selected}
+                        aria-label={`${option.label} app icon${selected ? ", selected" : ""}`}
+                        onClick={() => patch("appearance", {
+                          appIcon: option.id,
+                          ...(settings.appearance.syncAccentWithAppIcon ? { accent: APP_ICON_ACCENTS[option.id] } : {}),
+                        })}
+                      >
+                        <img src={option.src} alt="" className="app-icon-option-preview" />
+                        <span>{option.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </SettingsRow>
+              <SettingsRow id="row-app-icon-accent" title="Match accent color to app icon" desc="Update KeyFlow's accent automatically when you choose a blue, green, red, or monochrome icon">
+                <Toggle
+                  label="Match accent to icon"
+                  checked={settings.appearance.syncAccentWithAppIcon ?? false}
+                  onChange={(v) => patch("appearance", {
+                    syncAccentWithAppIcon: v,
+                    ...(v ? { accent: APP_ICON_ACCENTS[settings.appearance.appIcon ?? "monochrome"] } : {}),
+                  })}
                 />
               </SettingsRow>
             </SettingsGroup>

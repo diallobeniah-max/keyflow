@@ -3,6 +3,9 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
+  Menu,
+  nativeTheme,
+  Tray,
 } from "electron";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -38,6 +41,9 @@ const FILE_PROTOCOL = "file://";
 const PRELOAD_PATH = join(__dirname, "preload.js");
 
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let trayEnabled = false;
+let quittingFromTray = false;
 let inputService: NativeInputService | null = null;
 let popupManager: PopupWindowManager | null = null;
 let dragSwitcherManager: DragSwitcherWindowManager | null = null;
@@ -54,6 +60,109 @@ let suppressionStatus = "unavailable";
 let suppressionBackend = "unavailable";
 /** keyName -> mode for keys owned by the AHK suppression helper. */
 let suppressionKeyModes = new Map<string, string>();
+
+type TraySettings = {
+  enabled: boolean;
+  theme?: "dark" | "light" | "system";
+  paused?: boolean;
+  appIcon?: AppIconId;
+};
+
+type AppIconId = "monochrome" | "blue" | "green" | "red";
+
+const DEFAULT_APP_ICON: AppIconId = "monochrome";
+const APP_ICON_FILES: Record<AppIconId, string> = {
+  monochrome: "keyflow-monochrome.png",
+  blue: "keyflow-blue.png",
+  green: "keyflow-green.png",
+  red: "keyflow-red.png",
+};
+
+function showMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function normalizeAppIconId(icon: unknown): AppIconId {
+  return typeof icon === "string" && icon in APP_ICON_FILES ? icon as AppIconId : DEFAULT_APP_ICON;
+}
+
+function getAppIconPath(icon: unknown = DEFAULT_APP_ICON): string | undefined {
+  const file = APP_ICON_FILES[normalizeAppIconId(icon)];
+  const candidates = [
+    join(process.cwd(), "public", "app-icons", file),
+    join(__dirname, "../dist/app-icons", file),
+    join(app.getAppPath(), "dist", "app-icons", file),
+    join(__dirname, "../build/icon.ico"),
+    join(process.cwd(), "build/icon.ico"),
+    join(app.getAppPath(), "build/icon.ico"),
+  ];
+  return candidates.find((path) => existsSync(path));
+}
+
+function applyAppIcon(icon: unknown = DEFAULT_APP_ICON): boolean {
+  const iconPath = getAppIconPath(icon);
+  if (!iconPath) return false;
+  mainWindow?.setIcon(iconPath);
+  tray?.setImage(iconPath);
+  return true;
+}
+
+function refreshTrayMenu(paused = false): void {
+  if (!tray) return;
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: paused ? "KeyFlow • Paused" : "KeyFlow • Active", enabled: false },
+    { type: "separator" },
+    { label: "Open KeyFlow", click: () => showMainWindow() },
+    { label: "Open Notes", click: () => notesService.toggle() },
+    {
+      label: paused ? "Resume KeyFlow" : "Pause KeyFlow",
+      click: () => mainWindow?.webContents.send("tray:toggle-pause"),
+    },
+    { type: "separator" },
+    { label: "Settings", click: () => {
+      showMainWindow();
+      mainWindow?.webContents.send("tray:open-settings");
+    } },
+    { type: "separator" },
+    { label: "Quit KeyFlow", click: () => {
+      quittingFromTray = true;
+      app.quit();
+    } },
+  ]));
+}
+
+function updateTray(settings: TraySettings): boolean {
+  trayEnabled = !!settings.enabled;
+  nativeTheme.themeSource = settings.theme === "dark" || settings.theme === "light" ? settings.theme : "system";
+
+  if (!trayEnabled) {
+    tray?.destroy();
+    tray = null;
+    return false;
+  }
+
+  if (!tray) {
+    const iconPath = getAppIconPath(settings.appIcon);
+    if (!iconPath) {
+      console.error("[tray] KeyFlow icon was not found; tray icon not created.");
+      return false;
+    }
+    tray = new Tray(iconPath);
+    tray.setToolTip("KeyFlow");
+    tray.on("click", () => showMainWindow());
+    console.log("[tray] created");
+  } else {
+    applyAppIcon(settings.appIcon);
+  }
+  refreshTrayMenu(!!settings.paused);
+  return true;
+}
 
 let nativeConfigVersion = 0;
 let lastSentSpecsJson = "";
@@ -102,7 +211,7 @@ function createWindow(): void {
   console.log(`[keyflow] __dirname: ${__dirname}`);
   console.log(`[keyflow] DEV_URL: ${DEV_URL}`);
 
-  const iconPath = join(__dirname, "../build/icon.ico");
+  const iconPath = getAppIconPath();
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -111,7 +220,7 @@ function createWindow(): void {
     center: true,
     frame: false,
     show: false,
-    icon: existsSync(iconPath) ? iconPath : undefined,
+    icon: iconPath,
     backgroundColor: "#121316",
     webPreferences: {
       preload: PRELOAD_PATH,
@@ -212,6 +321,13 @@ function createWindow(): void {
     popupManager?.destroy();
     dragSwitcherManager?.destroy();
   });
+
+  mainWindow.on("close", (event) => {
+    if (trayEnabled && !quittingFromTray) {
+      event.preventDefault();
+      mainWindow?.hide();
+    }
+  });
 }
 
 function registerIPC(): void {
@@ -311,6 +427,8 @@ function registerIPC(): void {
     console.log(`[startup] configured openAtLogin=${result.openAtLogin} openAsHidden=${result.openAsHidden ?? false} packaged=${app.isPackaged}`);
     return result;
   });
+  ipcMain.handle("app:update-tray", (_event, settings: TraySettings) => updateTray(settings ?? { enabled: false }));
+  ipcMain.handle("app:update-icon", (_event, icon: unknown) => applyAppIcon(icon));
 
   notesService.setupIPC();
 
@@ -723,6 +841,7 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
+  if (trayEnabled && !quittingFromTray) return;
   restoreSystemCursor();
   inputService?.stop();
   ahkManager?.stop();
@@ -731,6 +850,8 @@ app.on("window-all-closed", () => {
 });
 
 app.on("will-quit", () => {
+  tray?.destroy();
+  tray = null;
   restoreSystemCursor();
   inputService?.stop();
   ahkManager?.stop();

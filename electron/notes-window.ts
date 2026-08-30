@@ -359,13 +359,7 @@ class NotesWindowService {
       },
     });
 
-    const isDev = !app.isPackaged;
-    const devUrl = process.env.KEYFLOW_DEV_SERVER_URL || process.env.VITE_DEV_SERVER_URL;
-    if (isDev && devUrl) {
-      this.window.loadURL(`${devUrl}?window=notes`);
-    } else {
-      this.window.loadFile(join(__dirname, "../dist/index.html"), { search: "?window=notes" });
-    }
+    this.loadNotesRenderer(this.window);
 
     this.window.on("closed", () => {
       this.window = null;
@@ -382,6 +376,40 @@ class NotesWindowService {
     return this.window;
   }
 
+  private loadNotesRenderer(win: BrowserWindow, testMode = false) {
+    const testQuery = testMode
+      ? `&testMode=1&presetId=${encodeURIComponent(this.testPresetInfo?.presetId || "large")}`
+      : "";
+    const isDev = !app.isPackaged;
+    const devUrl = process.env.KEYFLOW_DEV_SERVER_URL || process.env.VITE_DEV_SERVER_URL;
+    if (isDev && devUrl) {
+      void win.loadURL(`${devUrl}?window=notes${testQuery}`);
+    } else {
+      void win.loadFile(join(__dirname, "../dist/index.html"), { search: `?window=notes${testQuery}` });
+    }
+  }
+
+  private publishTestModeState(win: BrowserWindow | null, active: boolean) {
+    if (!win || win.isDestroyed()) return;
+
+    const state = active
+      ? {
+          active: true,
+          presetId: this.testPresetInfo?.presetId || "large",
+          presetName: this.testPresetInfo?.presetName || "Large",
+        }
+      : { active: false };
+    const publish = () => {
+      if (!win.isDestroyed()) win.webContents.send("notes:test-mode-state", state);
+    };
+
+    if (win.webContents.isLoading()) {
+      win.webContents.once("did-finish-load", publish);
+    } else {
+      publish();
+    }
+  }
+
   public openTestMode(presetId?: string, presetName?: string) {
     this.isTestMode = true;
     const targetId = presetId === "comfortable" ? "large" : (presetId || "large");
@@ -392,6 +420,7 @@ class NotesWindowService {
     this.updatePreferences({ windowSizePreset: targetId });
 
     const win = this.createOrGetWindow();
+    this.loadNotesRenderer(win, true);
     if (!win.isVisible()) {
       if (this.getPreferences().followMouseOnOpen) {
         const cursor = screen.getCursorScreenPoint();
@@ -408,33 +437,22 @@ class NotesWindowService {
     }
     win.focus();
 
-    const sendTestState = () => {
-      if (win && !win.isDestroyed() && win.webContents) {
-        win.webContents.send("notes:test-mode-state", {
-          active: true,
-          presetId: this.testPresetInfo?.presetId || "large",
-          presetName: this.testPresetInfo?.presetName || "Large",
-        });
-      }
-    };
-
-    if (win.webContents.isLoading()) {
-      win.once("ready-to-show", sendTestState);
-    } else {
-      sendTestState();
-    }
+    this.publishTestModeState(win, true);
   }
 
   public toggle() {
+    const wasTestMode = this.isTestMode;
     this.isTestMode = false;
     this.testPresetInfo = null;
 
     const win = this.createOrGetWindow();
+    if (wasTestMode || win.webContents.getURL().includes("testMode=1")) {
+      this.loadNotesRenderer(win, false);
+    }
+    // Regular shortcut/menu opens must never inherit the size-testing controls.
+    this.publishTestModeState(win, false);
     if (win.isVisible()) {
       win.hide();
-      if (win.webContents) {
-        win.webContents.send("notes:test-mode-state", { active: false });
-      }
     } else {
       if (this.getPreferences().followMouseOnOpen) {
         const cursor = screen.getCursorScreenPoint();
@@ -455,7 +473,6 @@ class NotesWindowService {
           setTimeout(() => {
             if (win && !win.isDestroyed()) {
               win.focus();
-              win.webContents.send("notes:test-mode-state", { active: false });
             }
           }, 50);
         }
@@ -474,10 +491,15 @@ class NotesWindowService {
     this.testPresetInfo = null;
     if (this.window && !this.window.isDestroyed() && this.window.isVisible()) {
       this.window.hide();
-      if (this.window.webContents) {
-        this.window.webContents.send("notes:test-mode-state", { active: false });
-      }
     }
+    this.publishTestModeState(this.window, false);
+  }
+
+  public exitTestMode() {
+    this.isTestMode = false;
+    this.testPresetInfo = null;
+    this.publishTestModeState(this.window, false);
+    return { success: true };
   }
 
   public setupIPC() {
@@ -490,8 +512,16 @@ class NotesWindowService {
       this.openTestMode(options?.presetId, options?.presetName);
       return { success: true };
     });
+    ipcMain.handle("notes:exit-test-mode", () => this.exitTestMode());
     ipcMain.handle("notes:get-test-mode", () => {
       return { active: this.isTestMode, ...(this.testPresetInfo || {}) };
+    });
+    ipcMain.handle("notes:sync-test-mode", (event) => {
+      const state = { active: this.isTestMode, ...(this.testPresetInfo || {}) };
+      // The renderer requests this only after its listener is attached, so a
+      // test-session HUD cannot be lost while the Notes window is loading.
+      event.sender.send("notes:test-mode-state", state);
+      return state;
     });
     ipcMain.handle("notes:get-save-location", () => this.getSaveLocation());
     ipcMain.handle("notes:select-save-location", () => this.selectSaveLocation());

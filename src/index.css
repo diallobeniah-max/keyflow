@@ -2049,6 +2049,50 @@ textarea.input {
   width: 100%;
 }
 
+.app-icon-picker {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(84px, 1fr));
+  gap: var(--space-2);
+  width: min(100%, 440px);
+}
+
+.app-icon-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-elevated);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--type-caption-size);
+  cursor: pointer;
+}
+
+.app-icon-option:hover,
+.app-icon-option:focus-visible {
+  border-color: var(--color-accent-border);
+  background: var(--color-bg-hover);
+}
+
+.app-icon-option:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.app-icon-option.is-selected {
+  border-color: var(--color-accent);
+  color: var(--color-text-primary);
+}
+
+.app-icon-option-preview {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+}
+
 .visually-hidden,
 .sr-only {
   position: absolute !important;

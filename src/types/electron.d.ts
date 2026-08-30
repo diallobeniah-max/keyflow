@@ -11,7 +11,8 @@ interface AppInfo {
   getPlatform: () => Promise<string>;
   getLoginItemSettings: () => Promise<{ openAtLogin: boolean; openAsHidden?: boolean }>;
   setLoginItemSettings: (config: { openAtLogin: boolean; openAsHidden?: boolean }) => Promise<{ openAtLogin: boolean; openAsHidden?: boolean }>;
-  updateTray: (settings: { enabled: boolean; theme?: "dark" | "light" | "system"; paused?: boolean }) => Promise<boolean>;
+  updateTray: (settings: { enabled: boolean; theme?: "dark" | "light" | "system"; paused?: boolean; appIcon?: "monochrome" | "blue" | "green" | "red" }) => Promise<boolean>;
+  updateIcon: (icon: "monochrome" | "blue" | "green" | "red") => Promise<boolean>;
   onTrayTogglePause: (callback: () => void) => () => void;
   onTrayOpenSettings: (callback: () => void) => () => void;
 }
@@ -134,7 +135,9 @@ interface NotesAPI {
   close: () => Promise<void>;
   toggle: () => Promise<void>;
   openTestMode?: (options?: { presetId?: string; presetName?: string }) => Promise<{ success: boolean }>;
+  exitTestMode?: () => Promise<{ success: boolean }>;
   getTestMode?: () => Promise<{ active: boolean; presetId?: string; presetName?: string }>;
+  syncTestMode?: () => Promise<{ active: boolean; presetId?: string; presetName?: string }>;
   onTestModeState?: (callback: (state: { active: boolean; presetId?: string; presetName?: string }) => void) => () => void;
   getSaveLocation?: () => Promise<string>;
   selectSaveLocation?: () => Promise<{ path: string; notes: NotesItem[] } | null>;

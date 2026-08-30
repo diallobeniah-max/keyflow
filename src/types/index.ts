@@ -174,6 +174,7 @@ export type FontSize = "small" | "default" | "normal" | "large" | "xlarge";
 export type BackdropMaterial = "mica" | "acrylic" | "solid";
 export type HeaderAccentTint = "none" | "subtle" | "medium" | "glow";
 export type HeaderAccentFit = "full" | "compact" | "banner";
+export type AppIconId = "monochrome" | "blue" | "green" | "red";
 
 export interface AppearanceSettings {
   theme: ThemeMode;
@@ -188,6 +189,12 @@ export interface AppearanceSettings {
   backdropMaterial?: BackdropMaterial;
   headerAccentTint?: HeaderAccentTint;
   headerAccentFit?: HeaderAccentFit;
+  /** Selected KeyFlow window and notification-area icon. */
+  appIcon?: AppIconId;
+  /** Keep the interface accent aligned with the selected KeyFlow app icon. */
+  syncAccentWithAppIcon?: boolean;
+  /** Show contextual hover help for icon-only controls and keyboard hints. */
+  showHoverHelp?: boolean;
 }
 
 export interface HyperKeyConfig {
@@ -275,6 +282,8 @@ export interface NotesSettings {
   enableSpotlight?: boolean;
   defaultSidebarOpen?: boolean;
   enableRevisionHistory?: boolean;
+  windowSizePreset?: "comfortable" | "compact";
+  followMouseOnOpen?: boolean;
 }
 
 export interface AdvancedSettings {

@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useStore } from "../store/useStore";
 
 interface TooltipState {
   visible: boolean;
@@ -13,6 +14,7 @@ interface TooltipState {
  * with keyboard shortcut badges (<kbd>) and smooth animations, replacing the browser's default OS tooltip.
  */
 export function GlobalTooltip() {
+  const enabled = useStore((state) => state.data.settings.appearance.showHoverHelp !== false);
   const [tooltip, setTooltip] = useState<TooltipState>({
     visible: false,
     text: "",
@@ -40,6 +42,8 @@ export function GlobalTooltip() {
 
       currentTargetRef.current = target;
       if (timerRef.current) clearTimeout(timerRef.current);
+
+      if (!enabled) return;
 
       const now = Date.now();
       const isWarm = now - lastActiveTimeRef.current < 250;
@@ -102,7 +106,7 @@ export function GlobalTooltip() {
       document.removeEventListener("scroll", handleDismiss, true);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [enabled]);
 
   if (!tooltip.visible || !tooltip.targetRect || !tooltip.text) {
     return null;

@@ -154,7 +154,16 @@ export function NotesPopupShell() {
   } | null>(null);
 
   // Test Mode State & Live Window Dimensions (Only active when opened via Test Mode button)
-  const [testModeInfo, setTestModeInfo] = useState<{ active: boolean; presetId: string; presetName: string } | null>(null);
+  const [testModeInfo, setTestModeInfo] = useState<{ active: boolean; presetId: string; presetName: string } | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("testMode") !== "1") return null;
+    const presetId = params.get("presetId") || "large";
+    return {
+      active: true,
+      presetId,
+      presetName: presetId === "compact" ? "Compact" : "Large",
+    };
+  });
   const [liveWindowSize, setLiveWindowSize] = useState<{ width: number; height: number }>({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -163,19 +172,7 @@ export function NotesPopupShell() {
   const [showSaveNewPopover, setShowSaveNewPopover] = useState(false);
 
   useEffect(() => {
-    // Query initial test mode state from Electron
-    window.electronAPI?.notes?.getTestMode?.().then((res: any) => {
-      if (res?.active) {
-        setTestModeInfo({
-          active: true,
-          presetId: res.presetId || "large",
-          presetName: res.presetName || (res.presetId === "compact" ? "Compact" : "Large"),
-        });
-      }
-    });
-
-    // Listen for live test mode IPC events from Electron
-    const unsub = window.electronAPI?.notes?.onTestModeState?.((state: any) => {
+    const applyTestModeState = (state: any) => {
       if (state?.active) {
         setTestModeInfo({
           active: true,
@@ -185,7 +182,14 @@ export function NotesPopupShell() {
       } else {
         setTestModeInfo(null);
       }
-    });
+    };
+
+    // Register first, then acknowledge readiness. This makes the size HUD
+    // available only for an explicit test session, even on a newly created window.
+    const unsub = window.electronAPI?.notes?.onTestModeState?.(applyTestModeState);
+    const syncTestMode = window.electronAPI?.notes?.syncTestMode?.()
+      ?? window.electronAPI?.notes?.getTestMode?.();
+    void syncTestMode?.then(applyTestModeState);
 
     const handleResize = () => {
       setLiveWindowSize({ width: window.innerWidth, height: window.innerHeight });
@@ -581,6 +585,7 @@ export function NotesPopupShell() {
 
   const handleTestModeExit = () => {
     setTestModeInfo(null);
+    void window.electronAPI?.notes?.exitTestMode?.();
   };
 
   const checkSlashCommand = () => {

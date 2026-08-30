@@ -16,6 +16,7 @@ export interface SettingSearchItem {
     | "popup"
     | "audio"
     | "appearance"
+    | "appIcon"
     | "screenTint"
     | "privacy"
     | "data"
@@ -29,6 +30,33 @@ export interface SettingSearchItem {
 }
 
 export const SETTINGS_INDEX: SettingSearchItem[] = [
+  {
+    id: "app-icon",
+    title: "App icon",
+    category: "appIcon",
+    categoryLabel: "App Icon",
+    description: "Choose the KeyFlow icon used by the app window and system tray.",
+    keywords: ["icon", "logo", "tray", "taskbar", "window icon", "app appearance"],
+    anchorId: "row-app-icon",
+  },
+  {
+    id: "app-icon-accent",
+    title: "Match accent color to app icon",
+    category: "appIcon",
+    categoryLabel: "App Icon",
+    description: "Automatically update KeyFlow's accent color when the app icon changes.",
+    keywords: ["accent", "color", "icon color", "blue", "green", "red", "automatic"],
+    anchorId: "row-app-icon-accent",
+  },
+  {
+    id: "app-hover-help",
+    title: "Hover help",
+    category: "appearance",
+    categoryLabel: "Appearance",
+    description: "Show or hide contextual hover explanations and shortcut hints.",
+    keywords: ["tooltip", "hover", "hints", "help", "key functions", "explanations"],
+    anchorId: "row-app-hover-help",
+  },
   // General
   {
     id: "gen-startup",

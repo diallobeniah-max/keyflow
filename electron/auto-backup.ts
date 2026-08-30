@@ -1,5 +1,6 @@
 import { writeFileSync, readdirSync, unlinkSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
+import { randomUUID } from "crypto";
 
 interface AutoBackupConfig {
   enabled: boolean;
@@ -7,7 +8,7 @@ interface AutoBackupConfig {
   intervalMinutes: number;
 }
 
-class AutoBackupService {
+export class AutoBackupService {
   private timer: ReturnType<typeof setInterval> | null = null;
   private config: AutoBackupConfig = { enabled: false, path: "", intervalMinutes: 360 };
   private getState: (() => unknown) | null = null;
@@ -42,19 +43,24 @@ class AutoBackupService {
     }
 
     try {
+      const state = this.getState();
+      if (!state) {
+        return { success: false, error: "No application state is available to back up yet" };
+      }
+
       // Ensure directory exists
       if (!existsSync(this.config.path)) {
         mkdirSync(this.config.path, { recursive: true });
       }
 
-      // Generate timestamped filename
+      // Keep the timestamp readable while guaranteeing repeated backups never
+      // overwrite one another, even when created within the same minute.
       const now = new Date();
-      const timestamp = now.toISOString().replace(/[:.]/g, "-").slice(0, 16);
-      const filename = `keyflow-backup-${timestamp}.json`;
+      const timestamp = now.toISOString().replace(/[:.]/g, "-");
+      const filename = `keyflow-backup-${timestamp}-${randomUUID().slice(0, 8)}.json`;
       const filePath = join(this.config.path, filename);
 
       // Write backup
-      const state = this.getState();
       writeFileSync(filePath, JSON.stringify(state, null, 2), "utf-8");
       this.lastBackupTime = Date.now();
 

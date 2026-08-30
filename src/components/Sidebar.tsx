@@ -1,4 +1,15 @@
 import { useRef, useEffect, useState } from "react";
+import {
+  Books,
+  Desktop,
+  GearSix,
+  Keyboard,
+  NoteBlank,
+  Plus,
+  SquaresFour,
+  UsersThree,
+  type Icon as PhosphorIcon,
+} from "@phosphor-icons/react";
 import { useStore } from "../store/useStore";
 import { AppPage } from "../types";
 import { Icon } from "./Icon";
@@ -8,7 +19,7 @@ import { AppSelect } from "./ui/AppSelect";
 interface NavItem {
   page: AppPage;
   label: string;
-  icon: string;
+  icon: PhosphorIcon;
   badge?: number;
 }
 
@@ -56,17 +67,17 @@ export function Sidebar() {
   const activeShortcutsCount = shortcuts.filter((s) => s.profileId === activeId && s.enabled).length;
 
   const NAV_MAIN: NavItem[] = [
-    { page: "dashboard", label: "Overview", icon: "dashboard" },
-    { page: "shortcuts", label: "Shortcuts", icon: "shortcuts", badge: activeShortcutsCount },
-    { page: "create", label: "Create", icon: "create" },
-    { page: "visual", label: "Keyboard Map", icon: "visual" },
+    { page: "dashboard", label: "Overview", icon: SquaresFour },
+    { page: "shortcuts", label: "Shortcuts", icon: Keyboard, badge: activeShortcutsCount },
+    { page: "create", label: "Create", icon: Plus },
+    { page: "visual", label: "Keyboard Map", icon: Desktop },
   ];
 
   const NAV_MANAGE: NavItem[] = [
-    { page: "profiles", label: "Profiles", icon: "profiles", badge: profiles.length },
-    { page: "library", label: "Action Library", icon: "library" },
-    { page: "notes", label: "Notes", icon: "file" },
-    { page: "settings", label: "Settings", icon: "settings" },
+    { page: "profiles", label: "Profiles", icon: UsersThree, badge: profiles.length },
+    { page: "library", label: "Action Library", icon: Books },
+    { page: "notes", label: "Notes", icon: NoteBlank },
+    { page: "settings", label: "Settings", icon: GearSix },
   ];
 
   useEffect(() => {
@@ -165,6 +176,7 @@ export function Sidebar() {
           <div className="nav-list">
             {NAV_MAIN.map((n) => {
               const isActive = current === n.page;
+              const NavIcon = n.icon;
               return (
                 <button
                   key={n.page}
@@ -174,7 +186,7 @@ export function Sidebar() {
                   className={"nav-item" + (isActive ? " active" : "")}
                   aria-current={isActive ? "page" : undefined}
                 >
-                  <Icon name={n.icon} size={17} />
+                  <NavIcon size={18} weight={isActive ? "fill" : "regular"} aria-hidden="true" />
                   {!collapsed && (
                     <>
                       <span className="nav-item-label">{n.label}</span>
@@ -194,6 +206,7 @@ export function Sidebar() {
           <div className="nav-list">
             {NAV_MANAGE.map((n) => {
               const isActive = current === n.page;
+              const NavIcon = n.icon;
               return (
                 <button
                   key={n.page}
@@ -203,7 +216,7 @@ export function Sidebar() {
                   className={"nav-item" + (isActive ? " active" : "")}
                   aria-current={isActive ? "page" : undefined}
                 >
-                  <Icon name={n.icon} size={17} />
+                  <NavIcon size={18} weight={isActive ? "fill" : "regular"} aria-hidden="true" />
                   {!collapsed && (
                     <>
                       <span className="nav-item-label">{n.label}</span>

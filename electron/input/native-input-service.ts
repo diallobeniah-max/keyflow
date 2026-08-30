@@ -60,6 +60,7 @@ export class NativeInputService {
   }
 
   stop(): void {
+    if (this.status === "stopped") return;
     try {
       uIOhook.removeListener("keydown", this.handleKeyDown);
       uIOhook.removeListener("keyup", this.handleKeyUp);

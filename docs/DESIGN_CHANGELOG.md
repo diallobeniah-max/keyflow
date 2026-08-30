@@ -1,5 +1,32 @@
 # Design Changelog
 
+## 2026-08-30 — Selectable KeyFlow app icons
+
+* Added an **App Icon** Settings category with monochrome, blue, green, and red KeyFlow artwork.
+* Black & White is the persisted default. Changing the selection updates the running KeyFlow window and the Windows notification-area icon immediately.
+* Added an optional accent-sync toggle for selected icon colors, plus an Appearance toggle for global contextual hover help.
+
+## 2026-08-30 — System tray and editable Notes size previews
+
+* **Windows tray integration (`main.ts`, `preload.ts`, `native-input.ts`)**:
+  - The existing Minimize to system tray setting now immediately creates or removes the Windows notification-area icon.
+  - Added a KeyFlow context menu with Open KeyFlow, Open Notes, Pause/Resume, Settings, and Quit. Its native theme follows the selected KeyFlow light, dark, or system theme.
+
+* **Notes size controls (`NotesSettingsPage.tsx`, `NotesPopupShell.tsx`, `notes-window.ts`)**:
+  - Added visual Comfortable and Compact previews, pen-icon dimension editing, and Save current after manually resizing the Notes window.
+  - Corrected the All Notes sort menu stacking so it can extend over the editor without being clipped.
+
+## 2026-08-30 — Notes window sizing and durable storage
+
+* **Notes window controls (`NotesPopupShell.tsx`, `notes-window.ts`, `NotesSettingsPage.tsx`)**:
+  - Added a default comfortable Notes window size (960 × 800) and a compact 700 × 640 alternative; both remain manually resizable and a reset action returns to the selected preset.
+  - Added an accessible Follow mouse on open preference in both Notes settings and Quick Actions. When off, the window keeps its last position.
+  - Added a hover-or-click sort menu to All Notes for Recent first and Oldest first ordering, while pinned notes stay above the selected order.
+
+* **Durable local notes (`notes-window.ts`)**:
+  - A new note is written to the configured location immediately, and the first welcome note is also persisted instead of living only in renderer state.
+  - Changing a save folder now snapshots existing notes before updating the directory configuration, preventing an empty destination from replacing the user's existing notes.
+
 ## 2026-08-28 — Resizable Sidebar, Top Bar Accent Tint & Windows 11 Mica / Acrylic Effects
 
 * **Resizable Sidebar Divider (`Sidebar.tsx`, `useStore.ts`, `index.css`)**:

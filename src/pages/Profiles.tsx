@@ -24,7 +24,6 @@ export function Profiles() {
   const remove = useStore((s) => s.deleteProfile);
   const duplicate = useStore((s) => s.duplicateProfile);
   const setDefault = useStore((s) => s.setDefaultProfile);
-  const addRule = useStore((s) => s.addAppRule);
   const removeRule = useStore((s) => s.removeAppRule);
 
   const [editing, setEditing] = useState<Profile | null>(null);
@@ -71,7 +70,7 @@ export function Profiles() {
                     name="edit"
                     size={15}
                     title="Edit profile"
-                    onClick={() => setEditing(p)}
+                    onClick={() => setEditing({ ...p, appRules: p.appRules.map((rule) => ({ ...rule })) })}
                   />
                   <IconButton
                     name="copy"
@@ -199,23 +198,15 @@ export function Profiles() {
                   icon="create"
                   onClick={() => {
                     if (!ruleExe.trim() || !editing) return;
-                    addRule(editing.id, {
+                    const rule: AppRule = {
                       id: uid("rule"),
                       exe: ruleExe.trim(),
                       profileId: editing.id,
                       mode: ruleMode,
-                    });
+                    };
                     setEditing({
                       ...editing,
-                      appRules: [
-                        ...editing.appRules,
-                        {
-                          id: uid("rule-local"),
-                          exe: ruleExe.trim(),
-                          profileId: editing.id,
-                          mode: ruleMode,
-                        },
-                      ],
+                      appRules: [...editing.appRules, rule],
                     });
                     setRuleExe("");
                   }}

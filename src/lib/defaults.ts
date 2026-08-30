@@ -39,6 +39,9 @@ export function createDefaultSettings(): Settings {
       backdropMaterial: "mica",
       headerAccentTint: "subtle",
       headerAccentFit: "full",
+      appIcon: "monochrome",
+      syncAccentWithAppIcon: false,
+      showHoverHelp: true,
     },
     shortcuts: {
       globalPause: "Ctrl+Shift+P",
@@ -160,6 +163,8 @@ export function createDefaultSettings(): Settings {
       showCharCount: true,
       fontSize: "default",
       spellCheck: true,
+      windowSizePreset: "comfortable",
+      followMouseOnOpen: true,
     },
   };
 }
