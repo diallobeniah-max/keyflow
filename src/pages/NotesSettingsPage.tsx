@@ -509,7 +509,7 @@ export function NotesSettingsPage() {
                   onChange={(value) => void patchWindowPreferences({ windowSizePreset: value })}
                   options={allPresets.map((p) => ({
                     value: p.id,
-                    label: `Use ${p.name} (${p.width} × ${p.height})`,
+                    label: `${p.name} · ${p.width} × ${p.height} px`,
                   }))}
                 />
               </div>
