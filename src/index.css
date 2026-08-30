@@ -5737,30 +5737,39 @@ body {
 }
 
 .notes-size-top-toolbar {
-  align-items: flex-start;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
 }
 
 .notes-size-top-controls {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--space-2);
+  flex-shrink: 0;
 }
 
-.notes-size-top-inputs {
+.notes-size-top-action-group {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
 }
 
-.notes-size-top-inputs .input {
-  width: 78px;
+.notes-size-dim-inputs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.notes-size-dim-inputs .input {
+  width: 72px;
   min-width: 0;
 }
 
-.notes-size-active-select {
-  min-width: 220px;
+.notes-size-select-wrap {
+  min-width: 190px;
 }
 
 .notes-size-preview-grid {

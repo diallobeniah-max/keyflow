@@ -145,6 +145,22 @@ export function NotesSettingsPage() {
         }));
       }
     });
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "keyflow:notes-preset-updated") {
+        window.electronAPI?.notes?.getPreferences?.().then((preferences: any) => {
+          if (preferences) {
+            setWindowPreferences((prev) => ({
+              ...prev,
+              ...preferences,
+              customPresets: preferences.customPresets ?? (settings.notes as any)?.customWindowPresets ?? prev.customPresets ?? [],
+            }));
+          }
+        });
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
   }, [settings.notes]);
 
   const allPresets = useMemo(() => {
@@ -334,8 +350,17 @@ export function NotesSettingsPage() {
     if (targetPreset && targetPreset.id !== windowPreferences.windowSizePreset) {
       await patchWindowPreferences({ windowSizePreset: targetPreset.id });
     }
+    localStorage.setItem(
+      "keyflow:notes-test-mode",
+      JSON.stringify({
+        active: true,
+        presetId: targetPreset?.id || "comfortable",
+        presetName: targetPreset?.name || "Comfortable",
+        timestamp: Date.now(),
+      })
+    );
     await window.electronAPI?.notes?.toggle?.();
-    toast(`Toggled Notes pad (${targetPreset?.name || "active"} size)`, "info");
+    toast(`Opened Notes in Test Mode (${targetPreset?.name || "active"} size)`, "info");
   };
 
   const handleTopSizeLiveChange = async (wStr: string, hStr: string, liveApply = false) => {
@@ -429,26 +454,28 @@ export function NotesSettingsPage() {
             </div>
           </div>
           <div className="settings-row-control notes-size-top-controls">
-            <div className="notes-size-top-inputs">
-              <Input
-                aria-label="Active preset width"
-                type="number"
-                min="560"
-                max="1600"
-                value={topWidthDraft}
-                onChange={(e) => void handleTopSizeLiveChange(e.target.value, topHeightDraft, true)}
-                title="Width (px) - live updates open window"
-              />
-              <span className="tiny muted">×</span>
-              <Input
-                aria-label="Active preset height"
-                type="number"
-                min="520"
-                max="1200"
-                value={topHeightDraft}
-                onChange={(e) => void handleTopSizeLiveChange(topWidthDraft, e.target.value, true)}
-                title="Height (px) - live updates open window"
-              />
+            <div className="notes-size-top-action-group">
+              <div className="notes-size-dim-inputs">
+                <Input
+                  aria-label="Active preset width"
+                  type="number"
+                  min="560"
+                  max="1600"
+                  value={topWidthDraft}
+                  onChange={(e) => void handleTopSizeLiveChange(e.target.value, topHeightDraft, true)}
+                  title="Width (px) - live updates open window"
+                />
+                <span className="tiny muted">×</span>
+                <Input
+                  aria-label="Active preset height"
+                  type="number"
+                  min="520"
+                  max="1200"
+                  value={topHeightDraft}
+                  onChange={(e) => void handleTopSizeLiveChange(topWidthDraft, e.target.value, true)}
+                  title="Height (px) - live updates open window"
+                />
+              </div>
               <Button
                 variant="primary"
                 size="sm"
@@ -474,18 +501,18 @@ export function NotesSettingsPage() {
                 onClick={() => void saveCurrentWindowSize(activePreset.id)}
                 title="Capture dimensions from the manually resized floating window"
               >
-                Capture Window
+                Capture
               </Button>
-            </div>
-            <div className="notes-size-active-select">
-              <Select
-                value={windowPreferences.windowSizePreset}
-                onChange={(value) => void patchWindowPreferences({ windowSizePreset: value })}
-                options={allPresets.map((p) => ({
-                  value: p.id,
-                  label: `Use ${p.name} (${p.width} × ${p.height})`,
-                }))}
-              />
+              <div className="notes-size-select-wrap">
+                <Select
+                  value={windowPreferences.windowSizePreset}
+                  onChange={(value) => void patchWindowPreferences({ windowSizePreset: value })}
+                  options={allPresets.map((p) => ({
+                    value: p.id,
+                    label: `Use ${p.name} (${p.width} × ${p.height})`,
+                  }))}
+                />
+              </div>
             </div>
           </div>
         </div>

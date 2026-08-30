@@ -13,6 +13,15 @@ export interface Note {
   updatedAt: number;
 }
 
+type NotesSortOrder = "recent" | "oldest";
+
+type NotesWindowPreferences = {
+  windowSizePreset: "comfortable" | "compact" | string;
+  followMouseOnOpen: boolean;
+  windowPresetSizes: Record<"comfortable" | "compact", { width: number; height: number }>;
+  customPresets?: Array<{ id: string; name: string; width: number; height: number }>;
+};
+
 const DEFAULT_WELCOME_NOTE: Note = {
   id: "welcome-note",
   title: "Welcome to KeyFlow Notes 📝",
@@ -102,6 +111,19 @@ export function NotesPopupShell() {
   const [fabMenuOpen, setFabMenuOpen] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [isLeavingFab, setIsLeavingFab] = useState(false);
+  const [sortOrder, setSortOrder] = useState<NotesSortOrder>(() => {
+    return localStorage.getItem("keyflow:notes-sort-order") === "oldest" ? "oldest" : "recent";
+  });
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [sortMenuPinnedOpen, setSortMenuPinnedOpen] = useState(false);
+  const [notesPreferences, setNotesPreferences] = useState<NotesWindowPreferences>({
+    windowSizePreset: "comfortable",
+    followMouseOnOpen: true,
+    windowPresetSizes: {
+      comfortable: { width: 960, height: 800 },
+      compact: { width: 700, height: 640 },
+    },
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const saved = localStorage.getItem("keyflow:notes-sidebar-w");
@@ -131,6 +153,48 @@ export function NotesPopupShell() {
     range: Range;
   } | null>(null);
 
+  // Test Mode State & Live Window Dimensions
+  const [testModeInfo, setTestModeInfo] = useState<{ active: boolean; presetId: string; presetName: string } | null>(() => {
+    try {
+      const saved = localStorage.getItem("keyflow:notes-test-mode");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.active && Date.now() - (parsed.timestamp || 0) < 1800000) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return null;
+  });
+
+  const [liveWindowSize, setLiveWindowSize] = useState<{ width: number; height: number }>({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setLiveWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "keyflow:notes-test-mode") {
+        try {
+          const parsed = e.newValue ? JSON.parse(e.newValue) : null;
+          setTestModeInfo(parsed?.active ? parsed : null);
+        } catch {
+          setTestModeInfo(null);
+        }
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   const titleInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -139,6 +203,7 @@ export function NotesPopupShell() {
   const saveTimerRef = useRef<any>(null);
   const fabLeaveTimeoutRef = useRef<any>(null);
   const suppressStrayKeyUntilRef = useRef<number>(Date.now() + 350);
+  const sortMenuPinnedOpenRef = useRef(false);
 
   useEffect(() => {
     if (!isResizingSidebar) return;
@@ -168,6 +233,12 @@ export function NotesPopupShell() {
     if (window.electronAPI?.notes?.getSaveLocation) {
       window.electronAPI.notes.getSaveLocation().then((loc: string) => {
         if (loc) setSaveLocation(loc);
+      });
+    }
+
+    if (window.electronAPI?.notes?.getPreferences) {
+      window.electronAPI.notes.getPreferences().then((preferences) => {
+        if (preferences) setNotesPreferences(preferences);
       });
     }
 
@@ -325,7 +396,10 @@ export function NotesPopupShell() {
     setNotes(updated);
     setActiveNoteId(newNote.id);
     if (window.electronAPI?.notes?.save) {
-      window.electronAPI.notes.save(newNote);
+      // Save before the first keystroke, so a refresh or update cannot lose this note.
+      window.electronAPI.notes.save(newNote).then((savedNotes) => {
+        if (savedNotes?.length) setNotes(savedNotes);
+      });
     }
     // Auto-focus title input on next tick
     setTimeout(() => {
@@ -388,6 +462,107 @@ export function NotesPopupShell() {
         setSaveStatus("saved");
       }
     }
+  };
+
+  const handleSetSortOrder = (nextSortOrder: NotesSortOrder) => {
+    setSortOrder(nextSortOrder);
+    localStorage.setItem("keyflow:notes-sort-order", nextSortOrder);
+    setSortMenuOpen(false);
+    sortMenuPinnedOpenRef.current = false;
+    setSortMenuPinnedOpen(false);
+  };
+
+  const toggleSortMenu = () => {
+    const nextPinnedOpen = !sortMenuPinnedOpenRef.current;
+    sortMenuPinnedOpenRef.current = nextPinnedOpen;
+    setSortMenuPinnedOpen(nextPinnedOpen);
+    setSortMenuOpen(nextPinnedOpen);
+  };
+
+  const updateNotesPreferences = async (patch: Partial<NotesWindowPreferences>) => {
+    const update = window.electronAPI?.notes?.updatePreferences;
+    if (!update) return;
+    const preferences = await update(patch as any);
+    setNotesPreferences(preferences as any);
+  };
+
+  const handleResetWindowSize = async () => {
+    const reset = window.electronAPI?.notes?.resetWindowSize;
+    if (!reset) return;
+    const preferences = await reset();
+    setNotesPreferences(preferences);
+    setFabMenuOpen(false);
+  };
+
+  const handleTestModeUpdatePreset = async () => {
+    if (!testModeInfo) return;
+    const { width, height } = liveWindowSize;
+    if (testModeInfo.presetId === "comfortable" || testModeInfo.presetId === "compact") {
+      await updateNotesPreferences({
+        windowPresetSizes: {
+          ...notesPreferences.windowPresetSizes,
+          [testModeInfo.presetId]: { width, height },
+        },
+      });
+    } else {
+      const customs = (notesPreferences as any).customPresets || [];
+      const updated = customs.map((cp: any) =>
+        cp.id === testModeInfo.presetId ? { ...cp, width, height } : cp
+      );
+      await updateNotesPreferences({
+        customPresets: updated,
+      });
+    }
+    localStorage.setItem(
+      "keyflow:notes-preset-updated",
+      JSON.stringify({ presetId: testModeInfo.presetId, width, height, ts: Date.now() })
+    );
+  };
+
+  const handleTestModeSaveAsNew = async () => {
+    const { width, height } = liveWindowSize;
+    const name = `Preset ${width}×${height}`;
+    const id = "note-size-" + Date.now().toString(36);
+    const newPreset = { id, name, width, height };
+    const customs = [...((notesPreferences as any).customPresets || []), newPreset];
+    await updateNotesPreferences({
+      windowSizePreset: id as any,
+      customPresets: customs,
+    });
+    const nextInfo = { active: true, presetId: id, presetName: name };
+    setTestModeInfo(nextInfo);
+    localStorage.setItem(
+      "keyflow:notes-test-mode",
+      JSON.stringify({ ...nextInfo, timestamp: Date.now() })
+    );
+    localStorage.setItem(
+      "keyflow:notes-preset-updated",
+      JSON.stringify({ presetId: id, width, height, ts: Date.now() })
+    );
+  };
+
+  const handleTestModeDeletePreset = async () => {
+    if (!testModeInfo || testModeInfo.presetId === "comfortable" || testModeInfo.presetId === "compact") return;
+    const customs = ((notesPreferences as any).customPresets || []).filter((cp: any) => cp.id !== testModeInfo.presetId);
+    await updateNotesPreferences({
+      windowSizePreset: "comfortable",
+      customPresets: customs,
+    });
+    const nextInfo = { active: true, presetId: "comfortable", presetName: "Comfortable" };
+    setTestModeInfo(nextInfo);
+    localStorage.setItem(
+      "keyflow:notes-test-mode",
+      JSON.stringify({ ...nextInfo, timestamp: Date.now() })
+    );
+    localStorage.setItem(
+      "keyflow:notes-preset-updated",
+      JSON.stringify({ presetId: "comfortable", ts: Date.now() })
+    );
+  };
+
+  const handleTestModeExit = () => {
+    setTestModeInfo(null);
+    localStorage.removeItem("keyflow:notes-test-mode");
   };
 
   const checkSlashCommand = () => {
@@ -1020,14 +1195,15 @@ export function NotesPopupShell() {
     URL.revokeObjectURL(url);
   };
 
-  // Sorted notes: pinned first, then newest updated
+  // Pinned notes remain at the top; the chosen order applies within each group.
   const sortedNotes = useMemo(() => {
     return [...notes].sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
-      return (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt);
+      const difference = (a.updatedAt || a.createdAt) - (b.updatedAt || b.createdAt);
+      return sortOrder === "recent" ? -difference : difference;
     });
-  }, [notes]);
+  }, [notes, sortOrder]);
 
   const filteredNotes = useMemo(() => {
     if (!searchQuery.trim()) return sortedNotes;
@@ -1068,7 +1244,63 @@ export function NotesPopupShell() {
   }, [plainText]);
 
   return (
-    <div className="notes-popup-root">
+    <div className={"notes-popup-root" + (testModeInfo?.active ? " is-test-mode" : "")}>
+      {/* Test Mode Control Strip */}
+      {testModeInfo?.active && (
+        <div className="notes-test-mode-bar no-drag-region">
+          <div className="notes-test-mode-badge">
+            <span className="notes-test-mode-pulse" />
+            <span className="bold">Test Mode</span>
+            <span className="notes-test-mode-dim">{liveWindowSize.width} × {liveWindowSize.height} px</span>
+            <span className="notes-test-mode-preset-name">({testModeInfo.presetName || "Custom"})</span>
+          </div>
+
+          <div className="notes-test-mode-actions">
+            <button
+              type="button"
+              className="btn btn-primary btn-xs"
+              title="Update active preset to current window dimensions"
+              onClick={handleTestModeUpdatePreset}
+            >
+              <Icon name="check" size={12} />
+              <span>Update Preset</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary btn-xs"
+              title="Save current dimensions as a new custom preset"
+              onClick={handleTestModeSaveAsNew}
+            >
+              <Icon name="plus" size={12} />
+              <span>Save as New</span>
+            </button>
+
+            {testModeInfo.presetId !== "comfortable" && testModeInfo.presetId !== "compact" && (
+              <button
+                type="button"
+                className="btn btn-danger btn-xs"
+                title="Delete this custom preset"
+                onClick={handleTestModeDeletePreset}
+              >
+                <Icon name="trash" size={12} />
+                <span>Delete</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs"
+              title="Exit test mode"
+              onClick={handleTestModeExit}
+            >
+              <Icon name="close" size={12} />
+              <span>Exit</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Window Header Strip */}
       <header className="notes-popup-header popup-drag-region">
         {/* Left: Hamburger menu toggle for All Notes & Folder Popover */}
@@ -1220,6 +1452,55 @@ export function NotesPopupShell() {
               <span className="notes-sidebar-total">{filteredNotes.length}</span>
             </div>
             <div className="row gap-xxs items-center no-drag-region">
+              <div
+                className="notes-sort-menu-anchor"
+                onMouseEnter={() => setSortMenuOpen(true)}
+                onMouseLeave={() => {
+                  if (!sortMenuPinnedOpenRef.current) setSortMenuOpen(false);
+                }}
+              >
+                <button
+                  type="button"
+                  className={"notes-sidebar-action-btn" + (sortMenuOpen || sortMenuPinnedOpen ? " is-active" : "")}
+                  title={`Sort notes: ${sortOrder === "recent" ? "recent first" : "oldest first"}`}
+                  aria-label="Choose note sort order"
+                  aria-haspopup="menu"
+                  aria-expanded={sortMenuOpen || sortMenuPinnedOpen}
+                  onMouseDown={toggleSortMenu}
+                  onClick={(event) => {
+                    // Keyboard activation does not fire mouse events.
+                    if (event.detail === 0) toggleSortMenu();
+                  }}
+                >
+                  <Icon name="arrows" size={13} />
+                </button>
+                {(sortMenuOpen || sortMenuPinnedOpen) && (
+                  <div className="notes-sort-menu" role="menu" aria-label="Note sort order">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={sortOrder === "recent"}
+                      className={"notes-sort-menu-item" + (sortOrder === "recent" ? " is-selected" : "")}
+                      onClick={() => handleSetSortOrder("recent")}
+                    >
+                      <Icon name="chevronDown" size={12} />
+                      <span>Recent first</span>
+                      {sortOrder === "recent" && <Icon name="check" size={12} />}
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={sortOrder === "oldest"}
+                      className={"notes-sort-menu-item" + (sortOrder === "oldest" ? " is-selected" : "")}
+                      onClick={() => handleSetSortOrder("oldest")}
+                    >
+                      <Icon name="chevronUp" size={12} />
+                      <span>Oldest first</span>
+                      {sortOrder === "oldest" && <Icon name="check" size={12} />}
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 className="notes-sidebar-action-btn"
@@ -2148,6 +2429,49 @@ export function NotesPopupShell() {
                           <div className="notes-fab-item-copy">
                             <span className="notes-fab-item-title">{activeNote.pinned ? "Unpin Note" : "Pin Note"}</span>
                             <span className="notes-fab-item-desc">{activeNote.pinned ? "Keep in list" : "Pin to top of list"}</span>
+                          </div>
+                        </button>
+
+                        <div className="notes-fab-menu-divider" role="separator" />
+                        <div className="notes-fab-menu-label">Window</div>
+                        <button
+                          type="button"
+                          className="notes-fab-item"
+                          onClick={() => void updateNotesPreferences({
+                            windowSizePreset: notesPreferences.windowSizePreset === "comfortable" ? "compact" : "comfortable",
+                          })}
+                        >
+                          <span className="notes-fab-item-icon"><Icon name="window" size={14} /></span>
+                          <div className="notes-fab-item-copy">
+                            <span className="notes-fab-item-title">{notesPreferences.windowSizePreset === "comfortable" ? "Use compact size" : "Use comfortable size"}</span>
+                            <span className="notes-fab-item-desc">
+                              {notesPreferences.windowSizePreset === "comfortable"
+                                ? `${notesPreferences.windowPresetSizes.compact.width} × ${notesPreferences.windowPresetSizes.compact.height}`
+                                : `${notesPreferences.windowPresetSizes.comfortable.width} × ${notesPreferences.windowPresetSizes.comfortable.height}`}
+                            </span>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-fab-item"
+                          onClick={() => void updateNotesPreferences({ followMouseOnOpen: !notesPreferences.followMouseOnOpen })}
+                        >
+                          <span className="notes-fab-item-icon"><Icon name="mouse" size={14} /></span>
+                          <div className="notes-fab-item-copy">
+                            <span className="notes-fab-item-title">Follow mouse on open</span>
+                            <span className="notes-fab-item-desc">{notesPreferences.followMouseOnOpen ? "On — opens near your pointer" : "Off — keeps its last position"}</span>
+                          </div>
+                          {notesPreferences.followMouseOnOpen && <Icon name="check" size={14} className="text-accent" />}
+                        </button>
+                        <button
+                          type="button"
+                          className="notes-fab-item"
+                          onClick={() => void handleResetWindowSize()}
+                        >
+                          <span className="notes-fab-item-icon"><Icon name="arrows" size={14} /></span>
+                          <div className="notes-fab-item-copy">
+                            <span className="notes-fab-item-title">Reset window size</span>
+                            <span className="notes-fab-item-desc">Return to the selected preset</span>
                           </div>
                         </button>
 
