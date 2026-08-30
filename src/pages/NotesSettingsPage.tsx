@@ -131,6 +131,10 @@ export function NotesSettingsPage() {
   const [newCustomDraft, setNewCustomDraft] = useState({ name: "My Custom Size", width: "860", height: "720" });
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  // Top bar live editing state
+  const [topWidthDraft, setTopWidthDraft] = useState<string>("960");
+  const [topHeightDraft, setTopHeightDraft] = useState<string>("800");
+
   useEffect(() => {
     window.electronAPI?.notes?.getPreferences?.().then((preferences: any) => {
       if (preferences) {
@@ -173,6 +177,18 @@ export function NotesSettingsPage() {
     }
     return list;
   }, [windowPreferences]);
+
+  const activePreset = useMemo(() => {
+    return allPresets.find((p) => p.id === windowPreferences.windowSizePreset) || allPresets[0];
+  }, [allPresets, windowPreferences.windowSizePreset]);
+
+  // Keep top drafts in sync when active preset changes
+  useEffect(() => {
+    if (activePreset) {
+      setTopWidthDraft(String(activePreset.width));
+      setTopHeightDraft(String(activePreset.height));
+    }
+  }, [activePreset?.id, activePreset?.width, activePreset?.height]);
 
   const notesShortcut = useMemo(() => {
     return shortcuts.find((s) => s.actions?.some((a) => a.type === "notesPopup"));
@@ -309,7 +325,59 @@ export function NotesSettingsPage() {
       setWindowPreferences((prev) => ({ ...prev, ...next }));
       patchSettings("notes", next as any);
     }
-    toast("Saved current floating window bounds to preset", "success");
+    const target = allPresets.find((p) => p.id === presetId);
+    toast(`Captured current floating window bounds into "${target?.name || presetId}"`, "success");
+  };
+
+  const handleTestNotesWindow = async (presetId?: string) => {
+    const targetPreset = presetId ? allPresets.find((p) => p.id === presetId) : activePreset;
+    if (targetPreset && targetPreset.id !== windowPreferences.windowSizePreset) {
+      await patchWindowPreferences({ windowSizePreset: targetPreset.id });
+    }
+    await window.electronAPI?.notes?.toggle?.();
+    toast(`Toggled Notes pad (${targetPreset?.name || "active"} size)`, "info");
+  };
+
+  const handleTopSizeLiveChange = async (wStr: string, hStr: string, liveApply = false) => {
+    setTopWidthDraft(wStr);
+    setTopHeightDraft(hStr);
+    const w = Number(wStr);
+    const h = Number(hStr);
+    if (Number.isFinite(w) && Number.isFinite(h) && w >= 560 && h >= 520 && liveApply) {
+      if (activePreset.id === "comfortable" || activePreset.id === "compact") {
+        await patchWindowPreferences({
+          windowPresetSizes: {
+            ...windowPreferences.windowPresetSizes,
+            [activePreset.id]: { width: w, height: h },
+          },
+        });
+      } else {
+        const updatedCustoms = (windowPreferences.customPresets || []).map((cp) =>
+          cp.id === activePreset.id ? { ...cp, width: w, height: h } : cp
+        );
+        await patchWindowPreferences({ customPresets: updatedCustoms });
+      }
+    }
+  };
+
+  const handleSaveTopSize = async () => {
+    const w = Math.max(560, Math.min(Number(topWidthDraft) || activePreset.width, 1600));
+    const h = Math.max(520, Math.min(Number(topHeightDraft) || activePreset.height, 1200));
+
+    if (activePreset.id === "comfortable" || activePreset.id === "compact") {
+      await patchWindowPreferences({
+        windowPresetSizes: {
+          ...windowPreferences.windowPresetSizes,
+          [activePreset.id]: { width: w, height: h },
+        },
+      });
+    } else {
+      const updatedCustoms = (windowPreferences.customPresets || []).map((cp) =>
+        cp.id === activePreset.id ? { ...cp, width: w, height: h } : cp
+      );
+      await patchWindowPreferences({ customPresets: updatedCustoms });
+    }
+    toast(`Saved ${activePreset.name} dimensions (${w} × ${h} px)`, "success");
   };
 
   return (
@@ -352,22 +420,73 @@ export function NotesSettingsPage() {
           </div>
         </div>
 
-        <div className="settings-row">
+        {/* Top Control Bar for Notes Window Sizes */}
+        <div className="settings-row notes-size-top-toolbar">
           <div className="settings-row-info">
             <div className="settings-row-title">Notes Window Sizes</div>
             <div className="settings-row-desc">
-              Preview presets, edit dimensions, create custom sizes, or save the current floating window shape.
+              Edit dimensions in real time, test the live floating pad, or capture from the open window.
             </div>
           </div>
-          <div className="settings-row-control notes-size-active-select">
-            <Select
-              value={windowPreferences.windowSizePreset}
-              onChange={(value) => void patchWindowPreferences({ windowSizePreset: value })}
-              options={allPresets.map((p) => ({
-                value: p.id,
-                label: `Use ${p.name} (${p.width} × ${p.height})`,
-              }))}
-            />
+          <div className="settings-row-control notes-size-top-controls">
+            <div className="notes-size-top-inputs">
+              <Input
+                aria-label="Active preset width"
+                type="number"
+                min="560"
+                max="1600"
+                value={topWidthDraft}
+                onChange={(e) => void handleTopSizeLiveChange(e.target.value, topHeightDraft, true)}
+                title="Width (px) - live updates open window"
+              />
+              <span className="tiny muted">×</span>
+              <Input
+                aria-label="Active preset height"
+                type="number"
+                min="520"
+                max="1200"
+                value={topHeightDraft}
+                onChange={(e) => void handleTopSizeLiveChange(topWidthDraft, e.target.value, true)}
+                title="Height (px) - live updates open window"
+              />
+              <Button
+                variant="primary"
+                size="sm"
+                icon="check"
+                onClick={() => void handleSaveTopSize()}
+                title="Save & update preset dimensions"
+              >
+                Save Size
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="play"
+                onClick={() => void handleTestNotesWindow()}
+                title="Test the real floating Notepad in action"
+              >
+                Test Notes
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon="arrows"
+                onClick={() => void saveCurrentWindowSize(activePreset.id)}
+                title="Capture dimensions from the manually resized floating window"
+              >
+                Capture Window
+              </Button>
+            </div>
+            <div className="notes-size-active-select">
+              <Select
+                value={windowPreferences.windowSizePreset}
+                onChange={(value) => void patchWindowPreferences({ windowSizePreset: value })}
+                options={allPresets.map((p) => ({
+                  value: p.id,
+                  label: `Use ${p.name} (${p.width} × ${p.height})`,
+                }))}
+              />
+            </div>
           </div>
         </div>
 
@@ -501,7 +620,21 @@ export function NotesSettingsPage() {
                     >
                       {isActive ? "Selected" : "Use this size"}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => void saveCurrentWindowSize(preset.id)}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon="play"
+                      onClick={() => void handleTestNotesWindow(preset.id)}
+                      title={`Test ${preset.name} in real floating Notepad`}
+                    >
+                      Test Size
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void saveCurrentWindowSize(preset.id)}
+                      title="Save current window size to this preset"
+                    >
                       Save current
                     </Button>
                   </div>
