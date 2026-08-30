@@ -799,6 +799,28 @@ export function NotesSettingsPage() {
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* Editor Preferences Card */}
+      <div className="card mb-md">
+        <div className="row gap-sm items-center justify-between mb-md">
+          <div className="row gap-sm items-center">
+            <Icon name="edit" size={18} />
+            <div>
+              <div className="bold">Editor Preferences</div>
+              <div className="tiny muted">Configure typography, spellcheck, metadata counters, and autosave delay</div>
+            </div>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="play"
+            onClick={() => void handleTestNotesWindow()}
+            title="Test Notes in action with these editor settings"
+          >
+            Test Notes
+          </Button>
+        </div>
 
         <div className="settings-row">
           <div className="settings-row-info">
