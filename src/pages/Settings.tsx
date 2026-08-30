@@ -1380,23 +1380,18 @@ export function Settings() {
                       className={`app-icon-showcase-card ${option.themeClass}${selected ? " is-selected" : ""}`}
                       role="radio"
                       aria-checked={selected}
-                      aria-label={`${option.title} app icon (${option.tag})${selected ? ", selected" : ""}`}
+                      aria-label={`${option.title} app icon (${option.subtitle})${selected ? ", selected" : ""}`}
                       onClick={() => patch("appearance", {
                         appIcon: option.id,
                         ...(settings.appearance.syncAccentWithAppIcon ? { accent: APP_ICON_ACCENTS[option.id] } : {}),
                       })}
                     >
-                      {/* Top Header Row */}
-                      <div className="app-icon-card-top">
-                        <span className="app-icon-tag-pill">{option.tag}</span>
-                        {selected ? (
-                          <div className="app-icon-badge">
-                            <Icon name="check" size={12} />
-                          </div>
-                        ) : (
-                          <div className="app-icon-accent-dot" />
-                        )}
-                      </div>
+                      {/* Active Corner Badge */}
+                      {selected && (
+                        <div className="app-icon-badge">
+                          <Icon name="check" size={12} />
+                        </div>
+                      )}
 
                       {/* 3D Hero Icon Preview with Ambient Glow */}
                       <div className="app-icon-hero-wrap">
