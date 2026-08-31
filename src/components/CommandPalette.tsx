@@ -88,9 +88,20 @@ export function CommandPalette() {
 
   useEffect(() => {
     const handleOpenEvent = () => openPalette();
+    const handleToggleEvent = () => {
+      if (open) {
+        closePalette();
+      } else {
+        openPalette();
+      }
+    };
     window.addEventListener("keyflow:open-command-palette", handleOpenEvent);
-    return () => window.removeEventListener("keyflow:open-command-palette", handleOpenEvent);
-  }, [openPalette]);
+    window.addEventListener("keyflow:toggle-command-palette", handleToggleEvent);
+    return () => {
+      window.removeEventListener("keyflow:open-command-palette", handleOpenEvent);
+      window.removeEventListener("keyflow:toggle-command-palette", handleToggleEvent);
+    };
+  }, [openPalette, closePalette, open]);
 
   const commands = useMemo(() => createCommandRegistry(data), [data]);
 
