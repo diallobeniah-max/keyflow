@@ -642,6 +642,16 @@ input, textarea {
    Navigation Layout Visual Picker Cards
    ========================================================================== */
 
+.nav-layout-section {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  width: 100%;
+}
+
+.nav-layout-section-header {
+  margin-bottom: var(--space-3);
+}
+
 .nav-layout-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

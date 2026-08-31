@@ -1251,7 +1251,12 @@ export function Settings() {
 
           {activeSection === "appearance" && (
             <SettingsGroup title="Appearance & Themes" icon="monitor" desc="Visual styling, themes, and scaling">
-              <SettingsRow id="row-app-nav-layout" layout="stack" title="Navigation layout" desc="Choose your preferred desktop navigation architecture. Live visual previews show how controls are arranged.">
+              <div className="nav-layout-section">
+                <div className="nav-layout-section-header">
+                  <div className="settings-row-title">Navigation layout</div>
+                  <div className="settings-row-desc">Choose your preferred desktop navigation architecture. Live visual previews show how controls are arranged.</div>
+                </div>
+
                 <div className="nav-layout-grid" role="radiogroup" aria-label="Navigation layout style">
                   {/* Vertical Sidebar Card */}
                   <button
@@ -1348,7 +1353,7 @@ export function Settings() {
                     </div>
                   </button>
                 </div>
-              </SettingsRow>
+              </div>
               <SettingsRow id="row-app-theme" title="Theme mode" desc="Switch between dark and light desktop palettes">
                 <div className="w-160">
                   <AppSelect
