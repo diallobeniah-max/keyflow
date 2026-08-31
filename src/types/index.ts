@@ -167,6 +167,7 @@ export interface GeneralSettings {
   language: string;
 }
 
+
 export type ThemeMode = "dark" | "light" | "system";
 export type UIScale = "90" | "100" | "110" | "125";
 export type FontSize = "small" | "default" | "normal" | "large" | "xlarge";
@@ -175,6 +176,7 @@ export type BackdropMaterial = "mica" | "acrylic" | "solid";
 export type HeaderAccentTint = "none" | "subtle" | "medium" | "glow";
 export type HeaderAccentFit = "full" | "compact" | "banner";
 export type AppIconId = "monochrome" | "blue" | "green" | "red";
+export type NavigationLayout = "sidebar" | "horizontal";
 
 export interface AppearanceSettings {
   theme: ThemeMode;
@@ -189,6 +191,8 @@ export interface AppearanceSettings {
   backdropMaterial?: BackdropMaterial;
   headerAccentTint?: HeaderAccentTint;
   headerAccentFit?: HeaderAccentFit;
+  /** Navigation layout orientation: standard left sidebar or horizontal Apple-style top dock. */
+  navigationLayout?: NavigationLayout;
   /** Selected KeyFlow window and notification-area icon. */
   appIcon?: AppIconId;
   /** Keep the interface accent aligned with the selected KeyFlow app icon. */

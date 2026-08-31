@@ -1251,6 +1251,18 @@ export function Settings() {
 
           {activeSection === "appearance" && (
             <SettingsGroup title="Appearance & Themes" icon="monitor" desc="Visual styling, themes, and scaling">
+              <SettingsRow id="row-app-nav-layout" title="Navigation layout" desc="Switch between standard vertical sidebar or compact Apple-style horizontal top dock">
+                <div className="w-180">
+                  <AppSelect
+                    value={settings.appearance.navigationLayout ?? "sidebar"}
+                    onChange={(v) => patch("appearance", { navigationLayout: v as any })}
+                    options={[
+                      { value: "sidebar", label: "Vertical Sidebar" },
+                      { value: "horizontal", label: "Horizontal Top Bar" },
+                    ]}
+                  />
+                </div>
+              </SettingsRow>
               <SettingsRow id="row-app-theme" title="Theme mode" desc="Switch between dark and light desktop palettes">
                 <div className="w-160">
                   <AppSelect

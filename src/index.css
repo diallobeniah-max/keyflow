@@ -638,6 +638,180 @@ input, textarea {
   box-shadow: 0 0 8px var(--color-accent);
 }
 
+/* ==========================================================================
+   Horizontal Top Bar Navigation Mode
+   ========================================================================== */
+
+.app-body.is-horizontal-nav {
+  background: var(--color-bg-app);
+}
+
+.app-body.is-horizontal-nav .main {
+  border-top-left-radius: 0;
+  border-left: none;
+  border-top: none;
+  box-shadow: none;
+}
+
+.topbar.is-horizontal-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top-left-radius: 0;
+  height: calc(var(--layout-topbar-height) + 8px);
+  padding: 0 var(--space-4);
+  gap: var(--space-3);
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  user-select: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.topbar-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar-brand-title {
+  font-size: var(--type-body-size);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  line-height: 1.1;
+}
+
+.topbar-brand-subtitle {
+  font-size: var(--type-tiny-size);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.topbar-nav-dock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-pill);
+  padding: var(--space-1) var(--space-2);
+  box-shadow: var(--shadow-sm);
+  margin: 0 auto;
+  flex-shrink: 1;
+  overflow-x: auto;
+}
+
+.topbar-dock-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--type-caption-size);
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: all var(--motion-fast);
+  white-space: nowrap;
+}
+
+.topbar-dock-item:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.topbar-dock-item:focus-visible {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus);
+}
+
+.topbar-dock-item.is-active {
+  background: var(--color-bg-surface-elevated);
+  border-color: var(--color-accent-border);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 4px var(--color-accent-soft);
+}
+
+.topbar-dock-item.is-active::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+
+.topbar-dock-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--type-tiny-size);
+  font-weight: 600;
+  line-height: 1;
+  padding: var(--space-0) var(--space-1);
+  min-width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent-border);
+}
+
+.topbar-profile-select {
+  width: 130px;
+}
+
+.topbar-pause-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 30px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all var(--motion-fast);
+  white-space: nowrap;
+}
+
+.topbar-pause-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
+}
+
+.topbar-pause-btn:focus-visible {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus);
+}
+
+.topbar-pause-btn.is-paused {
+  background: var(--color-bg-surface);
+  border-color: var(--color-status-danger);
+  color: var(--color-status-danger);
+}
+
 .topbar-left {
   display: flex;
   align-items: center;

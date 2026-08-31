@@ -39,8 +39,13 @@ export function Sidebar() {
   const togglePaused = useStore((s) => s.togglePaused);
   const sidebarWidth = useStore((s) => s.sidebarWidth);
   const setSidebarWidth = useStore((s) => s.setSidebarWidth);
+  const appearance = useStore((s) => s.data.settings.appearance);
   const asideRef = useRef<HTMLElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  if (appearance?.navigationLayout === "horizontal") {
+    return null;
+  }
 
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();

@@ -118,7 +118,7 @@ export default function App() {
     <div className="app-shell" data-font-size={appearance?.fontSize ?? "default"}>
       <GlobalTooltip />
       <TitleBar />
-      <div className="app-body">
+      <div className={`app-body${appearance?.navigationLayout === "horizontal" ? " is-horizontal-nav" : ""}`}>
         <Sidebar />
         {drawerOpen && (
           <div
