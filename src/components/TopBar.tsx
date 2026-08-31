@@ -84,59 +84,27 @@ export function TopBar() {
       <header className={`topbar is-horizontal-nav${tintClass}`}>
         {tint !== "none" && <div className="topbar-accent-glow" aria-hidden="true" />}
 
-        {/* Left: Brand + Status */}
-        <div className="topbar-brand" onClick={() => setPage("dashboard")} title="KeyFlow Control Deck">
-          <span className={"status-dot" + (safeMode ? " is-safe-mode" : paused ? " is-paused" : " is-active")} />
-          <div className="topbar-brand-text">
-            <span className="topbar-brand-title">KeyFlow</span>
-            <span className="topbar-brand-subtitle">Deck v0.3</span>
+        {/* Left: Brand + Status + Page Title */}
+        <div className="topbar-left">
+          <div className="topbar-brand" onClick={() => setPage("dashboard")} title="KeyFlow Control Deck">
+            <span className={"status-dot" + (safeMode ? " is-safe-mode" : paused ? " is-paused" : " is-active")} />
+            <div className="topbar-brand-text">
+              <span className="topbar-brand-title">KeyFlow</span>
+              <span className="topbar-brand-subtitle">Deck v0.3</span>
+            </div>
           </div>
+          <div className="topbar-crumb-sep">/</div>
+          <h1 className="topbar-title">{TITLES[page] ?? "KeyFlow"}</h1>
         </div>
 
-        {/* Center: Apple-style segmented navigation bar */}
-        <nav className="topbar-nav-dock" role="navigation" aria-label="Main Navigation">
-          {NAV_ITEMS.map((item) => {
-            const IconComponent = item.icon;
-            const isActive = page === item.page;
-            return (
-              <button
-                key={item.page}
-                type="button"
-                className={`topbar-dock-item${isActive ? " is-active" : ""}`}
-                onClick={() => {
-                  if (item.page === "create") {
-                    useStore.getState().setEditing(null);
-                  }
-                  setPage(item.page);
-                }}
-                title={item.label}
-                aria-label={item.label}
-                aria-current={isActive ? "page" : undefined}
-              >
-                <IconComponent size={17} weight={isActive ? "bold" : "regular"} />
-                <span className="topbar-dock-label">{item.label}</span>
-                {typeof item.badge === "number" && item.badge > 0 && (
-                  <span className="topbar-dock-badge">{item.badge}</span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Right: Actions, Search, Profile, Pause button */}
+        {/* Right: Profile Switcher, Status Pill, Quick Create, Theme Toggle */}
         <div className="topbar-actions">
-          <button
-            type="button"
-            className="topbar-search-trigger hide-mobile"
-            onClick={() => {
-              window.dispatchEvent(new CustomEvent("keyflow:toggle-command-palette"));
-            }}
-            title="Search commands and settings (Ctrl+K)"
-          >
-            <Icon name="search" size={13} />
-            <span>Search…</span>
-            <kbd className="topbar-search-kbd">Ctrl K</kbd>
-          </button>
+          {focusedApp && focusedApp !== "keyflow.exe" && (
+            <span className="topbar-chip hide-mobile" title={`Active foreground application: ${focusedApp}`}>
+              <Icon name="window" size={13} />
+              <span className="topbar-chip-text">{focusedApp}</span>
+            </span>
+          )}
 
           {/* Profile Switcher */}
           {profiles.length > 0 && (
@@ -149,25 +117,27 @@ export function TopBar() {
             </div>
           )}
 
-          {/* Dedicated Far-Right Pause Button */}
-          <button
-            type="button"
-            className={`topbar-pause-btn${paused ? " is-paused" : ""}`}
-            onClick={togglePaused}
-            title={paused ? "KeyFlow is paused. Click to resume engine." : "KeyFlow is actively listening. Click to pause engine."}
+          <span
+            className={"topbar-status-pill" + (safeMode ? " is-safe-mode" : paused ? " is-paused" : " is-active")}
+            title={safeMode ? "Safe Mode active" : paused ? "KeyFlow is paused" : "KeyFlow is actively listening for gestures"}
           >
-            {paused ? (
-              <>
-                <Play size={14} weight="fill" />
-                <span className="hide-compact">Resume</span>
-              </>
-            ) : (
-              <>
-                <Pause size={14} weight="fill" />
-                <span className="hide-compact">Pause</span>
-              </>
-            )}
-          </button>
+            <span className="status-dot" />
+            <span>{safeMode ? "Safe Mode" : paused ? "Paused" : "Active"}</span>
+          </span>
+
+          {page !== "create" && (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm hide-mobile topbar-quick-create"
+              onClick={() => {
+                useStore.getState().setEditing(null);
+                setPage("create");
+              }}
+            >
+              <Icon name="create" size={14} />
+              <span>New Shortcut</span>
+            </button>
+          )}
 
           <IconButton
             name={appearance.theme === "light" ? "sun" : appearance.theme === "dark" ? "moon" : "monitor"}

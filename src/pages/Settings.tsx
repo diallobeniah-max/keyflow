@@ -1251,14 +1251,14 @@ export function Settings() {
 
           {activeSection === "appearance" && (
             <SettingsGroup title="Appearance & Themes" icon="monitor" desc="Visual styling, themes, and scaling">
-              <SettingsRow id="row-app-nav-layout" title="Navigation layout" desc="Switch between standard vertical sidebar or compact Apple-style horizontal top dock">
+              <SettingsRow id="row-app-nav-layout" title="Navigation layout" desc="Switch between standard vertical sidebar or Apple-style floating bottom dock">
                 <div className="w-180">
                   <AppSelect
                     value={settings.appearance.navigationLayout ?? "sidebar"}
                     onChange={(v) => patch("appearance", { navigationLayout: v as any })}
                     options={[
                       { value: "sidebar", label: "Vertical Sidebar" },
-                      { value: "horizontal", label: "Horizontal Top Bar" },
+                      { value: "horizontal", label: "Floating Bottom Dock" },
                     ]}
                   />
                 </div>

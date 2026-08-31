@@ -639,7 +639,7 @@ input, textarea {
 }
 
 /* ==========================================================================
-   Horizontal Top Bar Navigation Mode
+   Floating Bottom Dock Navigation Mode (Apple Photos Floating Capsule)
    ========================================================================== */
 
 .app-body.is-horizontal-nav {
@@ -653,12 +653,15 @@ input, textarea {
   box-shadow: none;
 }
 
+.app-body.is-horizontal-nav .content {
+  padding-bottom: calc(var(--space-12) * 2);
+}
+
 .topbar.is-horizontal-nav {
   display: flex;
   justify-content: space-between;
   border-top-left-radius: 0;
-  height: calc(var(--layout-topbar-height) + 8px);
-  padding: 0 var(--space-4);
+  padding: var(--space-0) var(--space-4);
   gap: var(--space-3);
 }
 
@@ -692,27 +695,83 @@ input, textarea {
   color: var(--color-text-muted);
 }
 
-.topbar-nav-dock {
+.topbar-profile-select {
+  width: 140px;
+}
+
+/* Floating Bottom Dock Container */
+.floating-bottom-dock-container {
+  position: fixed;
+  bottom: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  z-index: 999;
+  pointer-events: auto;
+  user-select: none;
+  animation: slideUpFade var(--motion-default) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Floating Left/Right Circle Action Buttons */
+.floating-dock-circle-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-1);
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-subtle);
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-pill);
-  padding: var(--space-1) var(--space-2);
-  box-shadow: var(--shadow-sm);
-  margin: 0 auto;
-  flex-shrink: 1;
-  overflow-x: auto;
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary);
+  box-shadow: 0 8px 24px var(--color-bg-canvas), var(--shadow-card);
+  cursor: pointer;
+  outline: none;
+  transition: transform var(--motion-fast), background var(--motion-fast), color var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-fast);
+  flex-shrink: 0;
 }
 
-.topbar-dock-item {
+.floating-dock-circle-btn:hover {
+  transform: translateY(-2px) scale(1.05);
+  background: var(--color-bg-hover);
+  color: var(--color-accent);
+  border-color: var(--color-accent-border);
+  box-shadow: 0 10px 28px var(--color-bg-canvas), 0 0 12px var(--color-accent-soft);
+}
+
+.floating-dock-circle-btn:focus-visible {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus);
+}
+
+.floating-dock-circle-btn.is-paused {
+  border-color: var(--color-status-danger);
+  color: var(--color-status-danger);
+  box-shadow: 0 0 12px var(--color-accent-soft);
+}
+
+/* Center Elongated Segmented Pill Capsule */
+.floating-dock-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 46px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-default);
+  box-shadow: 0 12px 32px var(--color-bg-canvas), var(--shadow-card);
+}
+
+/* Individual Dock Tabs */
+.floating-dock-tab {
   position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-1) var(--space-3);
+  height: 36px;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
   background: transparent;
   border: 1px solid transparent;
@@ -722,46 +781,60 @@ input, textarea {
   font-weight: 500;
   cursor: pointer;
   outline: none;
-  transition: all var(--motion-fast);
+  transition: background var(--motion-fast), color var(--motion-fast), transform var(--motion-fast), border-color var(--motion-fast);
   white-space: nowrap;
 }
 
-.topbar-dock-item:hover {
-  background: var(--color-bg-hover);
+.floating-dock-tab:hover {
   color: var(--color-text-primary);
+  background: var(--color-bg-hover);
 }
 
-.topbar-dock-item:focus-visible {
+.floating-dock-tab:focus-visible {
   border-color: var(--color-accent);
   box-shadow: var(--shadow-focus);
 }
 
-.topbar-dock-item.is-active {
-  background: var(--color-bg-surface-elevated);
-  border-color: var(--color-accent-border);
+/* Active Segmented Pill Slider Highlight */
+.floating-dock-tab.is-active {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-subtle);
   color: var(--color-text-primary);
   font-weight: 600;
-  box-shadow: 0 1px 4px var(--color-accent-soft);
+  box-shadow: var(--shadow-sm);
 }
 
-.topbar-dock-item.is-active::after {
+.floating-dock-tab.is-active::after {
   content: "";
   position: absolute;
-  bottom: 2px;
+  bottom: 3px;
   left: 50%;
   transform: translateX(-50%);
-  width: 12px;
+  width: 14px;
   height: 2px;
   border-radius: var(--radius-pill);
   background: var(--color-accent);
 }
 
-.topbar-dock-badge {
+.floating-dock-tab-label {
+  font-size: var(--type-caption-size);
+}
+
+@media (max-width: 820px) {
+  .floating-dock-tab-label {
+    display: none;
+  }
+  .floating-dock-tab {
+    padding: 0 var(--space-2);
+  }
+}
+
+.floating-dock-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: var(--type-tiny-size);
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1;
   padding: var(--space-0) var(--space-1);
   min-width: 16px;
@@ -770,46 +843,6 @@ input, textarea {
   background: var(--color-accent-soft);
   color: var(--color-accent);
   border: 1px solid var(--color-accent-border);
-}
-
-.topbar-profile-select {
-  width: 130px;
-}
-
-.topbar-pause-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: 30px;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-control);
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-subtle);
-  color: var(--color-text-secondary);
-  font: inherit;
-  font-size: var(--type-caption-size);
-  font-weight: 600;
-  cursor: pointer;
-  outline: none;
-  transition: all var(--motion-fast);
-  white-space: nowrap;
-}
-
-.topbar-pause-btn:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-primary);
-  border-color: var(--color-border-default);
-}
-
-.topbar-pause-btn:focus-visible {
-  border-color: var(--color-accent);
-  box-shadow: var(--shadow-focus);
-}
-
-.topbar-pause-btn.is-paused {
-  background: var(--color-bg-surface);
-  border-color: var(--color-status-danger);
-  color: var(--color-status-danger);
 }
 
 .topbar-left {

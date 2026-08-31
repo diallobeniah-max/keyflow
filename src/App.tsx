@@ -7,6 +7,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ToastHost } from "./components/ui";
 import { GlobalTooltip } from "./components/GlobalTooltip";
+import { FloatingBottomDock } from "./components/FloatingBottomDock";
 import { Dashboard } from "./pages/Dashboard";
 import { Shortcuts } from "./pages/Shortcuts";
 import { CreateShortcut } from "./pages/CreateShortcut";
@@ -139,6 +140,7 @@ export default function App() {
         <CommandPalette />
       </ErrorBoundary>
       <ToastHost />
+      {appearance?.navigationLayout === "horizontal" && <FloatingBottomDock />}
       {!onboardingDone && <Onboarding />}
     </div>
   );
