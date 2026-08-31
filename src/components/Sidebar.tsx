@@ -43,10 +43,6 @@ export function Sidebar() {
   const asideRef = useRef<HTMLElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  if (appearance?.navigationLayout === "horizontal") {
-    return null;
-  }
-
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -138,6 +134,10 @@ export function Sidebar() {
   };
 
   const isDrawer = drawerOpen ? " open" : "";
+
+  if (appearance?.navigationLayout === "horizontal") {
+    return null;
+  }
 
   return (
     <aside

@@ -1251,16 +1251,108 @@ export function Settings() {
 
           {activeSection === "appearance" && (
             <SettingsGroup title="Appearance & Themes" icon="monitor" desc="Visual styling, themes, and scaling">
-              <SettingsRow id="row-app-nav-layout" title="Navigation layout" desc="Switch between standard vertical sidebar or Apple-style floating bottom dock">
-                <div className="w-180">
-                  <AppSelect
-                    value={settings.appearance.navigationLayout ?? "sidebar"}
-                    onChange={(v) => patch("appearance", { navigationLayout: v as any })}
-                    options={[
-                      { value: "sidebar", label: "Vertical Sidebar" },
-                      { value: "horizontal", label: "Floating Bottom Dock" },
-                    ]}
-                  />
+              <SettingsRow id="row-app-nav-layout" layout="stack" title="Navigation layout" desc="Choose your preferred desktop navigation architecture. Live visual previews show how controls are arranged.">
+                <div className="nav-layout-grid" role="radiogroup" aria-label="Navigation layout style">
+                  {/* Vertical Sidebar Card */}
+                  <button
+                    type="button"
+                    className={`nav-layout-card${(settings.appearance.navigationLayout ?? "sidebar") === "sidebar" ? " is-selected" : ""}`}
+                    role="radio"
+                    aria-checked={(settings.appearance.navigationLayout ?? "sidebar") === "sidebar"}
+                    aria-label="Vertical Sidebar layout"
+                    onClick={() => patch("appearance", { navigationLayout: "sidebar" })}
+                  >
+                    {(settings.appearance.navigationLayout ?? "sidebar") === "sidebar" && (
+                      <div className="nav-layout-badge">
+                        <Icon name="check" size={12} />
+                      </div>
+                    )}
+                    
+                    {/* Wireframe Diagram */}
+                    <div className="nav-wireframe-stage">
+                      <div className="nav-wireframe-window">
+                        <div className="nav-wireframe-header">
+                          <div className="nav-wireframe-dot" />
+                          <div className="nav-wireframe-line w-40" />
+                        </div>
+                        <div className="nav-wireframe-body">
+                          <div className="nav-wireframe-sidebar">
+                            <div className="nav-wireframe-sidebar-item is-active" />
+                            <div className="nav-wireframe-sidebar-item" />
+                            <div className="nav-wireframe-sidebar-item" />
+                            <div className="nav-wireframe-sidebar-item" />
+                          </div>
+                          <div className="nav-wireframe-main">
+                            <div className="nav-wireframe-card" />
+                            <div className="nav-wireframe-card" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="nav-layout-info">
+                      <div className="row items-center justify-between width-full">
+                        <div className="nav-layout-title">Vertical Sidebar</div>
+                        <span className="nav-layout-tag">Standard</span>
+                      </div>
+                      <div className="nav-layout-desc">
+                        Classic left navigation rail with categorized sections, profile selector, and collapsible sidebar.
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Floating Bottom Dock Card */}
+                  <button
+                    type="button"
+                    className={`nav-layout-card${settings.appearance.navigationLayout === "horizontal" ? " is-selected" : ""}`}
+                    role="radio"
+                    aria-checked={settings.appearance.navigationLayout === "horizontal"}
+                    aria-label="Floating Bottom Dock layout"
+                    onClick={() => patch("appearance", { navigationLayout: "horizontal" })}
+                  >
+                    {settings.appearance.navigationLayout === "horizontal" && (
+                      <div className="nav-layout-badge">
+                        <Icon name="check" size={12} />
+                      </div>
+                    )}
+
+                    {/* Wireframe Diagram */}
+                    <div className="nav-wireframe-stage">
+                      <div className="nav-wireframe-window">
+                        <div className="nav-wireframe-header">
+                          <div className="nav-wireframe-dot" />
+                          <div className="nav-wireframe-line w-60" />
+                        </div>
+                        <div className="nav-wireframe-body">
+                          <div className="nav-wireframe-main">
+                            <div className="nav-wireframe-card" />
+                            <div className="nav-wireframe-card" />
+                          </div>
+                        </div>
+                        {/* Floating Dock Wireframe */}
+                        <div className="nav-wireframe-dock-row">
+                          <div className="nav-wireframe-dock-circle" />
+                          <div className="nav-wireframe-dock-pill">
+                            <div className="nav-wireframe-dock-tab" />
+                            <div className="nav-wireframe-dock-tab is-active" />
+                            <div className="nav-wireframe-dock-tab" />
+                            <div className="nav-wireframe-dock-tab" />
+                          </div>
+                          <div className="nav-wireframe-dock-circle" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="nav-layout-info">
+                      <div className="row items-center justify-between width-full">
+                        <div className="nav-layout-title">Floating Bottom Dock</div>
+                        <span className="nav-layout-tag">Apple Style</span>
+                      </div>
+                      <div className="nav-layout-desc">
+                        iOS-inspired floating segmented capsule at bottom center with circular action buttons.
+                      </div>
+                    </div>
+                  </button>
                 </div>
               </SettingsRow>
               <SettingsRow id="row-app-theme" title="Theme mode" desc="Switch between dark and light desktop palettes">
