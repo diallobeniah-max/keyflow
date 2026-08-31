@@ -1291,10 +1291,7 @@ export function Settings() {
                     </div>
 
                     <div className="nav-layout-info">
-                      <div className="row items-center justify-between width-full">
-                        <div className="nav-layout-title">Vertical Sidebar</div>
-                        <span className="nav-layout-tag">Standard</span>
-                      </div>
+                      <div className="nav-layout-title">Vertical Sidebar</div>
                       <div className="nav-layout-desc">
                         Classic left navigation rail with categorized sections, profile selector, and collapsible sidebar.
                       </div>
@@ -1344,12 +1341,9 @@ export function Settings() {
                     </div>
 
                     <div className="nav-layout-info">
-                      <div className="row items-center justify-between width-full">
-                        <div className="nav-layout-title">Floating Bottom Dock</div>
-                        <span className="nav-layout-tag">Apple Style</span>
-                      </div>
+                      <div className="nav-layout-title">Floating Bottom Dock</div>
                       <div className="nav-layout-desc">
-                        iOS-inspired floating segmented capsule at bottom center with circular action buttons.
+                        Floating segmented pill capsule anchored at bottom center with circular quick-action buttons.
                       </div>
                     </div>
                   </button>
