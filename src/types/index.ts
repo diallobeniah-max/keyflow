@@ -404,16 +404,27 @@ export interface CustomCursorItem {
   format?: string;
 }
 
-export type SmoothScrollPreset = "native" | "smooth" | "silky" | "fast" | "custom";
+export type SmoothScrollPreset = "native" | "smooth" | "silky" | "fast" | "custom" | string;
+
+export interface SmoothScrollCustomPreset {
+  id: string;
+  name: string;
+  color?: string; // "purple" | "blue" | "teal" | "amber" | "rose" | "emerald"
+  stepSize: number;
+  animationTime: number;
+  accelerationEnabled: boolean;
+  accelerationDelta: number;
+  accelerationMax: number;
+}
 
 export interface SmoothScrollSettings {
   /** Master on/off toggle. When false, native browser scrolling is used. */
   enabled: boolean;
-  /** Preset name. "native" = pass-through, "custom" = manual sliders. */
+  /** Preset name. "native" = pass-through, "custom" = manual sliders, or custom preset ID. */
   preset: SmoothScrollPreset;
   /** Pixels scrolled per mouse wheel notch. Default 100. */
   stepSize: number;
-  /** Duration in ms for each scroll impulse animation. Default 400. */
+  /** Duration in ms for each scroll impulse animation. Default 280. */
   animationTime: number;
   /** Whether repeated wheel events within accelerationDelta ms multiply speed. */
   accelerationEnabled: boolean;
@@ -427,6 +438,8 @@ export interface SmoothScrollSettings {
   horizontalScrolling: boolean;
   /** Detect precision trackpads and pass their events through natively. */
   trackpadPassThrough: boolean;
+  /** User-created custom presets. */
+  customPresets?: SmoothScrollCustomPreset[];
 }
 
 export interface WasdNavigationSettings {

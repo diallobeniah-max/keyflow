@@ -30,7 +30,8 @@ export function Settings() {
   const setFocusTarget = useStore((s) => s.setSettingsFocusTarget);
   const patchSettings = useStore((s) => s.patchSettings);
 
-  const [activeSection, setActiveSection] = useState<SettingsSectionId>("appBehavior");
+  const activeSection = (useStore((s) => s.activeSettingsSection) as SettingsSectionId) || "appBehavior";
+  const setActiveSection = useStore((s) => s.setActiveSettingsSection);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
 
   // Handle deep-linking from Command Palette or Settings Search

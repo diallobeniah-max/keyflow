@@ -58,13 +58,12 @@ interface QueueItem {
 }
 
 /**
- * Pulse easing function — produces a natural deceleration curve.
- * For position in [0, 1], returns eased position in [0, 1].
- * Algorithm from galambalazs/smoothscroll-for-websites (MIT).
+ * Instant-response ease-out cubic decay — delivers peak velocity immediately at t=0
+ * to eliminate initial delay/hesitation, settling smoothly into an organic coast.
  */
 function pulse(x: number): number {
-  const val = x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
-  return val;
+  const t = Math.max(0, Math.min(1, x));
+  return 1 - Math.pow(1 - t, 3);
 }
 
 export class SmoothScrollEngine {

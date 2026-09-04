@@ -178,16 +178,48 @@ export function createDefaultSettings(): Settings {
       enabled: true,
       preset: "smooth",
       stepSize: 100,
-      animationTime: 400,
+      animationTime: 280,
       accelerationEnabled: true,
       accelerationDelta: 50,
       accelerationMax: 3,
       keyboardScrolling: false,
       horizontalScrolling: true,
       trackpadPassThrough: true,
+      customPresets: [],
     },
   };
 }
+
+/** Standard preset configurations for factory resets and preset switching. */
+export const DEFAULT_SMOOTH_SCROLL_PRESETS: Record<string, {
+  stepSize: number;
+  animationTime: number;
+  accelerationEnabled: boolean;
+  accelerationDelta: number;
+  accelerationMax: number;
+}> = {
+  smooth: {
+    stepSize: 100,
+    animationTime: 280,
+    accelerationEnabled: true,
+    accelerationDelta: 50,
+    accelerationMax: 3,
+  },
+  silky: {
+    stepSize: 100,
+    animationTime: 450,
+    accelerationEnabled: true,
+    accelerationDelta: 50,
+    accelerationMax: 2,
+  },
+  fast: {
+    stepSize: 100,
+    animationTime: 160,
+    accelerationEnabled: true,
+    accelerationDelta: 40,
+    accelerationMax: 4,
+  },
+};
 
 /**
  * Canonical resolver for default key behavior (pass-through vs suppress).

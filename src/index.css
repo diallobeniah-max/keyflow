@@ -130,10 +130,19 @@ input, textarea {
   scrollbar-gutter: stable;
 }
 
+[data-layout-width="small"] {
+  --layout-content-max-width: 960px;
+}
+
+[data-layout-width="large"] {
+  --layout-content-max-width: 1280px;
+}
+
 .content > * {
   max-width: var(--layout-content-max-width);
   margin-left: auto;
   margin-right: auto;
+  transition: max-width var(--motion-layout);
 }
 
 .max-readable {
@@ -11251,6 +11260,111 @@ mark.notes-find-match.is-active {
   color: var(--color-text-muted);
   text-align: center;
 }
+
+/* Custom Presets & Preset Controls */
+.ss-preset-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ss-preset-card-delete {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-hover);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: all var(--motion-fast);
+}
+
+.ss-preset-card-delete:hover {
+  opacity: 1;
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.ss-preset-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.ss-preset-color-dot.purple { background-color: var(--cat-color-purple); }
+.ss-preset-color-dot.blue { background-color: var(--cat-color-blue); }
+.ss-preset-color-dot.cyan { background-color: var(--cat-color-cyan); }
+.ss-preset-color-dot.amber { background-color: var(--cat-color-amber); }
+.ss-preset-color-dot.rose { background-color: var(--cat-color-rose); }
+.ss-preset-color-dot.green { background-color: var(--cat-color-green); }
+.ss-preset-color-dot.indigo { background-color: var(--cat-color-indigo); }
+
+.ss-create-preset-panel {
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-default);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  animation: fadeIn var(--motion-fast);
+}
+
+.ss-create-preset-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ss-create-preset-title {
+  font-size: var(--type-card-size);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.ss-color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ss-color-chip {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--motion-fast);
+}
+
+.ss-color-chip:hover {
+  transform: scale(1.15);
+}
+
+.ss-color-chip.is-selected {
+  border-color: var(--color-text-primary);
+  box-shadow: var(--shadow-sm);
+  transform: scale(1.15);
+}
+
+.ss-color-chip.purple { background-color: var(--cat-color-purple); }
+.ss-color-chip.blue { background-color: var(--cat-color-blue); }
+.ss-color-chip.cyan { background-color: var(--cat-color-cyan); }
+.ss-color-chip.amber { background-color: var(--cat-color-amber); }
+.ss-color-chip.rose { background-color: var(--cat-color-rose); }
+.ss-color-chip.green { background-color: var(--cat-color-green); }
+.ss-color-chip.indigo { background-color: var(--cat-color-indigo); }
 
 /* ==========================================================================
    Shortcut Binding UI (Pill chips, capture panel, rows)

@@ -101,6 +101,11 @@ export default function App() {
   }, [appearance?.fontSize]);
 
   useEffect(() => {
+    const widthMode = appearance?.settingsWidth || "large";
+    document.documentElement.setAttribute("data-layout-width", widthMode);
+  }, [appearance?.settingsWidth]);
+
+  useEffect(() => {
     const root = document.documentElement;
     root.setAttribute("data-theme", resolvedTheme);
     root.style.colorScheme = resolvedTheme;

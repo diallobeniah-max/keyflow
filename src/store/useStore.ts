@@ -32,6 +32,7 @@ interface StoreState {
   toasts: Toast[];
   globalSearch: string;
   settingsFocusTarget: SettingsFocusTarget | null;
+  activeSettingsSection: string;
   suppression: { available: boolean; status: string; backend: string } | null;
   wasdNavigationActive: boolean;
 
@@ -44,6 +45,7 @@ interface StoreState {
   setPage: (p: AppPage) => void;
   setGlobalSearch: (q: string) => void;
   setSettingsFocusTarget: (target: SettingsFocusTarget | null) => void;
+  setActiveSettingsSection: (section: string) => void;
   setEditing: (id: string | null) => void;
   setDrawerOpen: (b: boolean) => void;
   setPendingKey: (key: string, mouse?: boolean) => void;
@@ -190,6 +192,7 @@ export const useStore = create<StoreState>((set, get) => ({
   toasts: [],
   globalSearch: "",
   settingsFocusTarget: null,
+  activeSettingsSection: "appBehavior",
   suppression: null,
   wasdNavigationActive: false,
 
@@ -244,6 +247,7 @@ export const useStore = create<StoreState>((set, get) => ({
   setPage: (p) => set({ currentPage: p }),
   setGlobalSearch: (q) => set({ globalSearch: q }),
   setSettingsFocusTarget: (target) => set({ settingsFocusTarget: target }),
+  setActiveSettingsSection: (section) => set({ activeSettingsSection: section }),
   setEditing: (id) => set({ editingId: id }),
   setDrawerOpen: (b) => set({ drawerOpen: b }),
   setPendingKey: (key, mouse) => set({ pendingKey: { key, mouse } }),

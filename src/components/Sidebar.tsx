@@ -137,21 +137,31 @@ export function Sidebar() {
 
   const isHorizontal = appearance?.navigationLayout === "horizontal";
 
-  return (
-    <aside
-      ref={asideRef}
-      tabIndex={-1}
-      className={
-        "sidebar" +
-        (collapsed ? " collapsed" : "") +
-        (isHorizontal ? " is-layout-hidden" : "") +
-        isDrawer +
-        (isDragging ? " is-resizing" : "")
-      }
-      style={!collapsed && !isHorizontal ? { width: sidebarWidth, flexBasis: sidebarWidth } : undefined}
-      aria-label="Application navigation"
-      aria-hidden={isHorizontal}
-    >
+      const isSmallWidth = appearance?.settingsWidth === "small";
+      const effectiveWidth = isDragging ? sidebarWidth : (isSmallWidth ? 220 : Math.max(sidebarWidth, 260));
+      return (
+        <aside
+          ref={asideRef}
+          tabIndex={-1}
+          className={
+            "sidebar" +
+            (collapsed ? " collapsed" : "") +
+            (isHorizontal ? " is-layout-hidden" : "") +
+            isDrawer +
+            (isDragging ? " is-resizing" : "")
+          }
+          style={
+            !collapsed && !isHorizontal
+              ? {
+                  width: effectiveWidth,
+                  flexBasis: effectiveWidth,
+                  transition: isDragging ? "none" : "width var(--motion-layout), flex-basis var(--motion-layout)",
+                }
+              : undefined
+          }
+          aria-label="Application navigation"
+          aria-hidden={isHorizontal}
+        >
       {!collapsed && (
         <div
           className={"sidebar-resizer" + (isDragging ? " is-active" : "")}

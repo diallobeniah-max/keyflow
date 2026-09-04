@@ -102,14 +102,12 @@ static IS_ACTIVE: AtomicBool = AtomicBool::new(false);
 static WORKER_STARTED: AtomicBool = AtomicBool::new(false);
 static INJECTING: AtomicBool = AtomicBool::new(false);
 
-/// Easing curve (SmoothScroll pulse algorithm).
+/// Easing curve: instant-response ease-out cubic decay.
+/// Eliminates initial delay/hesitation by delivering immediate momentum at t=0,
+/// then decelerates smoothly into an organic stop.
 fn pulse(x: f32) -> f32 {
     let t = x.clamp(0.0, 1.0);
-    if t < 0.5 {
-        2.0 * t * t
-    } else {
-        1.0 - (-2.0 * t + 2.0).powi(2) / 2.0
-    }
+    1.0 - (1.0 - t).powi(3)
 }
 
 /// Initialize the smooth scroll engine state and spawn the animation worker thread.
