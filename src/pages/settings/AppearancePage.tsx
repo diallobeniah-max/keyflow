@@ -225,12 +225,12 @@ export const AppearancePage: FC<AppearancePageProps> = ({ onBack }) => {
           </div>
         </div>
 
-        {/* Settings Layout Width: Small vs Large */}
+        {/* Application Layout Width: Small vs Large */}
         <div id="row-app-settings-width" className="nav-layout-section p-sm mt-md">
           <div className="nav-layout-section-header mb-sm">
-            <div className="settings-row-title">Settings layout width</div>
+            <div className="settings-row-title">Application layout width</div>
             <div className="settings-row-desc">
-              Choose your preferred layout width for the Settings window. Smoothly animates the sidebar rail and content boundaries.
+              Choose your preferred layout width across KeyFlow. Smoothly animates the navigation rail and content column across all pages (Overview, Shortcuts, Key Map, Library, Notes, and Settings).
             </div>
           </div>
 

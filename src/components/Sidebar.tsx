@@ -137,8 +137,8 @@ export function Sidebar() {
 
   const isHorizontal = appearance?.navigationLayout === "horizontal";
 
-      const isSmallWidth = appearance?.settingsWidth === "small";
-      const effectiveWidth = isDragging ? sidebarWidth : (isSmallWidth ? 220 : Math.max(sidebarWidth, 260));
+  const isSmallWidth = appearance?.settingsWidth === "small";
+  const effectiveWidth = isDragging ? sidebarWidth : (isSmallWidth ? 220 : Math.max(sidebarWidth, 284));
       return (
         <aside
           ref={asideRef}

@@ -108,7 +108,7 @@ export function VisualKeyboard() {
   const isPopoverHyper = isHyperKeyEnabled && popoverKey?.toLowerCase() === hyperKeyName?.toLowerCase();
 
   return (
-    <div className="content max-readable">
+    <div className="content">
       <PageHeader
         eyebrow="MAP"
         title="Visual Keyboard"

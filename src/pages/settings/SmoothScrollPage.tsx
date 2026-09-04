@@ -99,6 +99,10 @@ export const SmoothScrollPage: FC<SmoothScrollPageProps> = ({ onBack }) => {
   // Check if current preset is a user custom preset
   const customPresets = settings.customPresets || [];
   const currentCustomPreset = customPresets.find((p) => p.id === settings.preset);
+  const activePresetLabel =
+    BUILTIN_PRESETS.find((p) => p.id === settings.preset)?.label ||
+    currentCustomPreset?.name ||
+    settings.preset.toUpperCase();
 
   // Live preview: attach the scroll engine to the preview box
   const previewRef = useRef<HTMLDivElement>(null);
@@ -252,14 +256,20 @@ export const SmoothScrollPage: FC<SmoothScrollPageProps> = ({ onBack }) => {
         desc="Choose a scrolling feel, fine-tune parameters, or create custom presets"
         accentColor="purple"
       >
-        <div className="flex-between mb-sm">
-          <span className="tiny muted bold">
-            ACTIVE FEEL: {settings.preset.toUpperCase()}
-          </span>
+        <div className="ss-preset-toolbar">
+          <div className="ss-active-feel-badge">
+            <span className="tiny text-muted uppercase bold tracking-wider">Active Feel:</span>
+            <span className="ss-active-feel-tag">
+              {currentCustomPreset && (
+                <span className={`ss-preset-color-dot ${currentCustomPreset.color || "purple"}`} />
+              )}
+              <span>{activePresetLabel}</span>
+            </span>
+          </div>
           <div className="ss-preset-actions">
             <button
               type="button"
-              className="btn btn-ghost btn-xs"
+              className="btn btn-secondary btn-xs"
               onClick={handleResetPreset}
               title="Reset current preset parameters to factory defaults"
             >
@@ -268,7 +278,7 @@ export const SmoothScrollPage: FC<SmoothScrollPageProps> = ({ onBack }) => {
             </button>
             <button
               type="button"
-              className={`btn btn-xs ${showAdvanced ? "btn-secondary" : "btn-ghost"}`}
+              className={`btn btn-xs ${showAdvanced ? "btn-primary" : "btn-secondary"}`}
               onClick={() => setShowAdvanced(!showAdvanced)}
               title="Toggle advanced tuning parameters for this preset"
             >
@@ -318,7 +328,7 @@ export const SmoothScrollPage: FC<SmoothScrollPageProps> = ({ onBack }) => {
                 aria-pressed={isActive}
               >
                 <div className="ss-preset-card-header">
-                  <div className="flex-start gap-xs">
+                  <div className="row gap-xs items-center">
                     <span className={`ss-preset-color-dot ${cp.color || "purple"}`} />
                     <span className="ss-preset-card-label text-ellipsis">{cp.name}</span>
                   </div>
@@ -345,7 +355,7 @@ export const SmoothScrollPage: FC<SmoothScrollPageProps> = ({ onBack }) => {
 
         {/* Create New Preset Trigger Button */}
         {!creatingNew && (
-          <div className="mt-sm">
+          <div className="mt-sm flex-start">
             <button
               type="button"
               className="btn btn-secondary btn-sm"
@@ -354,7 +364,7 @@ export const SmoothScrollPage: FC<SmoothScrollPageProps> = ({ onBack }) => {
                 setShowAdvanced(true);
               }}
             >
-              <Icon name="plus" size={14} />
+              <Icon name="plus" size={13} />
               <span>Create New Preset from Current Settings</span>
             </button>
           </div>
@@ -364,7 +374,10 @@ export const SmoothScrollPage: FC<SmoothScrollPageProps> = ({ onBack }) => {
         {creatingNew && (
           <div className="ss-create-preset-panel">
             <div className="ss-create-preset-header">
-              <span className="ss-create-preset-title">Save as New Custom Preset</span>
+              <div className="row gap-xs items-center">
+                <Icon name="sparkles" size={14} className="text-accent" />
+                <span className="ss-create-preset-title">Save as New Custom Preset</span>
+              </div>
               <button
                 type="button"
                 className="btn btn-ghost btn-xs"
@@ -374,40 +387,60 @@ export const SmoothScrollPage: FC<SmoothScrollPageProps> = ({ onBack }) => {
               </button>
             </div>
 
-            <div className="settings-row-desc">
-              Save your current duration ({settings.animationTime}ms), step size ({settings.stepSize}px), and acceleration settings as a reusable preset.
-            </div>
+            <p className="ss-create-preset-desc">
+              Save your current duration ({settings.animationTime}ms), step size ({settings.stepSize}px), and acceleration settings as a reusable custom preset.
+            </p>
 
-            <div className="flex gap-sm">
-              <input
-                type="text"
-                className="input flex-1"
-                placeholder="Preset name (e.g. Ultra Responsive)"
-                value={newPresetName}
-                onChange={(e) => setNewPresetName(e.target.value)}
-                autoFocus
-              />
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={handleSaveNewPreset}
-              >
-                Save Preset
-              </button>
-            </div>
-
-            <div className="ss-color-picker-row mt-xs">
-              <span className="tiny muted">Color Accent:</span>
-              {COLOR_OPTIONS.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`ss-color-chip ${c.id}${newPresetColor === c.id ? " is-selected" : ""}`}
-                  onClick={() => setNewPresetColor(c.id)}
-                  title={c.label}
-                  aria-label={c.label}
+            <div className="ss-create-preset-form">
+              <div className="ss-form-row">
+                <label className="tiny bold uppercase tracking-wider text-muted">Preset Name</label>
+                <input
+                  type="text"
+                  className="input w-full"
+                  placeholder="Preset name (e.g. Ultra Responsive)"
+                  value={newPresetName}
+                  onChange={(e) => setNewPresetName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveNewPreset();
+                    if (e.key === "Escape") setCreatingNew(false);
+                  }}
+                  autoFocus
                 />
-              ))}
+              </div>
+
+              <div className="ss-form-row">
+                <label className="tiny bold uppercase tracking-wider text-muted">Color Accent</label>
+                <div className="ss-color-picker-row">
+                  {COLOR_OPTIONS.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={`ss-color-chip ${c.id}${newPresetColor === c.id ? " is-selected" : ""}`}
+                      onClick={() => setNewPresetColor(c.id)}
+                      title={c.label}
+                      aria-label={c.label}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="ss-create-preset-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setCreatingNew(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={handleSaveNewPreset}
+                >
+                  <Icon name="check" size={13} />
+                  <span>Save Preset</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
