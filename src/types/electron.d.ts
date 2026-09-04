@@ -75,6 +75,7 @@ interface InputAPI {
   setWasdCursorConfig?: (config: { size: number; customPath?: string }) => Promise<boolean>;
   setWasdFeedbackConfig?: (config: { showStateCard: boolean; accent?: string }) => Promise<boolean>;
   browseCursorFile?: () => Promise<string | null>;
+  setSmoothScroll?: (config: any) => Promise<boolean>;
   onWasdNavigationState: (callback: (active: boolean) => void) => () => void;
   onTriggered: (callback: (shortcut: any, results?: any[]) => void) => () => void;
   beginCapture?: () => Promise<boolean>;

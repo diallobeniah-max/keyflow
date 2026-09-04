@@ -646,6 +646,11 @@ ipcMain.handle("input:get-suppression", () => {
   ipcMain.handle("input:get-status", () => {
     return inputService?.getStatus() ?? "stopped";
   });
+
+  ipcMain.handle("input:set-smooth-scroll", (_event, config: any) => {
+    nativeHelper?.setSmoothScroll(config ?? {});
+    return true;
+  });
 }
 
 function sendMaximizedChange(maximized: boolean): void {

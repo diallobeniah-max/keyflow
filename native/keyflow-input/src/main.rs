@@ -17,6 +17,7 @@ mod parent_watch;
 mod protocol;
 mod raw_mouse;
 mod remap;
+mod smooth_scroll;
 mod system_cursor;
 mod trigger;
 mod window_control;
@@ -211,6 +212,7 @@ fn main() -> ExitCode {
                             // Remap targets and the drag switcher overlay must not
                             // survive a pause.
                             remap::set_paused(true);
+                            smooth_scroll::set_paused(true);
                             drag_switcher::hide_all(crate::drag_switcher::HideReason::Paused);
                         }
                         Some(InMessage::Resume { .. }) => {
@@ -220,6 +222,7 @@ fn main() -> ExitCode {
                             hook::set_engine_paused(false);
                             hook::set_wasd_paused(false);
                             remap::set_paused(false);
+                            smooth_scroll::set_paused(false);
                         }
                         Some(InMessage::BeginCapture { .. }) => {
                             eprintln!("[key-capture-native] StartKeyCapture received");
@@ -244,6 +247,18 @@ fn main() -> ExitCode {
                             eprintln!("[keyflow-input] setWasdNavigation enabled={enabled} cursor_size={sz} cursor_path={cursor_path:?}");
                             hook::set_wasd_navigation(enabled);
                             system_cursor::set_system_cursor_blue(enabled, sz, cursor_path.as_deref());
+                        }
+                        Some(InMessage::SetSmoothScroll { enabled, preset, step_size, animation_time, acceleration_enabled, acceleration_delta, acceleration_max, trackpad_pass_through, .. }) => {
+                            smooth_scroll::configure(smooth_scroll::SmoothScrollConfig {
+                                enabled,
+                                preset,
+                                step_size,
+                                animation_time_ms: animation_time,
+                                acceleration_enabled,
+                                acceleration_delta_ms: acceleration_delta,
+                                acceleration_max,
+                                trackpad_pass_through,
+                            });
                         }
                         Some(InMessage::SetDragSwitcher { enabled, zones, activation_ms, hover_ms, corner_size, .. }) => {
                             eprintln!(
@@ -315,6 +330,7 @@ fn main() -> ExitCode {
                         Some(InMessage::Shutdown { .. }) => {
                             hook::release_wasd_arrows();
                             hook::release_remaps();
+                            smooth_scroll::uninstall_hook();
                             drag_switcher::hide_all(crate::drag_switcher::HideReason::Shutdown);
                             quit();
                             break;
@@ -345,6 +361,10 @@ fn main() -> ExitCode {
         return ExitCode::from(2);
     }
 
+    let hinstance = unsafe { windows_sys::Win32::System::LibraryLoader::GetModuleHandleW(std::ptr::null()) };
+    smooth_scroll::init();
+    smooth_scroll::install_hook(hinstance);
+
     // Drag Corner Switcher V2: mouse observation prefers Win32 Raw Input, and
     // falls back to a WH_MOUSE_LL observation hook if raw registration or
     // verification fails. Either way the mouse observer starts on this thread
@@ -355,6 +375,7 @@ fn main() -> ExitCode {
             "[keyflow-input] mouse observation unavailable: {}",
             unsafe { windows_sys::Win32::Foundation::GetLastError() }
         );
+        smooth_scroll::uninstall_hook();
         hook::uninstall_hook(handle);
         return ExitCode::from(2);
     }
@@ -389,6 +410,7 @@ fn main() -> ExitCode {
     hook::release_remaps();
     system_cursor::restore_default_cursor();
     drag_switcher::hide_all(crate::drag_switcher::HideReason::Shutdown);
+    smooth_scroll::uninstall_hook();
     hook::uninstall_hook(handle);
     // Let the writer thread flush anything still queued before we exit.
     thread::sleep(std::time::Duration::from_millis(50));

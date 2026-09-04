@@ -90,6 +90,10 @@ export default function App() {
   const mainRef = useRef<HTMLElement>(null);
   useSmoothScroll(mainRef, smoothScroll);
 
+  useEffect(() => {
+    void window.electronAPI?.input.setSmoothScroll?.(smoothScroll);
+  }, [smoothScroll]);
+
   useActiveApp();
 
   useEffect(() => {

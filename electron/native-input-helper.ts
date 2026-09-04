@@ -108,6 +108,17 @@ export interface DragSwitcherConfig {
   cornerSize: number;
 }
 
+export interface SmoothScrollNativeConfig {
+  enabled?: boolean;
+  preset?: string;
+  stepSize?: number;
+  animationTime?: number;
+  accelerationEnabled?: boolean;
+  accelerationDelta?: number;
+  accelerationMax?: number;
+  trackpadPassThrough?: boolean;
+}
+
 /** A running application offered by the app picker (executable identity). */
 export interface NativeAppInfo {
   executablePath: string;
@@ -191,6 +202,7 @@ export class NativeInputHelper {
   private onDragSwitcherHide: ((msg: DragSwitcherHideMessage) => void) | null = null;
   private onWindowActivationResult: ((msg: WindowActivationResultMessage) => void) | null = null;
   private pendingDragSwitcher: DragSwitcherConfig | null = null;
+  private pendingSmoothScroll: SmoothScrollNativeConfig | null = null;
   private pendingKeys: NativeKeySpec[] = [];
   private pendingShortcuts: unknown[] | null = null;
   private pendingHyperKey: unknown = null;
@@ -469,6 +481,31 @@ export class NativeInputHelper {
     });
   }
 
+  /** Configure native System-Wide Smooth Scrolling. */
+  setSmoothScroll(config: SmoothScrollNativeConfig): void {
+    this.pendingSmoothScroll = config;
+    if (this.status === "ready") {
+      this.sendSmoothScroll();
+    }
+  }
+
+  private sendSmoothScroll(): void {
+    const c = this.pendingSmoothScroll;
+    if (!c) return;
+    this.send({
+      type: "setSmoothScroll",
+      version: NATIVE_PROTOCOL_VERSION,
+      enabled: c.enabled !== false,
+      preset: c.preset ?? "smooth",
+      stepSize: c.stepSize ?? 100,
+      animationTime: c.animationTime ?? 400,
+      accelerationEnabled: c.accelerationEnabled !== false,
+      accelerationDelta: c.accelerationDelta ?? 50,
+      accelerationMax: c.accelerationMax ?? 3.0,
+      trackpadPassThrough: c.trackpadPassThrough !== false,
+    });
+  }
+
   /**
    * Inject one real SendInput key event via the helper. Resolves true only
    * after the helper confirms SendInput accepted it. Media/volume keys use
@@ -585,6 +622,7 @@ export class NativeInputHelper {
   private flushConfigure(): void {
     this.sendConfigure();
     this.sendDragSwitcher();
+    this.sendSmoothScroll();
     // Send beginCapture AFTER config so engine reload (which resets gesture
     // state) doesn't race with an already-armed capture. The Rust hook's
     // CAPTURING atomic is independent of the engine, but arming after config

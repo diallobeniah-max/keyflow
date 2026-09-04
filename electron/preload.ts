@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     updateShortcuts: (entries, context) => ipcRenderer.invoke("input:update-shortcuts", entries, context),
     setPaused: (paused) => ipcRenderer.invoke("input:set-paused", paused),
     setDragSwitcher: (config) => ipcRenderer.invoke("input:set-drag-switcher", config),
+    setSmoothScroll: (config) => ipcRenderer.invoke("input:set-smooth-scroll", config),
     getStatus: () => ipcRenderer.invoke("input:get-status"),
     getSuppression: () => ipcRenderer.invoke("input:get-suppression"),
     getNativeStatus: () => ipcRenderer.invoke("native:get-status"),

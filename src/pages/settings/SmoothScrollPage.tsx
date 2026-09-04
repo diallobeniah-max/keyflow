@@ -84,21 +84,21 @@ export const SmoothScrollPage: FC<SmoothScrollPageProps> = ({ onBack }) => {
     <div className="settings-page-container anim-tab-enter">
       <SettingsPageHeader
         title="Smooth Scrolling"
-        description="Add fluid animation to mouse wheel scrolling inside KeyFlow panels and lists."
+        description="Buttery smooth animated scrolling across all your Windows applications (Chrome, Word, VS Code, File Explorer, etc.) and KeyFlow."
         onBack={onBack}
       />
 
       {/* Master toggle */}
       <SettingsGroup
-        title="Scrolling Engine"
+        title="System-Wide Scrolling Engine"
         icon="settings"
-        desc="Enable animated wheel scrolling for all KeyFlow panels"
+        desc="Enable fluid animated mouse wheel scrolling across all Windows applications"
         accentColor="blue"
       >
         <SettingsRow
           id="row-ss-enabled"
           title="Enable smooth scrolling"
-          desc="Replaces stepped mouse wheel scrolling with fluid animation inside KeyFlow"
+          desc="Replaces coarse mouse wheel jumps with fluid momentum across all Windows desktop apps"
         >
           <Toggle
             label="Enable smooth scrolling"

@@ -1,7 +1,12 @@
 # Design Changelog
 
-## 2026-09-04 — Smooth Scrolling Engine and Shortcut Binding Architecture
+## 2026-09-04 — System-Wide Smooth Scrolling Across All Windows Applications
 
+* **Native Windows OS Smooth Scrolling (`native/keyflow-input/src/smooth_scroll.rs`)**:
+  - Implemented low-level mouse hook (`WH_MOUSE_LL`) to intercept physical mouse-wheel events system-wide across all desktop windows (Chrome, Word, VS Code, File Explorer, etc.).
+  - Coarse 120-unit jumps are suppressed; sub-pixel micro-wheel movements are calculated using pulse easing and injected via `SendInput(MOUSEEVENTF_WHEEL)` at ~120Hz.
+  - Injected events are tagged with `SMOOTH_SCROLL_MARKER = 0x4B46_5353` ("KFSS") in `dwExtraInfo` to prevent re-interception.
+  - Fail-open safety: automatic unhooking on shutdown, full bypass during Global Pause and Safe Mode.
 * **Queue-Based Smooth Scrolling Engine (`src/lib/smooth-scroll-engine.ts`)**:
   - Researched and integrated the algorithm inspired by SmoothScroll (galambalazs/smoothscroll-for-websites, MIT).
   - Queue-based impulse accumulation: incoming wheel ticks push impulses onto a queue; a single `requestAnimationFrame` loop calculates and applies combined displacements using pulse easing.

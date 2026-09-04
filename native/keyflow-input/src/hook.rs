@@ -639,6 +639,10 @@ pub fn message_loop() {
                 handle_timer();
                 continue;
             }
+            if msg.message == WM_TIMER && crate::smooth_scroll::is_scroll_timer(msg.wParam) {
+                crate::smooth_scroll::on_timer_tick();
+                continue;
+            }
             let _ = TranslateMessage(&msg);
             let _ = DispatchMessageW(&msg);
         }

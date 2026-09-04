@@ -489,6 +489,27 @@ pub enum InMessage {
         #[serde(default)]
         cursor_path: Option<String>,
     },
+    /// Configure native System-Wide Smooth Scrolling.
+    SetSmoothScroll {
+        #[serde(default)]
+        version: u32,
+        #[serde(default)]
+        enabled: bool,
+        #[serde(default)]
+        preset: String,
+        #[serde(rename = "stepSize", default)]
+        step_size: u32,
+        #[serde(rename = "animationTime", default)]
+        animation_time: u32,
+        #[serde(rename = "accelerationEnabled", default)]
+        acceleration_enabled: bool,
+        #[serde(rename = "accelerationDelta", default)]
+        acceleration_delta: u32,
+        #[serde(rename = "accelerationMax", default)]
+        acceleration_max: f32,
+        #[serde(rename = "trackpadPassThrough", default)]
+        trackpad_pass_through: bool,
+    },
     /// Inject one real SendInput key event (used for media/volume keys, which
     /// keybd_event cannot deliver reliably). The helper replies with Injected.
     /// The event carries OWN_INJECTED_MARKER so the hook never reprocesses it.
