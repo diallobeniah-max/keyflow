@@ -62,3 +62,16 @@ test("synonym 'autostart' finds Launch on Windows startup", () => {
   assert.ok(results.length > 0);
   assert.equal(results[0].item.title, "Launch on Windows startup");
 });
+
+test("search 'smooth scroll' finds Smooth scrolling", () => {
+  const results = searchSettings("smooth");
+  assert.ok(results.length > 0);
+  assert.ok(results.some((r) => r.item.title.toLowerCase().includes("smooth")));
+});
+
+test("search 'pause shortcut' finds Pause engine shortcut", () => {
+  const results = searchSettings("pause");
+  assert.ok(results.length > 0);
+  assert.ok(results.some((r) => r.item.title.toLowerCase().includes("pause")));
+});
+

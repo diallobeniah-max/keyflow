@@ -21,6 +21,8 @@ import { PrivacyPage } from "./settings/PrivacyPage";
 import { BackupPage } from "./settings/BackupPage";
 import { AdvancedPage } from "./settings/AdvancedPage";
 import { AboutPage } from "./settings/AboutPage";
+import { ShortcutBindingPage } from "./settings/ShortcutBindingPage";
+import { SmoothScrollPage } from "./settings/SmoothScrollPage";
 
 export function Settings() {
   const settings = useStore((s) => s.data.settings);
@@ -75,6 +77,8 @@ export function Settings() {
         return <KeyboardPage {...props} />;
       case "commandPalette":
         return <CommandPalettePage {...props} />;
+      case "shortcutBinding":
+        return <ShortcutBindingPage {...props} />;
       case "wasd":
         return <WasdPage {...props} />;
       case "hotCorners":
@@ -83,6 +87,8 @@ export function Settings() {
         return <AlwaysOnTopPage {...props} />;
       case "appearance":
         return <AppearancePage {...props} />;
+      case "smoothScroll":
+        return <SmoothScrollPage {...props} />;
       case "screenTint":
         return <ScreenTintPage {...props} />;
       case "appIcon":

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { TitleBar } from "./components/TitleBar";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
@@ -24,6 +24,8 @@ import { ScreenTintOverlay } from "./pages/ScreenTintOverlay";
 import { useStore } from "./store/useStore";
 import { useActiveApp } from "./lib/useActiveApp";
 import { useResolvedTheme } from "./lib/useResolvedTheme";
+import { useSmoothScroll } from "./hooks/useSmoothScroll";
+
 
 function isPopupWindow(): boolean {
   return window.location.search.includes("window=popup");
@@ -81,7 +83,12 @@ export default function App() {
   const drawerOpen = useStore((s) => s.drawerOpen);
   const setDrawerOpen = useStore((s) => s.setDrawerOpen);
   const appearance = useStore((s) => s.data.settings.appearance);
+  const smoothScroll = useStore((s) => s.data.settings.smoothScroll);
   const resolvedTheme = useResolvedTheme(appearance?.theme);
+
+  // Ref for the main scrollable content area — smooth scroll engine attaches here
+  const mainRef = useRef<HTMLElement>(null);
+  useSmoothScroll(mainRef, smoothScroll);
 
   useActiveApp();
 
@@ -164,7 +171,7 @@ export default function App() {
             aria-hidden="true"
           />
         )}
-        <main className="main">
+        <main ref={mainRef} className="main">
           <TopBar />
           <ErrorBoundary>
             <Router />

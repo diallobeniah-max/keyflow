@@ -404,6 +404,31 @@ export interface CustomCursorItem {
   format?: string;
 }
 
+export type SmoothScrollPreset = "native" | "smooth" | "silky" | "fast" | "custom";
+
+export interface SmoothScrollSettings {
+  /** Master on/off toggle. When false, native browser scrolling is used. */
+  enabled: boolean;
+  /** Preset name. "native" = pass-through, "custom" = manual sliders. */
+  preset: SmoothScrollPreset;
+  /** Pixels scrolled per mouse wheel notch. Default 100. */
+  stepSize: number;
+  /** Duration in ms for each scroll impulse animation. Default 400. */
+  animationTime: number;
+  /** Whether repeated wheel events within accelerationDelta ms multiply speed. */
+  accelerationEnabled: boolean;
+  /** Time window in ms — if next wheel arrives within this, accelerate. Default 50. */
+  accelerationDelta: number;
+  /** Maximum velocity multiplier from repeated scrolling. Default 3. */
+  accelerationMax: number;
+  /** Smooth arrow/page keys (does NOT intercept Keyflow shortcuts). */
+  keyboardScrolling: boolean;
+  /** Intercept horizontal wheel events. */
+  horizontalScrolling: boolean;
+  /** Detect precision trackpads and pass their events through natively. */
+  trackpadPassThrough: boolean;
+}
+
 export interface WasdNavigationSettings {
   showStateCard?: boolean;
   cursorSize: number;        // 16–64, default 32
@@ -428,6 +453,7 @@ export interface Settings {
   screenTint?: ScreenTintSettings;
   wasdNavigation?: WasdNavigationSettings;
   notes?: NotesSettings;
+  smoothScroll?: SmoothScrollSettings;
 }
 
 export interface RecentAction {

@@ -174,6 +174,18 @@ export function createDefaultSettings(): Settings {
       windowSizePreset: "comfortable",
       followMouseOnOpen: true,
     },
+    smoothScroll: {
+      enabled: true,
+      preset: "smooth",
+      stepSize: 100,
+      animationTime: 400,
+      accelerationEnabled: true,
+      accelerationDelta: 50,
+      accelerationMax: 3,
+      keyboardScrolling: false,
+      horizontalScrolling: true,
+      trackpadPassThrough: true,
+    },
   };
 }
 

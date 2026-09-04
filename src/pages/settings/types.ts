@@ -5,10 +5,12 @@ export type SettingsSectionId =
   | "notifications"
   | "keyboard"
   | "commandPalette"
+  | "shortcutBinding"
   | "wasd"
   | "hotCorners"
   | "alwaysOnTop"
   | "appearance"
+  | "smoothScroll"
   | "screenTint"
   | "appIcon"
   | "popup"
@@ -70,6 +72,13 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
         accentColor: "cyan",
         summary: (d) => d.settings.shortcuts.commandPaletteShortcut || "Ctrl+K",
       },
+      {
+        id: "shortcutBinding",
+        label: "Shortcut Bindings",
+        icon: "shortcuts",
+        accentColor: "indigo",
+        summary: (d) => d.settings.shortcuts.globalPause || "Unset",
+      },
     ],
   },
   {
@@ -111,6 +120,17 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
         summary: (d) => {
           const t = d.settings.appearance.theme;
           return t === "system" ? "Auto" : t === "dark" ? "Dark" : "Light";
+        },
+      },
+      {
+        id: "smoothScroll",
+        label: "Smooth Scrolling",
+        icon: "mouse",
+        accentColor: "teal",
+        summary: (d) => {
+          const s = d.settings.smoothScroll;
+          if (!s || !s.enabled || s.preset === "native") return "Native";
+          return s.preset === "custom" ? "Custom" : s.preset.charAt(0).toUpperCase() + s.preset.slice(1);
         },
       },
       {

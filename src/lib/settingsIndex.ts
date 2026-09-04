@@ -11,12 +11,14 @@ export interface SettingSearchItem {
     | "notifications"
     | "keyboard"
     | "commandPalette"
+    | "shortcutBinding"
     | "hotCorners"
     | "alwaysOnTop"
     | "wasd"
     | "popup"
     | "audio"
     | "appearance"
+    | "smoothScroll"
     | "appIcon"
     | "screenTint"
     | "privacy"
@@ -627,5 +629,81 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
     description: "Current installed KeyFlow version and platform build details",
     keywords: ["version", "build", "release", "about", "keyflow version"],
     anchorId: "row-about-version",
+  },
+
+  // Smooth Scrolling
+  {
+    id: "ss-enable",
+    title: "Smooth scrolling",
+    category: "smoothScroll",
+    categoryLabel: "Smooth Scrolling",
+    description: "Enable fluid animated mouse wheel scrolling inside KeyFlow",
+    keywords: ["scroll", "smooth", "smoothscroll", "wheel", "animation", "fluid", "silky", "fast"],
+    anchorId: "row-ss-enabled",
+  },
+  {
+    id: "ss-step",
+    title: "Scroll step size",
+    category: "smoothScroll",
+    categoryLabel: "Smooth Scrolling",
+    description: "Distance in pixels scrolled per mouse wheel notch",
+    keywords: ["step size", "scroll distance", "pixels per notch", "wheel speed"],
+    anchorId: "row-ss-step",
+  },
+  {
+    id: "ss-duration",
+    title: "Scroll duration",
+    category: "smoothScroll",
+    categoryLabel: "Smooth Scrolling",
+    description: "Time in milliseconds for scroll impulses to complete",
+    keywords: ["scroll time", "duration", "easing", "animation speed", "fluidity"],
+    anchorId: "row-ss-duration",
+  },
+  {
+    id: "ss-accel",
+    title: "Scroll acceleration",
+    category: "smoothScroll",
+    categoryLabel: "Smooth Scrolling",
+    description: "Accelerate scroll speed during rapid wheel flicking",
+    keywords: ["acceleration", "momentum", "fast scroll", "speed multiplier"],
+    anchorId: "row-ss-accel-enabled",
+  },
+  {
+    id: "ss-trackpad",
+    title: "Trackpad pass-through",
+    category: "smoothScroll",
+    categoryLabel: "Smooth Scrolling",
+    description: "Detect precision trackpads and scroll natively without artificial animation",
+    keywords: ["trackpad", "touchpad", "precision touchpad", "gesture scroll"],
+    anchorId: "row-ss-trackpad",
+  },
+
+  // Shortcut Bindings
+  {
+    id: "sc-bind-pause",
+    title: "Pause engine shortcut",
+    category: "shortcutBinding",
+    categoryLabel: "Shortcut Bindings",
+    description: "Global keyboard shortcut to pause and resume KeyFlow shortcut matching",
+    keywords: ["pause shortcut", "resume hotkey", "global pause", "binding", "remap"],
+    anchorId: "row-sc-bind-globalPause",
+  },
+  {
+    id: "sc-bind-safe",
+    title: "Emergency safe mode shortcut",
+    category: "shortcutBinding",
+    categoryLabel: "Shortcut Bindings",
+    description: "Emergency hotkey to disconnect hooks and toggle Safe Mode",
+    keywords: ["safe mode hotkey", "emergency key", "panic button", "binding"],
+    anchorId: "row-sc-bind-emergencySafe",
+  },
+  {
+    id: "sc-bind-cp",
+    title: "Command palette shortcut",
+    category: "shortcutBinding",
+    categoryLabel: "Shortcut Bindings",
+    description: "Keyboard shortcut to open the searchable command palette",
+    keywords: ["command palette hotkey", "ctrl k", "binding", "quick open"],
+    anchorId: "row-sc-bind-commandPaletteShortcut",
   },
 ];

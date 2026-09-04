@@ -8,16 +8,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, "..");
 
-test("1. All 15 dedicated settings pages exist", () => {
+test("1. All 17 dedicated settings pages exist", () => {
   const expectedPages = [
     "AppBehaviorPage.tsx",
     "NotificationsPage.tsx",
     "KeyboardPage.tsx",
     "CommandPalettePage.tsx",
+    "ShortcutBindingPage.tsx",
     "WasdPage.tsx",
     "HotCornersPage.tsx",
     "AlwaysOnTopPage.tsx",
     "AppearancePage.tsx",
+    "SmoothScrollPage.tsx",
     "ScreenTintPage.tsx",
     "AppIconPage.tsx",
     "PopupMenuPage.tsx",
@@ -42,7 +44,7 @@ test("2. Backward-compatible route resolver handles legacy keys", async () => {
   assert.ok(typesContent.includes('if (lower === "data") return "backup";'));
 });
 
-test("3. Navigation groups cover all 6 Apple-style categories and 15 pages", () => {
+test("3. Navigation groups cover all 6 Apple-style categories and 17 pages", () => {
   const typesContent = fs.readFileSync(path.join(root, "src", "pages", "settings", "types.ts"), "utf-8");
 
   const expectedIds = [
@@ -50,10 +52,12 @@ test("3. Navigation groups cover all 6 Apple-style categories and 15 pages", () 
     "notifications",
     "keyboard",
     "commandPalette",
+    "shortcutBinding",
     "wasd",
     "hotCorners",
     "alwaysOnTop",
     "appearance",
+    "smoothScroll",
     "screenTint",
     "appIcon",
     "popup",
@@ -140,4 +144,26 @@ test("9. Settings width setting allows picking Small vs Large with animated layo
   assert.ok(cssContent.includes(".settings-layout.is-width-large .settings-nav"), "CSS must define is-width-large nav");
   assert.ok(cssContent.includes("transition: width"), "CSS must animate width transition");
 });
+
+test("10. Smooth Scrolling and Shortcut Bindings pages are wired and styled correctly", () => {
+  const ssContent = fs.readFileSync(path.join(root, "src", "pages", "settings", "SmoothScrollPage.tsx"), "utf-8");
+  const scContent = fs.readFileSync(path.join(root, "src", "pages", "settings", "ShortcutBindingPage.tsx"), "utf-8");
+  const settingsContent = fs.readFileSync(path.join(root, "src", "pages", "Settings.tsx"), "utf-8");
+  const appContent = fs.readFileSync(path.join(root, "src", "App.tsx"), "utf-8");
+  const engineContent = fs.readFileSync(path.join(root, "src", "lib", "smooth-scroll-engine.ts"), "utf-8");
+
+  assert.ok(ssContent.includes('id="row-ss-enabled"'), "SmoothScrollPage must have row-ss-enabled");
+  assert.ok(ssContent.includes("ss-preset-grid"), "SmoothScrollPage must have preset cards");
+  assert.ok(ssContent.includes("ss-preview-container"), "SmoothScrollPage must have live preview");
+
+  assert.ok(scContent.includes("sc-key-chip"), "ShortcutBindingPage must have key chips");
+  assert.ok(scContent.includes("sc-capture-panel"), "ShortcutBindingPage must have capture panel");
+
+  assert.ok(settingsContent.includes("SmoothScrollPage"), "Settings.tsx must import SmoothScrollPage");
+  assert.ok(settingsContent.includes("ShortcutBindingPage"), "Settings.tsx must import ShortcutBindingPage");
+
+  assert.ok(appContent.includes("useSmoothScroll"), "App.tsx must attach useSmoothScroll");
+  assert.ok(engineContent.includes("class SmoothScrollEngine"), "SmoothScrollEngine must be defined");
+});
+
 

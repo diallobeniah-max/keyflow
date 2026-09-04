@@ -11099,3 +11099,383 @@ mark.notes-find-match.is-active {
     display: none !important;
   }
 }
+
+/* ==========================================================================
+   Smooth Scroll Settings & Live Preview
+   ========================================================================== */
+
+.ss-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-0);
+}
+
+.ss-preset-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-elevated);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  outline: none;
+  text-align: left;
+  transition: transform var(--motion-default),
+              border-color var(--motion-default),
+              background var(--motion-default),
+              box-shadow var(--motion-default);
+}
+
+.ss-preset-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-accent-border);
+  background: var(--color-bg-hover);
+}
+
+.ss-preset-card:active {
+  transform: scale(0.98);
+}
+
+.ss-preset-card:focus-visible {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus);
+}
+
+.ss-preset-card.is-selected {
+  border: 1.5px solid var(--color-accent) !important;
+  background: var(--color-bg-surface-elevated);
+  box-shadow: 0 0 0 1px var(--color-accent-soft), var(--shadow-sm);
+  color: var(--color-text-primary);
+}
+
+.ss-preset-card.is-muted {
+  opacity: 0.5;
+}
+
+.ss-preset-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--space-2);
+}
+
+.ss-preset-card-label {
+  font-size: var(--type-card-size);
+  font-weight: var(--type-card-weight);
+  color: var(--color-text-primary);
+}
+
+.ss-preset-card-badge {
+  font-size: var(--type-caption-size);
+  padding: var(--space-0) var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-hover);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.ss-preset-card-badge.is-active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border-color: var(--color-accent-border);
+}
+
+.ss-preset-card-check {
+  font-size: var(--type-small-size);
+  color: var(--color-accent);
+  font-weight: bold;
+}
+
+.ss-preset-card-desc {
+  font-size: var(--type-caption-size);
+  color: var(--color-text-muted);
+  line-height: var(--type-caption-line);
+  margin: var(--space-0);
+}
+
+.ss-preview-container {
+  position: relative;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+.ss-preview-scroll {
+  height: 200px;
+  overflow-y: auto;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ss-preview-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-subtle);
+  transition: background var(--motion-fast);
+}
+
+.ss-preview-row:hover {
+  background: var(--color-bg-hover);
+}
+
+.ss-preview-index {
+  font-size: var(--type-caption-size);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  width: 24px;
+}
+
+.ss-preview-label {
+  font-size: var(--type-body-size);
+  color: var(--color-text-secondary);
+}
+
+.ss-preview-native-notice {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-surface-elevated);
+  border-top: 1px solid var(--color-border-subtle);
+  font-size: var(--type-caption-size);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ==========================================================================
+   Shortcut Binding UI (Pill chips, capture panel, rows)
+   ========================================================================== */
+
+.sc-binding-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-default);
+  margin-bottom: var(--space-2);
+  transition: border-color var(--motion-fast);
+}
+
+.sc-binding-row:hover {
+  border-color: var(--color-border-strong);
+}
+
+.sc-binding-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1;
+}
+
+.sc-binding-label {
+  font-size: var(--type-card-size);
+  font-weight: var(--type-card-weight);
+  color: var(--color-text-primary);
+}
+
+.sc-binding-desc {
+  font-size: var(--type-caption-size);
+  color: var(--color-text-muted);
+}
+
+.sc-binding-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.sc-binding-display {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sc-binding-empty {
+  font-size: var(--type-small-size);
+  color: var(--color-text-disabled);
+  font-style: italic;
+}
+
+.sc-key-chip-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.sc-key-plus {
+  color: var(--color-text-muted);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-caption-weight);
+  user-select: none;
+  padding: var(--space-0) var(--space-1);
+}
+
+.sc-key-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 26px;
+  padding: var(--space-0) var(--space-2);
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border-strong);
+  border-bottom: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--type-keycap-size);
+  font-weight: var(--type-keycap-weight);
+  box-shadow: var(--shadow-sm);
+  user-select: none;
+}
+
+.sc-capture-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1.5px solid var(--color-accent);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-md);
+  min-width: 300px;
+}
+
+.sc-capture-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sc-capture-title {
+  font-size: var(--type-card-size);
+  font-weight: var(--type-card-weight);
+  color: var(--color-text-primary);
+}
+
+.sc-capture-hidden-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.sc-capture-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-bg-input);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  outline: none;
+  transition: border-color var(--motion-fast), background var(--motion-fast);
+}
+
+.sc-capture-display:hover,
+.sc-capture-display:focus {
+  border-color: var(--color-accent);
+  background: var(--color-bg-hover);
+}
+
+.sc-capture-display.has-capture {
+  border-style: solid;
+  border-color: var(--color-accent-border);
+}
+
+.sc-capture-hint {
+  font-size: var(--type-small-size);
+  color: var(--color-text-muted);
+}
+
+.sc-capture-conflict-warn {
+  font-size: var(--type-caption-size);
+  color: var(--color-warning);
+  margin: var(--space-0);
+}
+
+.sc-capture-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--type-button-size);
+  font-weight: var(--type-button-weight);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+  transition: background var(--motion-fast), border-color var(--motion-fast);
+}
+
+.sc-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sc-btn-primary {
+  background: var(--color-accent);
+  color: var(--color-text-primary);
+  border-color: var(--color-accent);
+}
+
+.sc-btn-primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.sc-btn-secondary {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
+}
+
+.sc-btn-secondary:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-strong);
+}
+
+.sc-btn-ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.sc-btn-ghost:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.sc-btn-danger {
+  background: transparent;
+  color: var(--color-danger);
+  border-color: var(--color-border-subtle);
+}
+
+.sc-btn-danger:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  border-color: var(--color-danger);
+}
+

@@ -1,5 +1,30 @@
 # Design Changelog
 
+## 2026-09-04 — Smooth Scrolling Engine and Shortcut Binding Architecture
+
+* **Queue-Based Smooth Scrolling Engine (`src/lib/smooth-scroll-engine.ts`)**:
+  - Researched and integrated the algorithm inspired by SmoothScroll (galambalazs/smoothscroll-for-websites, MIT).
+  - Queue-based impulse accumulation: incoming wheel ticks push impulses onto a queue; a single `requestAnimationFrame` loop calculates and applies combined displacements using pulse easing.
+  - Direction reversal: immediate momentum cancellation when scrolling in the opposite direction.
+  - Trackpad heuristic pass-through: fractional delta detection passes native precision trackpad events through untouched.
+  - Integrated via React hook (`src/hooks/useSmoothScroll.ts`) into `<main className="main">` in `App.tsx` and the live preview component.
+  - Respects OS `prefers-reduced-motion` settings.
+* **Smooth Scrolling Settings Page (`src/pages/settings/SmoothScrollPage.tsx`)**:
+  - Added dedicated page under the Interface navigation group (`teal` accent, mouse icon).
+  - Preset picker with tactile selection cards: Native (Off), Smooth (Default, 400ms), Silky (600ms), Fast (200ms), and Custom.
+  - Custom mode expands advanced controls: step size (px), animation duration (ms), acceleration toggle, acceleration delta (ms), and max acceleration multiplier.
+  - Interactive live preview area with an internal scrollable list allowing instantaneous testing of scroll parameters.
+* **Shortcut Binding UI with Pill-Chip Key Display (`src/pages/settings/ShortcutBindingPage.tsx`)**:
+  - Added dedicated page under the Input navigation group (`indigo` accent, shortcuts icon).
+  - Clean row layout for engine shortcuts: Pause / Resume Engine, Emergency Safe Mode, and Command Palette.
+  - Tactile key-chip display (`.sc-key-chip`) using token styling (`--radius-sm`, `--color-bg-hover`, `--color-border-strong`).
+  - Inline capture panel with real-time feedback: click Capture, press any keyboard combo, live chips update immediately.
+  - Built-in conflict detection warning against other KeyFlow bindings.
+* **Component and Style Additions in `src/index.css`**:
+  - Added `.ss-preset-grid`, `.ss-preset-card`, `.ss-preview-container`, `.ss-preview-scroll`, `.ss-preview-row`.
+  - Added `.sc-binding-row`, `.sc-key-chip`, `.sc-key-chip-row`, `.sc-capture-panel`, `.sc-capture-display`, `.sc-btn`.
+  - Zero hardcoded colors or unauthorized measurements — 100% compliant with `tokens.css`.
+
 ## 2026-09-04 — Navigation Transitions, Layout Width Fluid Morphs, and Scroll-Only Auto-Hiding Scrollbar
 
 * **Fluid Vertical Sidebar ↔ Floating Dock Transitions**:
