@@ -509,6 +509,8 @@ pub enum InMessage {
         acceleration_max: f32,
         #[serde(rename = "trackpadPassThrough", default)]
         trackpad_pass_through: bool,
+        #[serde(rename = "horizontalScrolling", default = "default_true")]
+        horizontal_scrolling: bool,
     },
     /// Inject one real SendInput key event (used for media/volume keys, which
     /// keybd_event cannot deliver reliably). The helper replies with Injected.

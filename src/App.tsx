@@ -86,7 +86,6 @@ export default function App() {
   const smoothScroll = useStore((s) => s.data.settings.smoothScroll);
   const resolvedTheme = useResolvedTheme(appearance?.theme);
 
-  // Ref for the main scrollable content area — smooth scroll engine attaches here
   const mainRef = useRef<HTMLElement>(null);
   useSmoothScroll(mainRef, smoothScroll);
 

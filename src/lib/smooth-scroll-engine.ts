@@ -118,11 +118,21 @@ export class SmoothScrollEngine {
   }
 
   private handleWheel(e: WheelEvent): void {
+    if (!this.element) return;
+
+    // If attached element itself is not scrollable, allow native event propagation
+    const canScrollY = this.element.scrollHeight > this.element.clientHeight;
+    const canScrollX = this.element.scrollWidth > this.element.clientWidth;
+    if (!canScrollY && !canScrollX) return;
+
     // Pass-through check: native scroll (animationTime === 0 means "native" preset)
     if (this.options.animationTime === 0) return;
 
     // Trackpad detection
     if (this.options.trackpadPassThrough && this.isTrackpad(e)) return;
+
+    // If delta is very small in PIXEL mode (e.g. injected sub-wheel micro-step), let browser handle directly
+    if (e.deltaMode === 0 && Math.abs(e.deltaY) < 10 && Math.abs(e.deltaX) < 10) return;
 
     // Ignore horizontal if disabled
     if (!this.options.horizontalScrolling && e.deltaX !== 0 && e.deltaY === 0) return;

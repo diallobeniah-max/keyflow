@@ -248,7 +248,7 @@ fn main() -> ExitCode {
                             hook::set_wasd_navigation(enabled);
                             system_cursor::set_system_cursor_blue(enabled, sz, cursor_path.as_deref());
                         }
-                        Some(InMessage::SetSmoothScroll { enabled, preset, step_size, animation_time, acceleration_enabled, acceleration_delta, acceleration_max, trackpad_pass_through, .. }) => {
+                        Some(InMessage::SetSmoothScroll { enabled, preset, step_size, animation_time, acceleration_enabled, acceleration_delta, acceleration_max, trackpad_pass_through, horizontal_scrolling, .. }) => {
                             smooth_scroll::configure(smooth_scroll::SmoothScrollConfig {
                                 enabled,
                                 preset,
@@ -258,6 +258,7 @@ fn main() -> ExitCode {
                                 acceleration_delta_ms: acceleration_delta,
                                 acceleration_max,
                                 trackpad_pass_through,
+                                horizontal_scrolling,
                             });
                         }
                         Some(InMessage::SetDragSwitcher { enabled, zones, activation_ms, hover_ms, corner_size, .. }) => {

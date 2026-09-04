@@ -117,6 +117,7 @@ export interface SmoothScrollNativeConfig {
   accelerationDelta?: number;
   accelerationMax?: number;
   trackpadPassThrough?: boolean;
+  horizontalScrolling?: boolean;
 }
 
 /** A running application offered by the app picker (executable identity). */
@@ -503,6 +504,7 @@ export class NativeInputHelper {
       accelerationDelta: c.accelerationDelta ?? 50,
       accelerationMax: c.accelerationMax ?? 3.0,
       trackpadPassThrough: c.trackpadPassThrough !== false,
+      horizontalScrolling: c.horizontalScrolling !== false,
     });
   }
 

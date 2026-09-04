@@ -5,33 +5,33 @@
 //! using pulse easing and momentum accumulation.
 //!
 //! Features:
-//! - Marker dwExtraInfo check (0x4B46_5353 = "KFSS") to prevent re-intercepting own injected events.
+//! - Dedicated high-performance animation thread: zero latency, not dependent on Win32 WM_TIMER.
+//! - Marker dwExtraInfo check (0x4B46_5353 = "KFSS") + INJECTING atomic guard to prevent re-interception.
 //! - Direction reversal: immediate cancellation of opposite momentum.
 //! - Trackpad / high-res pass-through: non-120 deltas pass through untouched.
-//! - High-precision animation timer (~120Hz) driving SendInput micro-wheel events.
+//! - Fractional delta preservation: sub-integer remainders accumulate without rounding loss.
+//! - Lock-free injection: Mutex released before calling SendInput to eliminate contention.
 //! - Fail-open: unhooks or passes through when disabled, paused, or shutting down.
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::Mutex;
-use std::time::Instant;
+use std::sync::{Condvar, Mutex};
+use std::thread;
+use std::time::{Duration, Instant};
 
-use windows_sys::Win32::Foundation::{HINSTANCE, LPARAM, LRESULT, POINT, WPARAM};
+use windows_sys::Win32::Foundation::{HINSTANCE, LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     SendInput, INPUT, INPUT_MOUSE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_WHEEL, MOUSEINPUT,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, HHOOK, KillTimer, SetTimer, SetWindowsHookExW, UnhookWindowsHookEx,
+    CallNextHookEx, HHOOK, MSLLHOOKSTRUCT, SetWindowsHookExW, UnhookWindowsHookEx,
     WH_MOUSE_LL, WM_MOUSEHWHEEL, WM_MOUSEWHEEL,
 };
 
 /// Dedicated marker in dwExtraInfo to identify our own injected smooth scroll events.
 pub const SMOOTH_SCROLL_MARKER: usize = 0x4B46_5353; // "KFSS"
 
-/// Timer ID used for the animation tick on the hook thread message queue.
-const SCROLL_TIMER_ID: usize = 0x4B53_4352; // "KSCR"
-
-/// Target animation frame interval in ms (~120Hz).
-const TICK_INTERVAL_MS: u32 = 8;
+/// Target animation frame interval (~120Hz).
+const FRAME_INTERVAL: Duration = Duration::from_millis(8);
 
 #[derive(Debug, Clone)]
 pub struct SmoothScrollConfig {
@@ -43,6 +43,7 @@ pub struct SmoothScrollConfig {
     pub acceleration_delta_ms: u32,
     pub acceleration_max: f32,
     pub trackpad_pass_through: bool,
+    pub horizontal_scrolling: bool,
 }
 
 impl Default for SmoothScrollConfig {
@@ -51,16 +52,16 @@ impl Default for SmoothScrollConfig {
             enabled: true,
             preset: "smooth".to_string(),
             step_size: 100,
-            animation_time_ms: 400,
+            animation_time_ms: 300,
             acceleration_enabled: true,
-            acceleration_delta_ms: 50,
+            acceleration_delta_ms: 60,
             acceleration_max: 3.0,
             trackpad_pass_through: true,
+            horizontal_scrolling: true,
         }
     }
 }
 
-/// A queued scroll impulse.
 #[derive(Debug, Clone)]
 struct Impulse {
     total_delta: f32,
@@ -76,8 +77,8 @@ struct EngineState {
     last_event_time: Option<Instant>,
     last_direction_y: i32,
     last_direction_x: i32,
-    timer_active: bool,
     paused: bool,
+    shutdown: bool,
 }
 
 impl EngineState {
@@ -88,25 +89,18 @@ impl EngineState {
             last_event_time: None,
             last_direction_y: 0,
             last_direction_x: 0,
-            timer_active: false,
             paused: false,
+            shutdown: false,
         }
     }
 }
 
 static STATE: Mutex<Option<EngineState>> = Mutex::new(None);
+static CVAR: Condvar = Condvar::new();
 static HOOK: AtomicUsize = AtomicUsize::new(0);
 static IS_ACTIVE: AtomicBool = AtomicBool::new(false);
-
-/// Struct matching MSLLHOOKSTRUCT from Win32.
-#[repr(C)]
-pub struct MSLLHOOKSTRUCT {
-    pub pt: POINT,
-    pub mouse_data: u32,
-    pub flags: u32,
-    pub time: u32,
-    pub extra_info: usize,
-}
+static WORKER_STARTED: AtomicBool = AtomicBool::new(false);
+static INJECTING: AtomicBool = AtomicBool::new(false);
 
 /// Easing curve (SmoothScroll pulse algorithm).
 fn pulse(x: f32) -> f32 {
@@ -118,11 +112,19 @@ fn pulse(x: f32) -> f32 {
     }
 }
 
-/// Initialize the smooth scroll engine state.
+/// Initialize the smooth scroll engine state and spawn the animation worker thread.
 pub fn init() {
     let mut state = STATE.lock().unwrap_or_else(|p| p.into_inner());
     if state.is_none() {
         *state = Some(EngineState::new());
+    }
+    drop(state);
+
+    if !WORKER_STARTED.swap(true, Ordering::SeqCst) {
+        thread::Builder::new()
+            .name("keyflow-smooth-scroll".to_string())
+            .spawn(worker_thread_loop)
+            .expect("failed to spawn smooth scroll worker thread");
     }
 }
 
@@ -136,15 +138,14 @@ pub fn configure(config: SmoothScrollConfig) {
 
     let mut state = STATE.lock().unwrap_or_else(|p| p.into_inner());
     if let Some(s) = state.as_mut() {
-        let was_enabled = s.config.enabled && s.config.preset != "native";
         s.config = config;
-        let now_enabled = s.config.enabled && s.config.preset != "native" && !s.paused;
+        let active = s.config.enabled && s.config.preset != "native" && !s.paused;
+        IS_ACTIVE.store(active, Ordering::SeqCst);
 
-        IS_ACTIVE.store(now_enabled, Ordering::SeqCst);
-
-        if !now_enabled && was_enabled {
+        if !active {
             s.active_impulses.clear();
-            stop_timer(s);
+        } else {
+            CVAR.notify_one();
         }
     }
 }
@@ -158,7 +159,6 @@ pub fn set_paused(paused: bool) {
         IS_ACTIVE.store(active, Ordering::SeqCst);
         if paused {
             s.active_impulses.clear();
-            stop_timer(s);
         }
     }
 }
@@ -200,8 +200,9 @@ pub fn uninstall_hook() {
     }
     let mut state = STATE.lock().unwrap_or_else(|p| p.into_inner());
     if let Some(s) = state.as_mut() {
-        stop_timer(s);
+        s.shutdown = true;
         s.active_impulses.clear();
+        CVAR.notify_all();
     }
 }
 
@@ -213,7 +214,7 @@ unsafe extern "system" fn mouse_ll_wheel_proc(code: i32, wparam: WPARAM, lparam:
             let hook_struct = &*(lparam as *const MSLLHOOKSTRUCT);
 
             // 1. Never re-intercept our own injected events
-            if hook_struct.extra_info == SMOOTH_SCROLL_MARKER {
+            if hook_struct.dwExtraInfo == SMOOTH_SCROLL_MARKER || INJECTING.load(Ordering::Acquire) {
                 return CallNextHookEx(std::ptr::null_mut(), code, wparam, lparam);
             }
 
@@ -231,8 +232,7 @@ unsafe extern "system" fn mouse_ll_wheel_proc(code: i32, wparam: WPARAM, lparam:
 
 /// Handle a physical wheel event: returns true if intercepted & suppressed.
 fn handle_wheel_event(msg: u32, hook_struct: &MSLLHOOKSTRUCT) -> bool {
-    // Extract wheel delta: high 16 bits of mouse_data signed
-    let raw_delta = ((hook_struct.mouse_data >> 16) as i16) as i32;
+    let raw_delta = ((hook_struct.mouseData >> 16) as i16) as i32;
     if raw_delta == 0 {
         return false;
     }
@@ -252,20 +252,22 @@ fn handle_wheel_event(msg: u32, hook_struct: &MSLLHOOKSTRUCT) -> bool {
 
     let is_horizontal = msg == WM_MOUSEHWHEEL;
 
-    // Trackpad / high-res detection:
-    // Precision trackpads send non-multiple of 120 or small fractional deltas.
-    // If trackpad pass-through is enabled, pass them through.
+    if is_horizontal && !state.config.horizontal_scrolling {
+        return false;
+    }
+
+    // Trackpad / high-res pass-through:
+    // Precision trackpads send non-multiples of 120 or small fractional deltas.
     if state.config.trackpad_pass_through {
         if raw_delta.abs() < 60 || raw_delta % 120 != 0 {
-            return false; // High-precision or trackpad event: let OS handle directly
+            return false;
         }
     }
 
     let now = Instant::now();
     let current_dir = if raw_delta > 0 { 1 } else { -1 };
 
-    // Direction reversal check: if user spins wheel in the opposite direction,
-    // cancel existing momentum instantly for responsive feel.
+    // Direction reversal: cancel opposing momentum immediately for instant responsiveness
     if is_horizontal {
         if state.last_direction_x != 0 && current_dir != state.last_direction_x {
             state.active_impulses.retain(|imp| !imp.is_horizontal);
@@ -292,7 +294,6 @@ fn handle_wheel_event(msg: u32, hook_struct: &MSLLHOOKSTRUCT) -> bool {
     state.last_event_time = Some(now);
 
     // Calculate total delta for this impulse
-    // Default WHEEL_DELTA is 120. Scale relative to config.step_size.
     let base_delta = (raw_delta as f32) * (state.config.step_size as f32 / 100.0);
     let total_delta = base_delta * multiplier;
 
@@ -300,79 +301,112 @@ fn handle_wheel_event(msg: u32, hook_struct: &MSLLHOOKSTRUCT) -> bool {
         total_delta,
         injected_so_far: 0.0,
         start_time: now,
-        duration_ms: state.config.animation_time_ms.max(50) as f32,
+        duration_ms: (state.config.animation_time_ms.max(50) as f32),
         is_horizontal,
     };
 
     state.active_impulses.push(impulse);
-
-    // Start timer on hook thread if not running
-    start_timer(state);
+    CVAR.notify_one();
 
     true
 }
 
-/// Called periodically from WM_TIMER (or high-resolution timer).
-pub fn on_timer_tick() {
-    let mut state_guard = match STATE.lock() {
-        Ok(g) => g,
-        Err(p) => p.into_inner(),
-    };
-    let state = match state_guard.as_mut() {
-        Some(s) => s,
-        None => return,
-    };
+/// Dedicated animation worker thread loop.
+fn worker_thread_loop() {
+    let mut fractional_y = 0.0f32;
+    let mut fractional_x = 0.0f32;
 
-    if state.active_impulses.is_empty() {
-        stop_timer(state);
-        return;
-    }
+    loop {
+        let mut guard = match STATE.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
 
-    let now = Instant::now();
-    let mut delta_y = 0.0f32;
-    let mut delta_x = 0.0f32;
-
-    state.active_impulses.retain_mut(|imp| {
-        let elapsed_ms = now.duration_since(imp.start_time).as_millis() as f32;
-        let finished = elapsed_ms >= imp.duration_ms;
-
-        let progress = if finished { 1.0 } else { elapsed_ms / imp.duration_ms };
-        let eased = pulse(progress);
-        let target_injected = imp.total_delta * eased;
-        let step = target_injected - imp.injected_so_far;
-
-        imp.injected_so_far = target_injected;
-
-        if imp.is_horizontal {
-            delta_x += step;
-        } else {
-            delta_y += step;
+        // Wait until there are active impulses or shutdown
+        while let Some(ref s) = *guard {
+            if s.shutdown {
+                return;
+            }
+            if !s.active_impulses.is_empty()
+                && !s.paused
+                && s.config.enabled
+                && s.config.preset != "native"
+            {
+                break;
+            }
+            // Reset fractional accumulators when queue is idle
+            fractional_y = 0.0;
+            fractional_x = 0.0;
+            guard = CVAR.wait(guard).unwrap_or_else(|p| p.into_inner());
         }
 
-        !finished
-    });
+        let state = match guard.as_mut() {
+            Some(s) if !s.shutdown => s,
+            _ => return,
+        };
 
-    // Inject the calculated micro-wheel deltas via SendInput
-    if delta_y.abs() >= 0.5 {
-        let dy = delta_y.round() as i32;
-        if dy != 0 {
-            inject_wheel(dy, false);
-        }
-    }
-    if delta_x.abs() >= 0.5 {
-        let dx = delta_x.round() as i32;
-        if dx != 0 {
-            inject_wheel(dx, true);
-        }
-    }
+        let now = Instant::now();
+        let mut delta_y = 0.0f32;
+        let mut delta_x = 0.0f32;
 
-    if state.active_impulses.is_empty() {
-        stop_timer(state);
+        state.active_impulses.retain_mut(|imp| {
+            let elapsed_ms = now.duration_since(imp.start_time).as_millis() as f32;
+            let finished = elapsed_ms >= imp.duration_ms;
+
+            let progress = if finished { 1.0 } else { (elapsed_ms / imp.duration_ms).clamp(0.0, 1.0) };
+            let eased = pulse(progress);
+            let target_injected = imp.total_delta * eased;
+            let step = target_injected - imp.injected_so_far;
+
+            imp.injected_so_far = target_injected;
+
+            if imp.is_horizontal {
+                delta_x += step;
+            } else {
+                delta_y += step;
+            }
+
+            !finished
+        });
+
+        // Accumulate into fractional accumulators
+        fractional_y += delta_y;
+        fractional_x += delta_x;
+
+        let send_y = fractional_y.trunc() as i32;
+        let send_x = fractional_x.trunc() as i32;
+
+        if send_y != 0 {
+            fractional_y -= send_y as f32;
+        }
+        if send_x != 0 {
+            fractional_x -= send_x as f32;
+        }
+
+        let has_more = !state.active_impulses.is_empty();
+
+        // Release mutex lock BEFORE calling SendInput!
+        drop(guard);
+
+        if send_y != 0 {
+            inject_wheel(send_y, false);
+        }
+        if send_x != 0 {
+            inject_wheel(send_x, true);
+        }
+
+        if has_more {
+            thread::sleep(FRAME_INTERVAL);
+        }
     }
 }
 
 /// Injects a synthetic wheel event tagged with SMOOTH_SCROLL_MARKER.
 fn inject_wheel(delta: i32, is_horizontal: bool) {
+    if delta == 0 {
+        return;
+    }
+
     let flags = if is_horizontal {
         MOUSEEVENTF_HWHEEL
     } else {
@@ -393,30 +427,9 @@ fn inject_wheel(delta: i32, is_horizontal: bool) {
         },
     };
 
+    INJECTING.store(true, Ordering::Release);
     unsafe {
         SendInput(1, &input, std::mem::size_of::<INPUT>() as i32);
     }
-}
-
-fn start_timer(state: &mut EngineState) {
-    if !state.timer_active {
-        state.timer_active = true;
-        unsafe {
-            SetTimer(std::ptr::null_mut(), SCROLL_TIMER_ID, TICK_INTERVAL_MS, None);
-        }
-    }
-}
-
-fn stop_timer(state: &mut EngineState) {
-    if state.timer_active {
-        state.timer_active = false;
-        unsafe {
-            let _ = KillTimer(std::ptr::null_mut(), SCROLL_TIMER_ID);
-        }
-    }
-}
-
-/// Returns true if the WM_TIMER message belongs to the smooth scroll engine.
-pub fn is_scroll_timer(timer_id: usize) -> bool {
-    timer_id == SCROLL_TIMER_ID
+    INJECTING.store(false, Ordering::Release);
 }
