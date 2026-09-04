@@ -32,8 +32,10 @@ Shared renderer components are the implementation boundary for the design system
 | `PageHeader` | Main page introduction | Title, purpose description, usage instruction, optional primary/secondary actions |
 | `SectionHeader` | Card or section heading | Section title and optional icon/action with consistent 24px rhythm |
 | `FormField` | Label, control, hint, and error grouping | Explicit associations and stable error placement |
-| `KeyboardKey` | Keyboard visualisation keycap | Approved key dimensions/radius, selected/assigned indicator and text label |
+| `KeyboardKey` | Keyboard visualisation keycap | Approved key dimensions/radius, selected/assigned indicator and text label; its physical board scrolls within the map at compact widths rather than clipping keys |
 | `MouseButtonCard` | Mouse shortcut target | Full-card interaction, clear name/status, keyboard-accessible button semantics |
+| `FloatingBottomDock` | Persistent bottom navigation with centered Create (+) button | May use the documented localized acrylic tokens on its pill, circular actions, and the underlying bottom blur scrim (`--dock-scrim-bg`, `--dock-scrim-blur`); controls, focus states, and content beneath the dock remain readable and click-through |
+| `WASD status card` | Optional transient navigation feedback HUD | Disabled by default; when enabled, it uses a polished unclipped HUD badge with vector iconography, accent highlights, and smooth pop/fade transitions without altering navigation input behavior |
 
 The current codebase still has compatibility exports in `src/components/ui.tsx` (`Button`, `IconButton`, `Select`, `Input`, `Textarea`, `Slider`, `Toggle`, `Card`, `PageIntro`, and `Modal`). These exports may be migrated incrementally to the named `App*` components, but they must not grow competing styling rules.
 

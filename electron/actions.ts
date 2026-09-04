@@ -267,6 +267,26 @@ export async function runDesktopAction(action: any, mainWindow: BrowserWindow | 
         break;
       case "showPopup":
         break;
+      case "toggleCapsLock": {
+        if (nativeKeyInjector) {
+          // Temporarily release Alt so Windows sees pure CapsLock without Alt modifier
+          await nativeKeyInjector(0xa4, false, false);
+          await nativeKeyInjector(0xa5, true, false);
+          await nativeKeyInjector(0x12, false, false);
+          await new Promise((r) => setTimeout(r, 15));
+
+          // Pulse CapsLock
+          await nativeKeyInjector(0x14, false, true);
+          await nativeKeyInjector(0x14, false, false);
+          await new Promise((r) => setTimeout(r, 15));
+
+          // Restore Alt
+          await nativeKeyInjector(0xa4, false, true);
+        } else {
+          await sendKeys("CapsLock");
+        }
+        return { ok: true, action: actionType };
+      }
       case "toggleWasdNavigation": {
         if (!navigationModeController) return { ok: false, action: actionType, error: "Navigation mode unavailable" };
         return navigationModeController.toggle();

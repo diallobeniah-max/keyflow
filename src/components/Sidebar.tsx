@@ -135,17 +135,22 @@ export function Sidebar() {
 
   const isDrawer = drawerOpen ? " open" : "";
 
-  if (appearance?.navigationLayout === "horizontal") {
-    return null;
-  }
+  const isHorizontal = appearance?.navigationLayout === "horizontal";
 
   return (
     <aside
       ref={asideRef}
       tabIndex={-1}
-      className={"sidebar" + (collapsed ? " collapsed" : "") + isDrawer + (isDragging ? " is-resizing" : "")}
-      style={!collapsed ? { width: sidebarWidth, flexBasis: sidebarWidth } : undefined}
+      className={
+        "sidebar" +
+        (collapsed ? " collapsed" : "") +
+        (isHorizontal ? " is-layout-hidden" : "") +
+        isDrawer +
+        (isDragging ? " is-resizing" : "")
+      }
+      style={!collapsed && !isHorizontal ? { width: sidebarWidth, flexBasis: sidebarWidth } : undefined}
       aria-label="Application navigation"
+      aria-hidden={isHorizontal}
     >
       {!collapsed && (
         <div

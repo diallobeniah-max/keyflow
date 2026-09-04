@@ -20,11 +20,16 @@ export interface CursorConfig {
   customPath?: string;
 }
 
+export interface NavigationFeedbackConfig {
+  showStateCard: boolean;
+  accent?: string;
+}
+
 export interface NavigationModeDeps {
   sendToNative: (enabled: boolean, cursor?: CursorConfig) => void;
   getMainWindow: () => BrowserWindow | null;
   playSound: (name: NavigationSound) => void;
-  showOverlay: (active: boolean) => void;
+  showOverlay: (active: boolean, config: NavigationFeedbackConfig) => void;
   setCursor?: (active: boolean) => void;
 }
 
@@ -39,6 +44,7 @@ export class NavigationModeController {
   private active = false;
   private deps: NavigationModeDeps;
   private cursorConfig: CursorConfig = { size: 32 };
+  private feedbackConfig: NavigationFeedbackConfig = { showStateCard: false };
 
   constructor(deps: NavigationModeDeps) {
     this.deps = deps;
@@ -57,13 +63,23 @@ export class NavigationModeController {
     }
   }
 
+  /** Update visual feedback without changing keyboard routing. */
+  setFeedbackConfig(config: Partial<NavigationFeedbackConfig>): void {
+    this.feedbackConfig = {
+      showStateCard: config.showStateCard === true,
+      accent: typeof config.accent === "string" ? config.accent : this.feedbackConfig.accent,
+    };
+  }
+
   toggle(): NavigationToggleResult {
     this.active = !this.active;
     const mode: "on" | "off" = this.active ? "on" : "off";
     try {
       this.deps.sendToNative(this.active, this.active ? this.cursorConfig : undefined);
       this.deps.playSound(feedbackSoundName("navigation", this.active));
-      this.deps.showOverlay(this.active);
+      if (this.feedbackConfig.showStateCard) {
+        this.deps.showOverlay(this.active, this.feedbackConfig);
+      }
       this.deps.setCursor?.(this.active);
       this.deps.getMainWindow()?.webContents.send("navigation:state-changed", this.active);
     } catch (err) {

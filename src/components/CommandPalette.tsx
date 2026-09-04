@@ -5,8 +5,42 @@ import { useStore } from "../store/useStore";
 import { runActions } from "../lib/actions";
 import { createCommandRegistry, searchCommands, type CommandDefinition, type CommandExecutionContext } from "../lib/command-registry";
 import { formatShortcutLabel, formatTriggerLabel } from "../lib/conflict";
+import { SETTINGS_INDEX } from "../lib/settingsIndex";
 import { Icon } from "./Icon";
 import { Button, Toggle } from "./ui";
+
+const SETTING_BOOLEAN_MAP: Record<string, { section: string; key: string; label: string }> = {
+  "gen-startup": { section: "general", key: "launchOnStartup", label: "Launch on startup" },
+  "gen-minimized": { section: "general", key: "startMinimized", label: "Start minimized" },
+  "gen-tray": { section: "general", key: "minimizeToTray", label: "Minimize to tray" },
+  "gen-notifications": { section: "general", key: "showNotifications", label: "Desktop notifications" },
+  "gen-sound": { section: "general", key: "soundFeedback", label: "Sound feedback" },
+  "gen-recent": { section: "general", key: "showRecentOnDashboard", label: "Show recent triggers" },
+  "app-hover-help": { section: "appearance", key: "showHoverHelp", label: "Contextual hover help" },
+  "app-icon-accent": { section: "appearance", key: "syncAccentWithAppIcon", label: "Match accent to app icon" },
+  "app-compact": { section: "appearance", key: "compactMode", label: "Compact workspace mode" },
+  "app-color-coded-settings": { section: "appearance", key: "colorCodedSettings", label: "Color-coded settings cards" },
+  "app-reduce-motion": { section: "appearance", key: "reduceMotion", label: "Reduce motion animations" },
+  "app-blur": { section: "appearance", key: "popupBlur", label: "Popup frosted glass blur" },
+  "sc-command-palette": { section: "shortcuts", key: "commandPaletteEnabled", label: "Command Palette" },
+  "sc-alt-caps-bypass": { section: "shortcuts", key: "altCapsLockBypass", label: "Alt + CapsLock native bypass" },
+  "sc-cp-categories": { section: "shortcuts", key: "commandPaletteShowCategories", label: "Show category tags" },
+  "sc-cp-show-more": { section: "shortcuts", key: "commandPaletteDefaultShowMore", label: "Always show details panel" },
+  "sc-repeat-prot": { section: "shortcuts", key: "keyRepeatProtection", label: "Key repeat protection" },
+  "sc-prevent-accidental": { section: "shortcuts", key: "preventAccidental", label: "Prevent accidental triggers" },
+  "sc-hyper-enable": { section: "shortcuts", key: "hyperKeyEnabled", label: "Hyper Key" },
+  "wasd-enable": { section: "wasdNavigation", key: "enabled", label: "WASD Navigation Mode" },
+  "wasd-state-card": { section: "wasdNavigation", key: "showStateCard", label: "WASD Status HUD card" },
+  "hot-enable": { section: "hotCorners", key: "enabled", label: "Hot Corners" },
+  "pop-search": { section: "popup", key: "search", label: "Popup search bar" },
+  "pop-icons": { section: "popup", key: "showIcons", label: "Show popup icons" },
+  "pop-numbers": { section: "popup", key: "showNumbers", label: "Show quick number badges" },
+  "pop-blur-close": { section: "popup", key: "closeOnBlur", label: "Close popup on blur" },
+  "pop-action-close": { section: "popup", key: "closeAfterAction", label: "Close popup after action" },
+  "priv-pause-pwd": { section: "privacy", key: "pauseInPassword", label: "Pause in password fields" },
+  "priv-safe": { section: "privacy", key: "safeMode", label: "Emergency Safe Mode" },
+  "data-auto-backup": { section: "data", key: "autoBackupEnabled", label: "Automatic backups" },
+};
 
 // The palette is intentionally renderer-local: Ctrl+K is available while the KeyFlow window is focused.
 function isCommandShortcut(event: KeyboardEvent, shortcutSetting?: string): boolean {
@@ -59,7 +93,10 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [sideViewOpen, setSideViewOpen] = useState(false);
+  const sideViewAllowed = data?.settings?.shortcuts?.commandPaletteSideViewEnabled !== false;
+  const detailLevel = data?.settings?.shortcuts?.commandPaletteDetailLevel ?? "detailed";
+  const defaultShowMore = sideViewAllowed && (data?.settings?.shortcuts?.commandPaletteDefaultShowMore ?? false);
+  const [sideViewOpen, setSideViewOpen] = useState(defaultShowMore);
   const inputRef = useRef<HTMLInputElement>(null);
   const closeTimerRef = useRef<number | null>(null);
 
@@ -70,9 +107,12 @@ export function CommandPalette() {
     }
     setIsClosing(false);
     setPreviewOpen(false);
-    setSideViewOpen(false);
+    setSideViewOpen(
+      (data?.settings?.shortcuts?.commandPaletteSideViewEnabled !== false) &&
+      (data?.settings?.shortcuts?.commandPaletteDefaultShowMore ?? false)
+    );
     setOpen(true);
-  }, []);
+  }, [data?.settings?.shortcuts?.commandPaletteSideViewEnabled, data?.settings?.shortcuts?.commandPaletteDefaultShowMore]);
 
   const closePalette = useCallback(() => {
     if (isClosing) return;
@@ -131,9 +171,10 @@ export function CommandPalette() {
         return;
       }
       if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && open) {
+        if (!sideViewAllowed) return;
         event.preventDefault();
         event.stopPropagation();
-        setSideViewOpen((prev) => !prev);
+        setSideViewOpen((prev: boolean) => !prev);
         return;
       }
       if (event.key === "Escape" && open) {
@@ -296,7 +337,7 @@ export function CommandPalette() {
                 setActive(Math.max(0, results.length - 1));
               } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
                 event.preventDefault();
-                setSideViewOpen((prev) => !prev);
+                setSideViewOpen((prev: boolean) => !prev);
               } else if (event.key === "Enter" && results[active]) {
                 event.preventDefault();
                 execute(results[active]);
@@ -332,14 +373,16 @@ export function CommandPalette() {
                   <kbd>↵</kbd>
                   <span>run</span>
                 </span>
-                <span
-                  className="command-palette-hint-item clickable"
-                  title="Toggle Quick Inspector Side View (Ctrl+Enter)"
-                  onClick={() => setSideViewOpen((prev) => !prev)}
-                >
-                  <kbd>Ctrl+↵</kbd>
-                  <span>{sideViewOpen ? "hide side view" : "side view"}</span>
-                </span>
+                {sideViewAllowed && (
+                  <span
+                    className="command-palette-hint-item clickable"
+                    title="Toggle Details & Settings Controls (Ctrl+Enter)"
+                    onClick={() => setSideViewOpen((prev: boolean) => !prev)}
+                  >
+                    <kbd>Ctrl+↵</kbd>
+                    <span>{sideViewOpen ? "hide details" : "show more"}</span>
+                  </span>
+                )}
                 <span className="command-palette-hint-item">
                   <kbd>Esc</kbd>
                   <span>{sideViewOpen ? "close panel" : "close"}</span>
@@ -627,6 +670,139 @@ export function CommandPalette() {
                                 {th.charAt(0).toUpperCase() + th.slice(1)}
                               </button>
                             ))}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (activeCommand.id.startsWith("setting.")) {
+                      const settingId = activeCommand.id.replace("setting.", "");
+                      const settingItem = SETTINGS_INDEX.find((s) => s.id === settingId);
+                      const boolMapping = SETTING_BOOLEAN_MAP[settingId];
+
+                      if (detailLevel === "compact") {
+                        return (
+                          <div className="command-palette-sideview-section">
+                            <div className="command-palette-sideview-prop">
+                              <span className="tiny muted">Category</span>
+                              <span className="tiny bold">{settingItem?.categoryLabel || "Settings"}</span>
+                            </div>
+                            <div className="command-palette-sideview-control-title mt-xs">
+                              {settingItem?.title || activeCommand.title}
+                            </div>
+                            <div className="command-palette-sideview-desc mb-xs">
+                              {settingItem?.description || activeCommand.description}
+                            </div>
+                            <div className="mt-xs">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                icon="settings"
+                                onClick={() => execute(activeCommand)}
+                              >
+                                Open in Settings
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (boolMapping) {
+                        const currentVal = Boolean(
+                          (data.settings as any)?.[boolMapping.section]?.[boolMapping.key]
+                        );
+                        return (
+                          <div className="command-palette-sideview-section">
+                            <div className="command-palette-sideview-prop">
+                              <span className="tiny muted">Setting Category</span>
+                              <span className="tiny bold">{settingItem?.categoryLabel || "Settings"}</span>
+                            </div>
+                            <div className="command-palette-sideview-control-row">
+                              <div className="command-palette-sideview-control-label">
+                                <span className="command-palette-sideview-control-title">{settingItem?.title || boolMapping.label}</span>
+                                <span className="command-palette-sideview-control-desc">
+                                  {currentVal ? "Enabled" : "Disabled"}
+                                </span>
+                              </div>
+                              <Toggle
+                                label={boolMapping.label}
+                                checked={currentVal}
+                                onChange={(newVal) => {
+                                  patchSettings(boolMapping.section as any, { [boolMapping.key]: newVal });
+                                  toast(`${boolMapping.label}: ${newVal ? "Enabled" : "Disabled"}`, "info");
+                                }}
+                              />
+                            </div>
+                            <div className="command-palette-sideview-desc mb-xs">
+                              {settingItem?.description || activeCommand.description}
+                            </div>
+                            <div className="mt-xs">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                icon="settings"
+                                onClick={() => execute(activeCommand)}
+                              >
+                                Open in Settings
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (settingId === "app-theme") {
+                        const curTheme = data.settings.appearance.theme ?? "system";
+                        return (
+                          <div className="command-palette-sideview-section">
+                            <div className="command-palette-sideview-prop">
+                              <span className="tiny muted">Setting Category</span>
+                              <span className="tiny bold">Appearance</span>
+                            </div>
+                            <span className="tiny muted mb-xs">Select Theme</span>
+                            <div className="row gap-xs wrap">
+                              {(["system", "dark", "light"] as const).map((th) => (
+                                <button
+                                  key={th}
+                                  type="button"
+                                  className={"clickable " + (curTheme === th ? "bold" : "muted")}
+                                  onClick={() => patchSettings("appearance", { theme: th })}
+                                >
+                                  {th.charAt(0).toUpperCase() + th.slice(1)}
+                                </button>
+                              ))}
+                            </div>
+                            <div className="mt-xs">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                icon="settings"
+                                onClick={() => execute(activeCommand)}
+                              >
+                                Open in Settings
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="command-palette-sideview-section">
+                          <div className="command-palette-sideview-prop">
+                            <span className="tiny muted">Setting Category</span>
+                            <span className="tiny bold">{settingItem?.categoryLabel || "Settings"}</span>
+                          </div>
+                          <div className="command-palette-sideview-desc mb-xs">
+                            {settingItem?.description || activeCommand.description}
+                          </div>
+                          <div className="mt-xs">
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              icon="settings"
+                              onClick={() => execute(activeCommand)}
+                            >
+                              Open in Settings
+                            </Button>
                           </div>
                         </div>
                       );

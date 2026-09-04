@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     toggleMaximize: () => ipcRenderer.invoke("window:toggle-maximize"),
     close: () => ipcRenderer.invoke("window:close"),
     isMaximized: () => ipcRenderer.invoke("window:is-maximized"),
+    setTitleBarTheme: (theme) => ipcRenderer.invoke("window:set-titlebar-theme", theme),
     onMaximizedChange: (callback) => {
       const handler = (_event, value) => callback(value);
       ipcRenderer.on("window:maximized-change", handler);
@@ -47,6 +48,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     browseExe: () => ipcRenderer.invoke("native:browse-exe"),
     getWasdNavigationState: () => ipcRenderer.invoke("navigation:get-state"),
     setWasdCursorConfig: (config) => ipcRenderer.invoke("navigation:set-cursor-config", config),
+    setWasdFeedbackConfig: (config) => ipcRenderer.invoke("navigation:set-feedback-config", config),
     browseCursorFile: () => ipcRenderer.invoke("dialog:open-cursor-file"),
     onWasdNavigationState: (callback) => {
       const handler = (_event, active) => callback(active);

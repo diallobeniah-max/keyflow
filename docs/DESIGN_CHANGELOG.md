@@ -1,5 +1,188 @@
 # Design Changelog
 
+## 2026-09-04 — Navigation Transitions, Layout Width Fluid Morphs, and Scroll-Only Auto-Hiding Scrollbar
+
+* **Fluid Vertical Sidebar ↔ Floating Dock Transitions**:
+  - Maintained [FloatingBottomDock.tsx](file:///e:/New%20folder/Coding/New%20folder%20(3)/keyflow/src/components/FloatingBottomDock.tsx) continuously mounted in DOM, applying `.is-layout-hidden` and `aria-hidden` when inactive instead of abrupt unmounting.
+  - Sidebar smoothly collapses its width, flexBasis, padding, opacity, and slides to the left (`translateX(-32px)`) over `380ms cubic-bezier(0.16, 1, 0.3, 1)`.
+  - Floating bottom dock and blur scrim simultaneously float upwards from `translate(-50%, 36px) scale(0.95)` to `translate(-50%, 0) scale(1)` with synchronized opacity transitions.
+* **Calm & Tactile Settings Layout Width Transitions (Small vs. Large)**:
+  - Added approved design system tokens `--motion-normal: 320ms cubic-bezier(0.16, 1, 0.3, 1)` and `--motion-layout: 420ms cubic-bezier(0.16, 1, 0.3, 1)`.
+  - When switching between "Small (Focused)" and "Large (Spacious)", `.settings-view-container`, `.settings-search-wrapper`, `.settings-layout`, `.settings-nav`, `.settings-content`, and `.settings-nav-summary` fluidly morph over `420ms cubic-bezier(0.16, 1, 0.3, 1)` instead of snapping instantly.
+  - Option cards feature tactile tap press response (`scale(0.975)`), checkmark badge pop keyframe, and preview wireframe window hover elevation (`scale(1.025)`).
+* **Auto-Hiding Scrollbar Revealed Exclusively During Active Scrolling**:
+  - Implemented a passive capturing global scroll activity listener in [App.tsx](file:///e:/New%20folder/Coding/New%20folder%20(3)/keyflow/src/App.tsx) that applies `.is-scrolling` to document root while physical scrolling is occurring.
+  - Removed all `*:hover` scrollbar triggers; scrollbars remain 100% transparent and invisible when hovering over app panels, search dropdowns, or content areas.
+  - 4px capsule thumb smoothly fades in (`400ms cubic-bezier(0.16, 1, 0.3, 1)`) only during scroll events and smoothly fades away 900ms after scrolling stops.
+
+## 2026-09-04 — Collapsible Navigation Rail, Presentation Mode Card Fix, and Compact Ctrl+K Polish
+
+* **Collapsible Navigation Rail (Windows Settings ≡ Pattern)**:
+  - Added a hamburger menu toggle button (`≡`) at the top of [SettingsSidebar.tsx](file:///e:/New%20folder/Coding/New%20folder%20(3)/keyflow/src/pages/settings/SettingsSidebar.tsx) with accessible state and tooltip ("Close Navigation" / "Open Navigation").
+  - Clicking minimizes the navigation panel into a sleek 58px icon rail showing only the centered, colorful squircle category pods with hover tooltips (`title`).
+  - Persisted in user settings via `appearance.sidebarCollapsed`.
+  - Content panel automatically expands to use the freed width (`max-width: 1180px`), completely eliminating crowded layouts.
+* **Fixed Command Palette Presentation Mode Card Cutoff**:
+  - In [CommandPalettePage.tsx](file:///e:/New%20folder/Coding/New%20folder%20(3)/keyflow/src/pages/settings/CommandPalettePage.tsx), configured `row-cp-window-mode` to use `layout="stack"` so the cards sit cleanly beneath the title and description.
+  - Updated `.window-mode-cards` and `.window-mode-card` in [src/index.css](file:///e:/New%20folder/Coding/New%20folder%20(3)/keyflow/src/index.css) to support flexible wrapping (`flex: 1 1 140px; max-width: 220px;`) so both Compact and Expanded cards fit side by side with zero clipping.
+* **Command Palette (Ctrl+K) Compact Mode Polish**:
+  - Re-proportioned `.command-palette.is-compact` from an oversized 720px box down to a sleek, focused launcher (`width: min(580px, calc(100vw - var(--space-6)))`).
+  - Refined header padding and search input height (`42px`).
+  - Smoothly expands downwards with full search results and keycaps when query is entered (`.has-query`), with max-height adapting dynamically to screen height.
+  - Added `@media (max-width: 640px)` responsive scaling so it never overflows narrow viewports.
+
+* **Auto-Hiding Sleek 4px Scrollbars**:
+  - Replaced the thick 10px persistent scrollbars with ultra-thin (4px) auto-hiding scrollbars.
+  - Transparent thumb and track by default; smoothly transitions to `--color-border-strong` capsule on container hover or focus-within.
+* **Settings Sidebar Vertical Divider Line**:
+  - Added a clean 1px vertical hairline divider (`border-right: 1px solid var(--color-border-subtle)`) and padding to `.settings-nav`, visually separating the category list from the detail content panel.
+* **Settings Search Bar Width Auto-Adjustment & Animation**:
+  - Linked `.settings-search-wrapper` to the active `settingsWidth` mode (`1040px` in Small vs. `1280px` in Large).
+  - Added smooth bezier transition animations (`cubic-bezier(0.16, 1, 0.3, 1)`) so the search bar fluidly resizes alongside the settings rail and detail cards.
+* **Layout Width Wireframe Visual Contrast**:
+  - Tuned the wireframe preview window inside the Small (Focused) card in [AppearancePage.tsx](file:///e:/New%20folder/Coding/New%20folder%20(3)/keyflow/src/pages/settings/AppearancePage.tsx) to `width: 66%; height: 54px;` vs. `width: 96%; height: 68px;` for Large (Spacious), making the size difference immediately obvious at a glance.
+* **Default Application Window Size (1020 × 700)**:
+  - Updated default Electron launch window dimensions in [electron/main.ts](file:///e:/New%20folder/Coding/New%20folder%20(3)/keyflow/electron/main.ts) to `1020 × 700` while preserving user resizing, bounds persistence, and minimum dimensions.
+* **TopBar De-duplication**:
+  - Removed duplicate `/<PageTitle>` breadcrumb text from [TopBar.tsx](file:///e:/New%20folder/Coding/New%20folder%20(3)/keyflow/src/components/TopBar.tsx), keeping the top chrome minimal and focused.
+* **Inline Compact Page Headers**:
+  - Updated [PageHeader.tsx](file:///e:/New%20folder/Coding/New%20folder%20(3)/keyflow/src/components/ui/PageHeader.tsx) and [ui.tsx](file:///e:/New%20folder/Coding/New%20folder%20(3)/keyflow/src/components/ui.tsx) (`PageIntro`) to render title and descriptions inline inside a sleek capsule pill (`.page-header__description-box`), reducing header vertical footprint from ~160px down to ~40px.
+
+## 2026-09-04 — TitleBar, TopBar, Dock Play/Pause, and Centered Layout Polish
+
+* **TitleBar Branding & Truncation Cleanup**:
+  - Removed the truncated `D...` profile badge from [TitleBar.tsx](file:///e:/New%20folder/Coding/New%20folder%20(3)/keyflow/src/components/TitleBar.tsx); the active profile is already prominently switchable in the toolbar.
+  - Sized the KeyFlow titlebar logo proportionally to `20px × 20px`, removed the solid background box, and applied `object-fit: contain`.
+* **TopBar De-cluttering**:
+  - Removed the `"Run Electron Application"` / `"KeyFlow"` foreground process chip from [TopBar.tsx](file:///e:/New%20folder/Coding/New%20folder%20(3)/keyflow/src/components/TopBar.tsx).
+  - Removed the persistent green `● Active` status badge from normal operation; the status pill only renders when emergency pause or Safe Mode is engaged.
+* **Floating Dock Play/Pause Contrast & Dark Mode Colors**:
+  - Upgraded the left circular dock button in [FloatingBottomDock.tsx](file:///e:/New%20folder/Coding/New%20folder%20(3)/keyflow/src/components/FloatingBottomDock.tsx) with explicit Phosphor `<Pause />` and `<Play />` vector icons.
+  - Styled with proper contrast for both dark and light modes:
+    - Running: Translucent acrylic surface (`--dock-surface`) with muted secondary icon and accent hover.
+    - Paused: Ambient glowing amber tint (`--color-warning-soft`), vibrant amber play icon (`--color-warning`), and golden border highlight.
+* **Centered Settings Width Layout**:
+  - Wrapped Settings in `.settings-view-container` with automatic centering (`margin: 0 auto;`).
+  - Added `justify-content: center;` to `.settings-layout`, ensuring the navigation rail and settings detail cards are centered symmetrically on widescreen displays rather than hugging the left edge.
+
+* **Settings Layout Width Control (`settingsWidth`)**:
+  - Added a dedicated preference in [AppearancePage.tsx](file:///e:/New%20folder/Coding/New%20folder%20(3)/keyflow/src/pages/settings/AppearancePage.tsx) (`row-app-settings-width`) allowing users to choose between two distinct Settings widths:
+    1. **Small (Focused)**: Compact 220px navigation rail with a focused 780px content column, matching classic desktop preferences.
+    2. **Large (Spacious)**: Spacious 284px navigation rail with live category status badges and expanded 1000px content view.
+  - Interactive selection cards with animated wireframe illustrations, checkmark badges, and full keyboard/screen-reader accessibility (`role="radiogroup"`).
+* **Eliminated Label Truncations in Navigation Sidebar**:
+  - In Small mode, `.settings-nav-summary` smoothly collapses (`opacity: 0; max-width: 0; transform: translateX(8px);`), granting 100% of horizontal row width to category labels.
+  - In Large mode, `.settings-nav-summary` smoothly expands (`max-width: 130px; opacity: 0.85; transform: translateX(0);`) alongside the category chevron.
+  - Removed legacy CSS overrides that were hardcoding the sidebar width to 200px and clobbering text into ellipses.
+  - Added native hover `title` tooltips on all category navigation items.
+* **Fluid Real-Time CSS Animations**:
+  - Animated transitions on `.settings-layout`, `.settings-nav`, `.settings-content`, and `.settings-nav-summary` using `cubic-bezier(0.16, 1, 0.3, 1)` easing.
+  - Toggling between Small and Large instantly morphs the sidebar and content boundaries without layout reflow glitches.
+
+## 2026-09-03 — Complete Apple-Style Settings Architecture & Modular Detail Views
+
+* **Apple-Style Information Architecture (6 Clear Groups, 15 Single-Responsibility Detail Pages)**:
+  - Completely decomposed the monolithic `Settings.tsx` into 15 modular, dedicated detail pages under `src/pages/settings/`:
+    1. **APP**:
+       - *App Behavior* (`appBehavior`, alias: `general`): Windows startup, start minimized, minimize to tray, close to tray, show tray icon, default profile.
+       - *Notifications* (`notifications`): Desktop notifications, Notification sounds.
+    2. **INPUT**:
+       - *Keyboard & Gestures* (`keyboard`, alias: `shortcuts`): Alt+CapsLock native bypass, double-tap threshold, hold threshold, key repeat protection, Hyper Key modifier, typing burst protection.
+       - *Command Palette* (`commandPalette`): General activation, presentation window mode, search results count, details panel depth (Ctrl+Enter), test button.
+    3. **NAVIGATION & CONTROL**:
+       - *WASD Navigation* (`wasd`): Status & activation, movement speed & acceleration, pointer actions, HUD feedback, and custom cursor upload gallery.
+       - *Hot Corners* (`hotCorners`): Master toggle, trigger chime, activation area slider, trigger cooldown, corner action matrix, multi-monitor support, and interactive layout presets.
+       - *Always on Top* (`alwaysOnTop`): Default pin mode, DWM border highlight, color presets, border width, and audio feedback.
+    4. **INTERFACE**:
+       - *Appearance* (`appearance`): Theme mode, accent swatch picker, header tint & fit, layout architecture (Vertical Sidebar vs Floating Dock), UI scale, font scale, compact mode, backdrop material, and accessibility.
+       - *Screen Tint* (`screenTint`): Fullscreen blue-light filter status, warmth presets, custom color picker, strength slider, schedule mode, and transition timing.
+       - *App Icon* (`appIcon`): 3D visual icon showcase (Obsidian Noir, Cobalt Surge, Emerald Matrix, Crimson Velocity), and accent color synchronization.
+       - *Popup Menu* (`popup`): Spawn position, search toggle, action icons, numeric badges, close after action, and close on blur.
+    5. **SYSTEM**:
+       - *Privacy & Safety* (`privacy`): Credential input privacy, global pause shortcut (`row-sc-pause`), emergency safe mode shortcut (`row-sc-emergency`), manual safe mode toggle, and application exclusions blacklist.
+       - *Backup & Restore* (`backup`, alias: `data`): JSON configuration export/import, automated backup frequency and directory, manual backup trigger, and visually isolated Danger Zone with factory reset confirmation modal.
+       - *Advanced* (`advanced`): Rust Native Helper vs Legacy hook mode, extended administrator access (High integrity), performance mode, and diagnostic logs.
+    6. **INFORMATION**:
+       - *About KeyFlow* (`about`): Polished software specifications, runtime versions (Electron, Chromium, Node, V8), and documentation/release links.
+* **Apple-Style Navigation Sidebar**:
+  - Grouped categories with uppercase headings, squircle icon pods with vibrant category tinting, row titles, trailing summary readouts (e.g. "Startup on", "Caps bypass on", "4 corners", "Dark"), and disclosure chevrons.
+  - Fully responsive: 2-column sidebar layout on desktop (>760px); mobile/compact drill-down navigation with `< Settings` Back button on narrow screens.
+  - Smooth deep-linking and highlight animation from Command Palette (`Ctrl+K`) and settings search across all 15 pages.
+* **Zero Persistence Breaking Changes**:
+  - Maintained all existing store keys in `useStore.ts` and electron IPC handlers.
+  - Added backward-compatible route resolver (`resolveSettingsSectionId`) for legacy routes (`"general"` -> `"appBehavior"`, `"shortcuts"` -> `"keyboard"`, `"data"` -> `"backup"`).
+
+* **Prominent Alt+CapsLock Bypass Placement**:
+  - Placed a dedicated **Special Keys & CapsLock Behavior** card right at the very top of **Shortcuts & Gestures**, with a prominent iOS-style toggle for **Alt + CapsLock native bypass**.
+  - Indexed in `SETTINGS_INDEX` with comprehensive keywords (`caps`, `capslock`, `alt`, `bypass`, `native`, `screenshot`, `uppercase`) so searching `caps` in `Ctrl+K` immediately displays the toggle.
+* **Simplified Settings Architecture (4 Clear Groups)**:
+  - Reorganized the 14 scattered settings tabs into 4 distinct, organized navigation groups with clean category headers:
+    1. **Core & Input**: General, Shortcuts & Gestures, Command Palette.
+    2. **Navigation & Tools**: WASD Navigation, Hot Corners, Always on Top, Screen Tint.
+    3. **Appearance & Interface**: Appearance & Themes, App Icon, Popup Menu.
+    4. **System & Safety**: Privacy & Safety, Data & Backup, Advanced, About.
+* **iOS-Style Color-Coded Cards & Categories Toggle**:
+  - Added an ON/OFF preference: **"Color-coded settings cards"** (`colorCodedSettings`) under Appearance & Themes and searchable settings index.
+  - When enabled, every settings category and card features vibrant iOS-style rounded icon squircles (Blue, Cyan, Green, Amber, Purple, Yellow, Rose, Indigo, Pink, Slate) for instant visual recognition.
+  - When disabled, reverts to a calm minimalist monochrome theme.
+
+## 2026-09-03 — Redesigned Bottom Dock Previews, Typo-Tolerant Search & Details Depth Settings
+
+* **Redesigned Bottom Dock Hover Previews**:
+  - Replaced clumsy raw text and wrapping pills with modern, polished acrylic preview HUD cards.
+  - Added dedicated icon pods (`.dock-preview-icon-box`), clean category subtitle pills, 2-stage visual pipeline cards for Shortcut Creation, structured 2-column stat grids for Overview, and crisp keycap previews for Shortcuts.
+  - Redesigned preview footers into structured action strips with navigation cues and keyboard shortcut badges (`↵` / `Ctrl+K`).
+* **Typo-Tolerant & Prefix-Predictive Command Palette Search**:
+  - Upgraded `searchCommands` in `src/lib/command-registry.ts` with prefix prediction, acronym matching (`cp` for Command Palette, `km` for Keyboard Map), and multi-word fuzzy distance so spelling mistakes and partial inputs immediately resolve to the intended action.
+* **Command Palette Details Panel Depth & Toggle Options**:
+  - Added `commandPaletteSideViewEnabled` to optionally toggle Ctrl+Enter side view on or off.
+  - Added `commandPaletteDetailLevel` ("Detailed" for interactive switches, theme toggles, and direct setting controls vs. "Compact" for lightweight summaries).
+
+## 2026-09-03 — Alt+CapsLock Native Bypass & Centered Dock Create Button
+
+* **Alt + CapsLock Native Bypass**:
+  - Added a dedicated setting (`altCapsLockBypass`, enabled by default) in Settings under *Shortcuts & Gestures* and the searchable settings index.
+  - When enabled, holding Left or Right Alt (including when Right Alt is bound to Hyper Key) and tapping CapsLock bypasses shortcut interception and natively toggles Windows CapsLock on/off directly.
+  - Normal CapsLock presses without Alt continue to trigger user shortcuts (e.g. Screenshot) without interference.
+* **Floating Bottom Dock & Popups Cleanup**:
+  - Centered the **Create (+)** button in the middle of the dock bar with prominent accent styling (`.floating-dock-tab.is-create`).
+  - Removed all blue count pills/badges (`dock-preview-badge`, such as `5 PROFILES`, `3 Active`, etc.) from the hover popups for a clean, distraction-free appearance.
+  - Removed all blue circular number badges from the dock tabs.
+
+## 2026-09-03 — Polished WASD HUD & Command Palette "Show More" Settings Controls
+
+* **WASD Status HUD**: Redesigned the transient WASD feedback popup into a modern floating HUD badge with vector directional/keyboard iconography, active/normal status pill, smooth pop animation, and unclipped ambient glow/shadows with proper transparent window margins.
+* **Command Palette "Show More" (Ctrl+Enter)**:
+  - Updated the hint bar action from "side view" to "show more" / "hide details" with tooltip instructions.
+  - Added interactive setting controls directly within the side view inspector so users can flip toggles and adjust preferences immediately from search without navigating away.
+  - Added an "Always show details panel" preference (`commandPaletteDefaultShowMore`) in Command Palette settings and the searchable settings index.
+
+## 2026-09-03 — Bottom dock blur backdrop scrim
+
+* Added a frosted backdrop blur scrim (`.floating-bottom-dock-scrim`) behind the persistent floating bottom navigation dock.
+* Introduced `--dock-scrim-bg` and `--dock-scrim-blur` tokens for dark mode, light mode, and Windows 11 backdrop materials (Mica and Acrylic).
+* Uses gradient-masked acrylic backdrop-filter so content scrolling into the bottom bar area softly blurs out without obstructing click-through interaction.
+
+## 2026-09-02 — Optional WASD status card
+
+* Added a WASD Navigation preference for the transient status card; it is off by default and does not affect cursor routing or keyboard mapping.
+* Restyled the optional card to derive its accent from the user's chosen appearance color and its surface/text contrast from the Windows color mode.
+
+## 2026-09-01 — Localized bottom-dock acrylic
+
+* Added documented dock acrylic tokens for a restrained, premium blur treatment behind the persistent bottom navigation only.
+* Updated the dock pill and its circular actions to use the shared translucent surface with a solid-surface fallback where backdrop filtering is unavailable.
+
+## 2026-08-31 — Integrated native Windows caption controls
+
+* Restored KeyFlow's own title bar, including its profile/status text and drag region.
+* Moved minimize, maximize, and close to Electron's native Windows control overlay, preserving the Windows 11 Snap Layout hover menu on the real maximize button.
+* Added `--layout-window-controls-width` so title-bar text always leaves room for the native controls, including compact windows.
+* Reduced the native minimum width from 760px to 520 device-independent pixels. This avoids a 760px limit becoming approximately 1140 physical pixels on a 150% Windows display, while retaining the documented narrow one-column layout.
+* Added shared narrow-window shell rules so compact preferences cannot force multi-column cards at 760px and below. Headers, utility cards, long descriptions, and the optional floating dock now reflow at the minimum window width without page-specific alternatives.
+* Made the Visual Keyboard and Settings pages compact-safe: the physical board scrolls within its card, mouse targets stack with a readable list, and Settings categories collapse into a horizontal tab row with wrapping control rows.
+* The renderer now follows Windows system theme changes live, keeps the native caption overlay in the same resolved theme, and uses the selected app-icon artwork in its own title bar. Theme selection is available only in Appearance settings.
+
 ## 2026-08-30 — Selectable KeyFlow app icons
 
 * Added an **App Icon** Settings category with monochrome, blue, green, and red KeyFlow artwork.

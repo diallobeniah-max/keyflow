@@ -7,8 +7,9 @@ export interface SettingSearchItem {
   id: string;
   title: string;
   category:
-    | "general"
-    | "shortcuts"
+    | "appBehavior"
+    | "notifications"
+    | "keyboard"
     | "commandPalette"
     | "hotCorners"
     | "alwaysOnTop"
@@ -19,9 +20,12 @@ export interface SettingSearchItem {
     | "appIcon"
     | "screenTint"
     | "privacy"
-    | "data"
+    | "backup"
     | "advanced"
-    | "about";
+    | "about"
+    | "general"
+    | "shortcuts"
+    | "data";
   categoryLabel: string;
   description: string;
   keywords: string[];
@@ -57,12 +61,31 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
     keywords: ["tooltip", "hover", "hints", "help", "key functions", "explanations"],
     anchorId: "row-app-hover-help",
   },
-  // General
+  {
+    id: "app-color-coded-settings",
+    title: "Color-coded settings cards",
+    category: "appearance",
+    categoryLabel: "Appearance",
+    description: "Display vibrant iOS-style color-coded icon pods and category accents across all settings windows",
+    keywords: ["color", "color-coded", "ios", "category", "tint", "icons", "accessibility", "visual"],
+    anchorId: "row-app-color-coded-settings",
+  },
+  {
+    id: "app-settings-width",
+    title: "Settings layout width",
+    category: "appearance",
+    categoryLabel: "Appearance",
+    description: "Choose between compact focused width and spacious expanded width for Settings",
+    keywords: ["width", "sidebar width", "layout width", "large", "small", "compact", "spacious", "expanded", "settings width"],
+    synonyms: ["sidebar width", "page width"],
+    anchorId: "row-app-settings-width",
+  },
+  // App Behavior
   {
     id: "gen-startup",
     title: "Launch on Windows startup",
-    category: "general",
-    categoryLabel: "General",
+    category: "appBehavior",
+    categoryLabel: "App Behavior",
     description: "Start KeyFlow automatically when you log in to Windows",
     keywords: ["launch", "startup", "boot", "login", "auto start", "windows"],
     synonyms: ["autostart", "start on boot"],
@@ -71,8 +94,8 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
   {
     id: "gen-minimized",
     title: "Start minimized",
-    category: "general",
-    categoryLabel: "General",
+    category: "appBehavior",
+    categoryLabel: "App Behavior",
     description: "Open KeyFlow hidden in the background on launch",
     keywords: ["minimized", "background", "silent", "hidden"],
     anchorId: "row-gen-minimized",
@@ -80,64 +103,75 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
   {
     id: "gen-tray",
     title: "Minimize to system tray",
-    category: "general",
-    categoryLabel: "General",
+    category: "appBehavior",
+    categoryLabel: "App Behavior",
     description: "Keep running in the notification area when the window is closed",
     keywords: ["tray", "notification area", "minimize", "background", "system tray"],
     anchorId: "row-gen-tray",
   },
   {
-    id: "gen-notifications",
-    title: "Desktop notifications",
-    category: "general",
-    categoryLabel: "General",
-    description: "Show Windows toast alerts when shortcuts execute",
-    keywords: ["notifications", "toast", "alerts", "banner", "popups"],
-    anchorId: "row-gen-notifications",
+    id: "gen-close-tray",
+    title: "Close to system tray",
+    category: "appBehavior",
+    categoryLabel: "App Behavior",
+    description: "Keep running in the background when the main window is closed",
+    keywords: ["tray", "close to tray", "exit", "background", "hide on close"],
+    anchorId: "row-gen-close-tray",
+  },
+  {
+    id: "gen-show-tray",
+    title: "Show system tray icon",
+    category: "appBehavior",
+    categoryLabel: "App Behavior",
+    description: "Display the KeyFlow icon in the Windows notification area",
+    keywords: ["tray", "system tray", "icon", "notification area"],
+    anchorId: "row-gen-show-tray",
   },
   {
     id: "gen-profile",
     title: "Default workspace profile",
-    category: "general",
-    categoryLabel: "General",
+    category: "appBehavior",
+    categoryLabel: "App Behavior",
     description: "Profile activated when no specific application rule matches",
     keywords: ["profile", "default", "workspace", "active profile"],
     anchorId: "row-gen-profile",
   },
 
-  // Shortcuts & Gestures
+  // Notifications
   {
-    id: "sc-pause",
-    title: "Global pause shortcut",
-    category: "shortcuts",
-    categoryLabel: "Shortcuts & Gestures",
-    description: "Instantly pause all shortcut matching system-wide",
-    keywords: ["pause", "stop", "suspend", "global pause", "shortcut"],
-    anchorId: "row-sc-pause",
+    id: "gen-notifications",
+    title: "Desktop notifications",
+    category: "notifications",
+    categoryLabel: "Notifications",
+    description: "Show Windows toast alerts when shortcuts execute",
+    keywords: ["notifications", "toast", "alerts", "banner", "popups", "desktop notifications"],
+    anchorId: "row-gen-notifications",
   },
   {
-    id: "sc-emergency",
-    title: "Emergency Safe Mode shortcut",
-    category: "shortcuts",
-    categoryLabel: "Shortcuts & Gestures",
-    description: "Instantly disconnect low-level hooks in emergency",
-    keywords: ["emergency", "safe mode", "disconnect", "kill hook", "panic"],
-    anchorId: "row-sc-emergency",
+    id: "gen-sound",
+    title: "Notification sounds",
+    category: "notifications",
+    categoryLabel: "Notifications",
+    description: "Play audio chimes when KeyFlow notifications are displayed",
+    keywords: ["notification sounds", "sound", "audio", "chime", "alerts"],
+    anchorId: "row-gen-sound",
   },
+
+  // Keyboard & Gestures
   {
-    id: "sc-command-palette",
-    title: "Command Palette",
-    category: "shortcuts",
-    categoryLabel: "Shortcuts & Gestures",
-    description: "Open the searchable command registry with Ctrl+K",
-    keywords: ["command", "palette", "registry", "ctrl k", "search", "navigation", "quick actions"],
-    anchorId: "row-sc-command-palette",
+    id: "sc-alt-caps-bypass",
+    title: "Alt + CapsLock native bypass",
+    category: "keyboard",
+    categoryLabel: "Keyboard & Gestures",
+    description: "Hold Alt (or Hyper) and tap CapsLock to toggle Windows CapsLock natively without firing the CapsLock shortcut",
+    keywords: ["caps", "capslock", "caps lock", "alt", "bypass", "native", "toggle caps", "uppercase", "special key", "screenshot"],
+    anchorId: "row-sc-alt-caps-bypass",
   },
   {
     id: "sc-double-tap",
     title: "Double tap threshold",
-    category: "shortcuts",
-    categoryLabel: "Shortcuts & Gestures",
+    category: "keyboard",
+    categoryLabel: "Keyboard & Gestures",
     description: "Maximum time between two presses in milliseconds",
     keywords: ["double tap", "tap interval", "speed", "timing", "ms", "gesture"],
     anchorId: "row-sc-double-tap",
@@ -145,8 +179,8 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
   {
     id: "sc-hold-thresh",
     title: "Hold press threshold",
-    category: "shortcuts",
-    categoryLabel: "Shortcuts & Gestures",
+    category: "keyboard",
+    categoryLabel: "Keyboard & Gestures",
     description: "Duration to hold a key before hold trigger fires",
     keywords: ["hold", "long press", "duration", "threshold", "timing", "delay"],
     anchorId: "row-sc-hold-thresh",
@@ -154,8 +188,8 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
   {
     id: "sc-repeat-prot",
     title: "Key repeat protection",
-    category: "shortcuts",
-    categoryLabel: "Shortcuts & Gestures",
+    category: "keyboard",
+    categoryLabel: "Keyboard & Gestures",
     description: "Ignore repeated OS key-down events while holding a physical key",
     keywords: ["repeat", "auto repeat", "debounce", "protection", "holding"],
     anchorId: "row-sc-repeat-prot",
@@ -163,8 +197,8 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
   {
     id: "sc-hyper-enable",
     title: "Enable Hyper Key",
-    category: "shortcuts",
-    categoryLabel: "Shortcuts & Gestures",
+    category: "keyboard",
+    categoryLabel: "Keyboard & Gestures",
     description: "Acts as a dedicated KeyFlow modifier key (bit 4) for all Hyper chords",
     keywords: ["hyper", "hyper key", "enable hyper", "modifier", "custom modifier", "super key"],
     synonyms: ["hper", "superkey"],
@@ -173,29 +207,49 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
   {
     id: "sc-hyper-key",
     title: "Physical Hyper Key",
-    category: "shortcuts",
-    categoryLabel: "Shortcuts & Gestures",
+    category: "keyboard",
+    categoryLabel: "Keyboard & Gestures",
     description: "Select an unused physical key (Right Alt, Right Ctrl, Menu, CapsLock)",
     keywords: ["hyper key", "physical key", "right alt", "altright", "menu", "right ctrl", "capslock"],
     anchorId: "row-sc-hyper-key",
   },
   {
     id: "sc-hyper-tap",
-    title: "Quick Press",
-    category: "shortcuts",
-    categoryLabel: "Shortcuts & Gestures",
-    description: "Action triggered when the Hyper key is pressed and released alone (Caps Lock / function-key Hyper keys only)",
+    title: "Tap Hyper Key Action",
+    category: "keyboard",
+    categoryLabel: "Keyboard & Gestures",
+    description: "Action triggered when the Hyper key is pressed and released alone",
     keywords: ["quick press", "hyper tap", "tap action", "hyper alone", "solo press", "single tap"],
     anchorId: "row-sc-hyper-tap",
   },
   {
     id: "sc-typing-prot",
     title: "Typing protection mode",
-    category: "shortcuts",
-    categoryLabel: "Shortcuts & Gestures",
+    category: "keyboard",
+    categoryLabel: "Keyboard & Gestures",
     description: "Suppress single printable key triggers during fast active typing bursts",
     keywords: ["typing", "typing protection", "accidental", "burst", "strict", "balanced"],
     anchorId: "row-sc-typing-prot",
+  },
+
+  // Privacy & Safety - Emergency Controls
+  {
+    id: "sc-pause",
+    title: "Global pause shortcut",
+    category: "privacy",
+    categoryLabel: "Privacy & Safety",
+    description: "Instantly pause all shortcut matching system-wide",
+    keywords: ["pause", "stop", "suspend", "global pause", "shortcut", "safety", "emergency"],
+    anchorId: "row-sc-pause",
+  },
+  {
+    id: "sc-emergency",
+    title: "Emergency Safe Mode shortcut",
+    category: "privacy",
+    categoryLabel: "Privacy & Safety",
+    description: "Instantly disconnect low-level hooks in emergency",
+    keywords: ["emergency", "safe mode", "disconnect", "kill hook", "panic", "safety"],
+    anchorId: "row-sc-emergency",
   },
 
   // Command Palette
@@ -479,32 +533,41 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
     anchorId: "row-priv-history",
   },
 
-  // Data & Backup
+  // Backup & Restore
   {
     id: "data-export",
-    title: "Export backup",
-    category: "data",
-    categoryLabel: "Data & Backup",
-    description: "Save all shortcuts and settings to a JSON file",
-    keywords: ["export", "backup", "save json", "download backup"],
+    title: "Export configuration",
+    category: "backup",
+    categoryLabel: "Backup & Restore",
+    description: "Save all shortcuts and settings to a JSON backup file",
+    keywords: ["export", "backup", "save json", "download backup", "transfer"],
     anchorId: "row-data-export",
   },
   {
     id: "data-import",
-    title: "Import backup",
-    category: "data",
-    categoryLabel: "Data & Backup",
+    title: "Import configuration",
+    category: "backup",
+    categoryLabel: "Backup & Restore",
     description: "Restore shortcuts and profiles from a previous backup file",
-    keywords: ["import", "restore", "load json", "upload backup"],
+    keywords: ["import", "restore", "load json", "upload backup", "transfer"],
     anchorId: "row-data-import",
   },
   {
+    id: "data-auto-backup",
+    title: "Automatic backups",
+    category: "backup",
+    categoryLabel: "Backup & Restore",
+    description: "Periodically export a full backup of all shortcuts and preferences",
+    keywords: ["auto backup", "automatic backup", "scheduled backup", "frequency"],
+    anchorId: "row-data-auto-backup",
+  },
+  {
     id: "data-reset",
-    title: "Reset application data",
-    category: "data",
-    categoryLabel: "Data & Backup",
-    description: "Delete all shortcuts, profiles, and reset settings to default",
-    keywords: ["reset", "clear all", "factory reset", "delete data", "wipe"],
+    title: "Factory reset",
+    category: "backup",
+    categoryLabel: "Backup & Restore",
+    description: "Delete all shortcuts, custom profiles, and return KeyFlow to initial out-of-box state",
+    keywords: ["reset", "clear all", "factory reset", "delete data", "wipe", "danger zone"],
     anchorId: "row-data-reset",
   },
 
@@ -555,12 +618,12 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
     anchorId: "row-adv-diag",
   },
 
-  // About
+  // About KeyFlow
   {
     id: "about-version",
     title: "Version & Build",
     category: "about",
-    categoryLabel: "About",
+    categoryLabel: "About KeyFlow",
     description: "Current installed KeyFlow version and platform build details",
     keywords: ["version", "build", "release", "about", "keyflow version"],
     anchorId: "row-about-version",

@@ -463,11 +463,17 @@ export function PageIntro({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="page-intro">
-      <div className="page-intro-text">
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-        <h1 className="page-title">{title}</h1>
-        <p className="page-desc">{description}</p>
+    <div className="page-intro is-compact-header">
+      <div className="page-header__left">
+        <div className="page-header__title-cluster">
+          {eyebrow && <span className="eyebrow page-header__eyebrow-chip">{eyebrow}</span>}
+          <h1 className="page-title">{title}</h1>
+        </div>
+        {description && (
+          <div className="page-header__description-box" title={description}>
+            <span className="page-header__desc-text">{description}</span>
+          </div>
+        )}
       </div>
       {children && <div className="page-actions">{children}</div>}
     </div>
@@ -510,17 +516,19 @@ export function SettingsGroup({
   desc,
   icon,
   children,
+  accentColor,
 }: {
   title: string;
   desc?: string;
   icon?: string;
   children: React.ReactNode;
+  accentColor?: string;
 }) {
   return (
-    <div className="settings-group">
+    <div className={"settings-group" + (accentColor ? " has-accent is-" + accentColor : "")}>
       <div className="settings-group-header">
         {icon && (
-          <div className="settings-group-icon-wrap">
+          <div className={"settings-group-icon-wrap" + (accentColor ? " is-" + accentColor : "")}>
             <Icon name={icon} size={18} className="settings-group-icon" />
           </div>
         )}

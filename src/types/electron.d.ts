@@ -3,6 +3,7 @@ interface WindowControls {
   toggleMaximize: () => Promise<void>;
   close: () => Promise<void>;
   isMaximized: () => Promise<boolean>;
+  setTitleBarTheme: (theme: "light" | "dark") => Promise<boolean>;
   onMaximizedChange: (callback: (maximized: boolean) => void) => () => void;
 }
 
@@ -72,6 +73,7 @@ interface InputAPI {
   browseExe: () => Promise<string | null>;
   getWasdNavigationState: () => Promise<boolean>;
   setWasdCursorConfig?: (config: { size: number; customPath?: string }) => Promise<boolean>;
+  setWasdFeedbackConfig?: (config: { showStateCard: boolean; accent?: string }) => Promise<boolean>;
   browseCursorFile?: () => Promise<string | null>;
   onWasdNavigationState: (callback: (active: boolean) => void) => () => void;
   onTriggered: (callback: (shortcut: any, results?: any[]) => void) => () => void;

@@ -189,6 +189,7 @@ async function runActionsDesktop(actions: any[]): Promise<ActionResult[]> {
   return results;
 }
 
+
 function isAllowedOrigin(url: string): boolean {
   if (url.startsWith(DEV_URL)) return true;
   if (url.startsWith(FILE_PROTOCOL)) return true;
@@ -197,14 +198,14 @@ function isAllowedOrigin(url: string): boolean {
 
 function errorFallbackHtml(error: string): string {
   return `<!DOCTYPE html><html><body style="background:#0B1630;color:#F7FAFF;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;flex-direction:column">
-    <h2 style="margin-bottom:8px">KeyFlow ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Load Error</h2>
+    <h2 style="margin-bottom:8px">KeyFlow — Load Error</h2>
     <pre style="color:#FF6B7A;font-size:14px;max-width:520px;text-align:center">${error}</pre>
     <p style="color:#7F8DA8;font-size:13px">Check that the dev server is running and try reloading.</p>
   </body></html>`;
 }
 
 function createWindow(): void {
-  const ws = createWindowState({ width: 1280, height: 800 });
+  const ws = createWindowState({ width: 1020, height: 700 });
 
   console.log(`[keyflow] preload path: ${PRELOAD_PATH}`);
   console.log(`[keyflow] preload exists: ${existsSync(PRELOAD_PATH)}`);
@@ -213,12 +214,24 @@ function createWindow(): void {
 
   const iconPath = getAppIconPath();
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    minWidth: 900,
+    width: 1020,
+    height: 700,
+    // Window dimensions are device-independent pixels. A 760px limit becomes
+    // about 1140 physical pixels at Windows' common 150% display scaling,
+    // which prevented a compact side-by-side layout. The renderer's narrow
+    // layout supports 520px and the native caption buttons still own Snap.
+    minWidth: 520,
     minHeight: 640,
     center: true,
-    frame: false,
+    // Keep KeyFlow's own title bar while delegating the caption buttons to
+    // Windows. The native maximize button retains the Windows 11 Snap Layout
+    // hover menu instead of using a renderer-only lookalike control.
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: "#0d0e11",
+      symbolColor: "#f3f4f6",
+      height: 44,
+    },
     show: false,
     icon: iconPath,
     backgroundColor: "#121316",
@@ -397,6 +410,15 @@ function registerIPC(): void {
   });
   ipcMain.handle("window:close", () => mainWindow?.close());
   ipcMain.handle("window:is-maximized", () => mainWindow?.isMaximized() ?? false);
+  ipcMain.handle("window:set-titlebar-theme", (_event, theme: unknown) => {
+    if (theme !== "light" && theme !== "dark") return false;
+    mainWindow?.setTitleBarOverlay(
+      theme === "light"
+        ? { color: "#f3f4f6", symbolColor: "#111827", height: 44 }
+        : { color: "#0d0e11", symbolColor: "#f3f4f6", height: 44 },
+    );
+    return true;
+  });
   ipcMain.handle("app:get-version", () => app.getVersion());
   ipcMain.handle("app:get-platform", () => process.platform);
   ipcMain.handle("app:get-login-item-settings", () => app.getLoginItemSettings());
@@ -616,6 +638,10 @@ ipcMain.handle("input:get-suppression", () => {
   });
 
   ipcMain.handle("navigation:get-state", () => navigationModeController?.isActive() ?? false);
+  ipcMain.handle("navigation:set-feedback-config", (_event, config) => {
+    navigationModeController?.setFeedbackConfig(config ?? {});
+    return true;
+  });
 
   ipcMain.handle("input:get-status", () => {
     return inputService?.getStatus() ?? "stopped";
@@ -825,7 +851,7 @@ app.whenReady().then(() => {
     sendToNative: (enabled, cursor) => nativeHelper?.setWasdNavigation(enabled, cursor?.size, cursor?.customPath),
     getMainWindow: () => mainWindow,
     playSound: (name) => playKeyFlowSound(name),
-    showOverlay: (active) => showNavigationOverlay(active),
+    showOverlay: (active, config) => showNavigationOverlay(active, config),
     setCursor: (active) => setSystemCursorBlue(active),
   });
   setNavigationModeController(navigationModeController);

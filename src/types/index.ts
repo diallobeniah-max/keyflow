@@ -42,6 +42,7 @@ export type ActionType =
   | "alwaysOnTop"
   | "notesPopup"
   | "toggleWasdNavigation"
+  | "toggleCapsLock"
   | "delay"
   | "remapKey";
 
@@ -199,6 +200,12 @@ export interface AppearanceSettings {
   syncAccentWithAppIcon?: boolean;
   /** Show contextual hover help for icon-only controls and keyboard hints. */
   showHoverHelp?: boolean;
+  /** Display iOS-style color-coded category icons and group headers across Settings. */
+  colorCodedSettings?: boolean;
+  /** Settings width mode: "small" (compact 220px rail, focused view) or "large" (wide 284px rail with summaries, expanded view). */
+  settingsWidth?: "small" | "large";
+  /** Whether the Settings navigation sidebar is collapsed into an icon-only rail. */
+  sidebarCollapsed?: boolean;
 }
 
 export interface HyperKeyConfig {
@@ -219,6 +226,12 @@ export interface ShortcutSettings {
   commandPaletteMaxResults?: number;
   commandPaletteWindowMode?: "compact" | "expanded";
   commandPalettePosition?: "center" | "top";
+  commandPaletteDefaultShowMore?: boolean;
+  /** Allow pressing Ctrl+Enter to open the details side view in the Command Palette. */
+  commandPaletteSideViewEnabled?: boolean;
+  /** Level of detail in the details side view: 'detailed' (interactive controls) or 'compact' (simple info). */
+  commandPaletteDetailLevel?: "detailed" | "compact";
+  altCapsLockBypass?: boolean;
   defaultDoubleTap: number;
   defaultTripleTap: number;
   defaultHold: number;
@@ -392,6 +405,7 @@ export interface CustomCursorItem {
 }
 
 export interface WasdNavigationSettings {
+  showStateCard?: boolean;
   cursorSize: number;        // 16–64, default 32
   customCursorPath?: string; // user-uploaded cursor image path (absolute)
   activeCursorId?: string;   // 'default' or custom cursor id

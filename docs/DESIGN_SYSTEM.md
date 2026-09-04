@@ -132,6 +132,15 @@ Font stack:
 | `--radius-xl` | 16px | Dialogs, modals |
 | `--radius-pill` | 999px | Switches, status dots, pills |
 
+## Window shell dimensions
+
+| Token | Value | Usage |
+|---|---:|---|
+| `--layout-titlebar-height` | 44px | KeyFlow's integrated renderer title bar |
+| `--layout-window-controls-width` | 138px | Right-side space reserved for the native Windows minimize, maximize, and close overlay |
+| `--layout-min-window-width` | 520px | Narrowest supported KeyFlow window width in device-independent pixels |
+| `--layout-min-window-height` | 640px | Narrowest supported KeyFlow window height in device-independent pixels |
+
 ## Elevation and shadows
 
 | Token | Value |
@@ -140,3 +149,18 @@ Font stack:
 | `--shadow-md` | `0 4px 12px rgba(0, 0, 0, 0.16), 0 1px 3px rgba(0, 0, 0, 0.10)` |
 | `--shadow-popup` | `0 16px 36px rgba(0, 0, 0, 0.36), 0 0 0 1px var(--color-border-subtle)` |
 | `--shadow-focus` | `0 0 0 3px var(--color-accent-soft)` |
+
+### Floating dock acrylic
+
+The persistent bottom dock is the only in-page navigation surface allowed to use a localized acrylic treatment. It uses `--dock-surface`, `--dock-backdrop-blur`, and `--dock-backdrop-saturate`; the dock must retain its token border, shadow, and readable icon contrast. The bottom dock area also includes a restrained blur backdrop scrim (`--dock-scrim-bg`, `--dock-scrim-blur`) behind the bar to softly blur out scrolling content beneath the floating navigation without obscuring interaction. Do not extend this blur to ordinary cards or standard page content.
+
+## Motion and transitions
+
+| Token | Value | Intent |
+|---|---|---|
+| `--motion-fast` | `100ms cubic-bezier(0.16, 1, 0.3, 1)` | Micro-interactions, hover highlights, icon scales |
+| `--motion-default` | `160ms cubic-bezier(0.16, 1, 0.3, 1)` | Standard menus, button states, popups |
+| `--motion-normal` | `320ms cubic-bezier(0.16, 1, 0.3, 1)` | Cards, wireframe windows, badge animations |
+| `--motion-slow` | `220ms cubic-bezier(0.16, 1, 0.3, 1)` | Drawers, panels, secondary expansions |
+| `--motion-layout` | `420ms cubic-bezier(0.16, 1, 0.3, 1)` | Major layout morphs, settings width changes, container resizes |
+| `--motion-spring` | `240ms cubic-bezier(0.175, 0.885, 0.32, 1.15)` | Spring-loaded badges, tactile button presses |

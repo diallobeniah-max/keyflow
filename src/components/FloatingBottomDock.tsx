@@ -1,29 +1,29 @@
 import { useState, useRef, useEffect } from "react";
 import {
-  Books,
-  Desktop,
-  GearSix,
-  Keyboard,
-  MagnifyingGlass,
-  NoteBlank,
-  Pause,
-  Play,
-  Plus,
   SquaresFour,
+  Keyboard,
+  Desktop,
+  Plus,
   UsersThree,
+  Books,
+  NoteBlank,
+  GearSix,
+  MagnifyingGlass,
+  ArrowRight,
   CheckCircle,
   Lightning,
   Sparkle,
-  type Icon as PhosphorIcon,
+  Pause,
+  Play,
+  type Icon,
 } from "@phosphor-icons/react";
 import { useStore } from "../store/useStore";
-import { AppPage } from "../types";
+import type { AppPage } from "../types";
 
 interface NavItem {
   page: AppPage;
   label: string;
-  icon: PhosphorIcon;
-  badge?: number;
+  icon: Icon;
 }
 
 type HoveredTarget = AppPage | "pause" | "search" | null;
@@ -32,28 +32,28 @@ export function FloatingBottomDock() {
   const page = useStore((s) => s.currentPage);
   const setPage = useStore((s) => s.setPage);
   const paused = useStore((s) => s.paused);
-  const safeMode = useStore((s) => s.safeMode);
   const togglePaused = useStore((s) => s.togglePaused);
+  const safeMode = useStore((s) => s.safeMode);
+  const activeProfile = useStore((s) => s.data.profiles.find((p) => p.id === s.activeProfileId));
   const shortcuts = useStore((s) => s.data.shortcuts);
   const profiles = useStore((s) => s.data.profiles);
-  const activeProfileId = useStore((s) => s.activeProfileId);
-  const activeProfile = profiles.find((p) => p.id === activeProfileId) ?? profiles[0];
   const appearance = useStore((s) => s.data.settings.appearance);
+
+  const activeShortcuts = shortcuts.filter((s) => s.enabled && s.profileId === (activeProfile?.id ?? "default"));
+  const activeShortcutsCount = activeShortcuts.length;
 
   const [hovered, setHovered] = useState<HoveredTarget>(null);
   const [previewPos, setPreviewPos] = useState<number | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const activeShortcuts = shortcuts.filter((s) => s.profileId === activeProfileId && s.enabled);
-  const activeShortcutsCount = activeShortcuts.length;
-
+  // Center button: Create (+)
   const NAV_ITEMS: NavItem[] = [
     { page: "dashboard", label: "Overview", icon: SquaresFour },
-    { page: "shortcuts", label: "Shortcuts", icon: Keyboard, badge: activeShortcutsCount },
-    { page: "create", label: "Create", icon: Plus },
+    { page: "shortcuts", label: "Shortcuts", icon: Keyboard },
     { page: "visual", label: "Keyboard Map", icon: Desktop },
-    { page: "profiles", label: "Profiles", icon: UsersThree, badge: profiles.length },
+    { page: "create", label: "Create", icon: Plus },
+    { page: "profiles", label: "Profiles", icon: UsersThree },
     { page: "library", label: "Library", icon: Books },
     { page: "notes", label: "Notes", icon: NoteBlank },
     { page: "settings", label: "Settings", icon: GearSix },
@@ -89,8 +89,6 @@ export function FloatingBottomDock() {
   }, []);
 
   const renderPreviewContent = () => {
-    if (!hovered) return null;
-
     if (hovered === "pause") {
       return (
         <div className="dock-preview-content">
@@ -99,17 +97,18 @@ export function FloatingBottomDock() {
               <span className={"status-dot" + (safeMode ? " is-safe-mode" : paused ? " is-paused" : " is-active")} />
               <span>{paused ? "Engine Paused" : "Engine Active"}</span>
             </div>
-            <span className="dock-preview-badge">{paused ? "Inactive" : "Live"}</span>
+            <span className="dock-preview-pill-sub">{safeMode ? "Safe Mode" : paused ? "Interception off" : "Healthy"}</span>
           </div>
           <div className="dock-preview-body">
             <div className="dock-preview-desc">
               {paused
-                ? "KeyFlow shortcut interception is paused. Normal OS keystrokes pass through."
-                : "KeyFlow is actively listening for shortcuts, gestures, and hot corner triggers."}
+                ? "KeyFlow shortcut interception is paused. Normal OS keystrokes pass through cleanly."
+                : "KeyFlow is actively matching shortcuts, gestures, and hot corner triggers."}
             </div>
           </div>
           <div className="dock-preview-footer">
-            <span>Click to {paused ? "resume engine" : "pause engine"}</span>
+            <span className="dock-preview-footer-action">{paused ? "Resume Engine" : "Pause Engine"}</span>
+            <span className="dock-preview-footer-kbd">Click</span>
           </div>
         </div>
       );
@@ -120,10 +119,12 @@ export function FloatingBottomDock() {
         <div className="dock-preview-content">
           <div className="dock-preview-header">
             <div className="dock-preview-title">
-              <MagnifyingGlass size={15} weight="bold" className="dock-preview-icon" />
+              <div className="dock-preview-icon-box">
+                <MagnifyingGlass size={15} weight="bold" />
+              </div>
               <span>Command Palette</span>
             </div>
-            <kbd className="topbar-search-kbd">Ctrl K</kbd>
+            <span className="dock-preview-pill-sub">Registry</span>
           </div>
           <div className="dock-preview-body">
             <div className="dock-preview-desc">
@@ -131,7 +132,8 @@ export function FloatingBottomDock() {
             </div>
           </div>
           <div className="dock-preview-footer">
-            <span>Click to search commands</span>
+            <span className="dock-preview-footer-action">Search Commands</span>
+            <span className="dock-preview-footer-kbd">Ctrl+K</span>
           </div>
         </div>
       );
@@ -142,23 +144,28 @@ export function FloatingBottomDock() {
         <div className="dock-preview-content">
           <div className="dock-preview-header">
             <div className="dock-preview-title">
-              <SquaresFour size={15} weight="bold" className="dock-preview-icon" />
+              <div className="dock-preview-icon-box">
+                <SquaresFour size={15} weight="bold" />
+              </div>
               <span>Overview Deck</span>
             </div>
-            <span className="dock-preview-badge">{activeShortcutsCount} Active</span>
+            <span className="dock-preview-pill-sub">{activeProfile?.name ?? "Default"}</span>
           </div>
           <div className="dock-preview-body">
-            <div className="dock-preview-stat-row">
-              <span className="dock-preview-stat-label">Profile:</span>
-              <span className="dock-preview-stat-value">{activeProfile?.name ?? "Default"}</span>
-            </div>
-            <div className="dock-preview-stat-row">
-              <span className="dock-preview-stat-label">Status:</span>
-              <span className="dock-preview-stat-value">{safeMode ? "Safe Mode" : paused ? "Paused" : "Healthy"}</span>
+            <div className="dock-preview-stat-grid">
+              <div className="dock-preview-stat-card">
+                <span className="dock-preview-stat-num">{activeShortcutsCount}</span>
+                <span className="dock-preview-stat-label">Active Shortcuts</span>
+              </div>
+              <div className="dock-preview-stat-card">
+                <span className="dock-preview-stat-num">{profiles.length}</span>
+                <span className="dock-preview-stat-label">Profiles</span>
+              </div>
             </div>
           </div>
           <div className="dock-preview-footer">
-            <span>Click to open main dashboard</span>
+            <span className="dock-preview-footer-action">Open Overview Deck</span>
+            <span className="dock-preview-footer-kbd">↵</span>
           </div>
         </div>
       );
@@ -170,10 +177,12 @@ export function FloatingBottomDock() {
         <div className="dock-preview-content">
           <div className="dock-preview-header">
             <div className="dock-preview-title">
-              <Keyboard size={15} weight="bold" className="dock-preview-icon" />
+              <div className="dock-preview-icon-box">
+                <Keyboard size={15} weight="bold" />
+              </div>
               <span>Shortcuts</span>
             </div>
-            <span className="dock-preview-badge">{activeShortcutsCount} Total</span>
+            <span className="dock-preview-pill-sub">{activeShortcutsCount} Active</span>
           </div>
           <div className="dock-preview-body">
             {sample.length > 0 ? (
@@ -190,7 +199,8 @@ export function FloatingBottomDock() {
             )}
           </div>
           <div className="dock-preview-footer">
-            <span>Click to manage all shortcuts</span>
+            <span className="dock-preview-footer-action">Manage Shortcuts</span>
+            <span className="dock-preview-footer-kbd">↵</span>
           </div>
         </div>
       );
@@ -201,26 +211,29 @@ export function FloatingBottomDock() {
         <div className="dock-preview-content">
           <div className="dock-preview-header">
             <div className="dock-preview-title">
-              <Plus size={15} weight="bold" className="dock-preview-icon" />
+              <div className="dock-preview-icon-box is-accent">
+                <Plus size={15} weight="bold" />
+              </div>
               <span>Create Shortcut</span>
             </div>
-            <span className="dock-preview-badge">New</span>
+            <span className="dock-preview-pill-sub">Quick Builder</span>
           </div>
           <div className="dock-preview-body">
-            <div className="dock-preview-flow">
-              <div className="dock-preview-step">
-                <span className="dock-preview-step-num">1</span>
-                <span>Press Key / Gesture</span>
+            <div className="dock-preview-pipeline">
+              <div className="dock-preview-pipeline-chip">
+                <span className="dock-preview-pipeline-num">1</span>
+                <span className="dock-preview-pipeline-text">Press Trigger</span>
               </div>
-              <div className="dock-preview-arrow">→</div>
-              <div className="dock-preview-step">
-                <span className="dock-preview-step-num">2</span>
-                <span>Assign Action</span>
+              <span className="dock-preview-pipeline-arrow">→</span>
+              <div className="dock-preview-pipeline-chip">
+                <span className="dock-preview-pipeline-num">2</span>
+                <span className="dock-preview-pipeline-text">Assign Action</span>
               </div>
             </div>
           </div>
           <div className="dock-preview-footer">
-            <span>Click to open shortcut builder</span>
+            <span className="dock-preview-footer-action">Open Shortcut Builder</span>
+            <span className="dock-preview-footer-kbd">↵</span>
           </div>
         </div>
       );
@@ -231,10 +244,12 @@ export function FloatingBottomDock() {
         <div className="dock-preview-content">
           <div className="dock-preview-header">
             <div className="dock-preview-title">
-              <Desktop size={15} weight="bold" className="dock-preview-icon" />
+              <div className="dock-preview-icon-box">
+                <Desktop size={15} weight="bold" />
+              </div>
               <span>Keyboard Map</span>
             </div>
-            <span className="dock-preview-badge">Visual</span>
+            <span className="dock-preview-pill-sub">Interactive</span>
           </div>
           <div className="dock-preview-body">
             <div className="dock-preview-desc">
@@ -242,7 +257,8 @@ export function FloatingBottomDock() {
             </div>
           </div>
           <div className="dock-preview-footer">
-            <span>Click to explore keyboard map</span>
+            <span className="dock-preview-footer-action">View Keyboard Map</span>
+            <span className="dock-preview-footer-kbd">↵</span>
           </div>
         </div>
       );
@@ -253,22 +269,21 @@ export function FloatingBottomDock() {
         <div className="dock-preview-content">
           <div className="dock-preview-header">
             <div className="dock-preview-title">
-              <UsersThree size={15} weight="bold" className="dock-preview-icon" />
+              <div className="dock-preview-icon-box">
+                <UsersThree size={15} weight="bold" />
+              </div>
               <span>Profiles</span>
             </div>
-            <span className="dock-preview-badge">{profiles.length} Profiles</span>
+            <span className="dock-preview-pill-sub">{activeProfile?.name || "Default"}</span>
           </div>
           <div className="dock-preview-body">
-            <div className="dock-preview-stat-row">
-              <span className="dock-preview-stat-label">Active:</span>
-              <span className="dock-preview-stat-value">{activeProfile?.name}</span>
-            </div>
             <div className="dock-preview-desc">
               Context-aware workspaces that activate automatically per foreground application.
             </div>
           </div>
           <div className="dock-preview-footer">
-            <span>Click to switch & configure profiles</span>
+            <span className="dock-preview-footer-action">Switch & Configure</span>
+            <span className="dock-preview-footer-kbd">↵</span>
           </div>
         </div>
       );
@@ -279,10 +294,12 @@ export function FloatingBottomDock() {
         <div className="dock-preview-content">
           <div className="dock-preview-header">
             <div className="dock-preview-title">
-              <Books size={15} weight="bold" className="dock-preview-icon" />
+              <div className="dock-preview-icon-box">
+                <Books size={15} weight="bold" />
+              </div>
               <span>Action Library</span>
             </div>
-            <span className="dock-preview-badge">Templates</span>
+            <span className="dock-preview-pill-sub">Presets</span>
           </div>
           <div className="dock-preview-body">
             <div className="dock-preview-tags">
@@ -293,7 +310,8 @@ export function FloatingBottomDock() {
             </div>
           </div>
           <div className="dock-preview-footer">
-            <span>Click to browse action presets</span>
+            <span className="dock-preview-footer-action">Browse Preset Library</span>
+            <span className="dock-preview-footer-kbd">↵</span>
           </div>
         </div>
       );
@@ -304,10 +322,12 @@ export function FloatingBottomDock() {
         <div className="dock-preview-content">
           <div className="dock-preview-header">
             <div className="dock-preview-title">
-              <NoteBlank size={15} weight="bold" className="dock-preview-icon" />
+              <div className="dock-preview-icon-box">
+                <NoteBlank size={15} weight="bold" />
+              </div>
               <span>Floating Notes</span>
             </div>
-            <span className="dock-preview-badge">Markdown</span>
+            <span className="dock-preview-pill-sub">Markdown</span>
           </div>
           <div className="dock-preview-body">
             <div className="dock-preview-desc">
@@ -315,7 +335,8 @@ export function FloatingBottomDock() {
             </div>
           </div>
           <div className="dock-preview-footer">
-            <span>Click to configure notes preferences</span>
+            <span className="dock-preview-footer-action">Open Notes Window</span>
+            <span className="dock-preview-footer-kbd">↵</span>
           </div>
         </div>
       );
@@ -326,10 +347,12 @@ export function FloatingBottomDock() {
         <div className="dock-preview-content">
           <div className="dock-preview-header">
             <div className="dock-preview-title">
-              <GearSix size={15} weight="bold" className="dock-preview-icon" />
+              <div className="dock-preview-icon-box">
+                <GearSix size={15} weight="bold" />
+              </div>
               <span>Settings</span>
             </div>
-            <span className="dock-preview-badge">System</span>
+            <span className="dock-preview-pill-sub">Preferences</span>
           </div>
           <div className="dock-preview-body">
             <div className="dock-preview-tags">
@@ -340,7 +363,8 @@ export function FloatingBottomDock() {
             </div>
           </div>
           <div className="dock-preview-footer">
-            <span>Click to open preferences</span>
+            <span className="dock-preview-footer-action">Open Preferences</span>
+            <span className="dock-preview-footer-kbd">↵</span>
           </div>
         </div>
       );
@@ -349,89 +373,92 @@ export function FloatingBottomDock() {
     return null;
   };
 
+  const isHidden = appearance?.navigationLayout !== "horizontal";
+
   return (
-    <div
-      ref={containerRef}
-      className="floating-bottom-dock-container"
-      role="navigation"
-      aria-label="Bottom Dock Navigation"
-      onMouseLeave={handleMouseLeave}
-    >
-      {/* Floating Apple-style Hover Preview Card */}
-      {hovered && previewPos !== null && (
-        <div
-          className="floating-dock-preview"
-          style={{ "--preview-center": `${previewPos}px` } as React.CSSProperties}
-          role="tooltip"
-          aria-hidden="true"
-        >
-          {renderPreviewContent()}
-          <div className="dock-preview-caret" />
-        </div>
-      )}
-
-      {/* Left Circular Action: Engine Pause/Play */}
-      <button
-        type="button"
-        className={`floating-dock-circle-btn${paused ? " is-paused" : ""}`}
-        onClick={togglePaused}
-        onMouseEnter={(e) => handleMouseEnter("pause", e.currentTarget)}
-        title={paused ? "KeyFlow is paused. Click to resume engine." : "KeyFlow is actively listening. Click to pause engine."}
-        aria-label={paused ? "Resume engine" : "Pause engine"}
+    <>
+      <div className={`floating-bottom-dock-scrim${isHidden ? " is-layout-hidden" : ""}`} aria-hidden="true" />
+      <div
+        ref={containerRef}
+        className={`floating-bottom-dock-container${isHidden ? " is-layout-hidden" : ""}`}
+        role="navigation"
+        aria-label="Bottom Dock Navigation"
+        aria-hidden={isHidden}
+        onMouseLeave={handleMouseLeave}
       >
-        {paused ? (
-          <Play size={18} weight="fill" />
-        ) : (
-          <Pause size={18} weight="fill" />
+        {/* Hover Apple Preview Card with dynamic horizontal positioning */}
+        {hovered && previewPos !== null && (
+          <aside
+            className="floating-dock-preview"
+            style={{ "--preview-center": `${previewPos}px` } as React.CSSProperties}
+            aria-live="polite"
+          >
+            {renderPreviewContent()}
+            <div className="dock-preview-caret" aria-hidden="true" />
+          </aside>
         )}
-      </button>
 
-      {/* Center Segmented Pill Capsule (Apple Photos / Dynamic Island Style) */}
-      <div className="floating-dock-pill" role="tablist">
-        {NAV_ITEMS.map((item) => {
-          const IconComponent = item.icon;
-          const isActive = page === item.page;
-          return (
-            <button
-              key={item.page}
-              type="button"
-              className={`floating-dock-tab${isActive ? " is-active" : ""}`}
-              role="tab"
-              aria-selected={isActive}
-              onMouseEnter={(e) => handleMouseEnter(item.page, e.currentTarget)}
-              onClick={() => {
-                if (item.page === "create") {
-                  useStore.getState().setEditing(null);
-                }
-                setPage(item.page);
-              }}
-              title={item.label}
-              aria-label={item.label}
-            >
-              <IconComponent size={17} weight={isActive ? "bold" : "regular"} />
-              <span className="floating-dock-tab-label">{item.label}</span>
-              {typeof item.badge === "number" && item.badge > 0 && (
-                <span className="floating-dock-badge">{item.badge}</span>
-              )}
-            </button>
-          );
-        })}
+        {/* Left Circular Action: Global Engine Pause / Play */}
+        <button
+          type="button"
+          className={"floating-dock-circle-btn dock-pause-play-btn" + (paused ? " is-paused" : " is-running")}
+          onMouseEnter={(e) => handleMouseEnter("pause", e.currentTarget)}
+          onClick={togglePaused}
+          title={paused ? "Resume KeyFlow engine (Play)" : "Pause KeyFlow engine (Pause)"}
+          aria-label={paused ? "Resume KeyFlow engine" : "Pause KeyFlow engine"}
+        >
+          {paused ? (
+            <Play size={18} weight="fill" className="dock-play-icon" />
+          ) : (
+            <Pause size={18} weight="bold" className="dock-pause-icon" />
+          )}
+        </button>
+
+        {/* Center Segmented Pill Capsule */}
+        <div className="floating-dock-pill" role="tablist">
+          {NAV_ITEMS.map((item) => {
+            const IconComponent = item.icon;
+            const isActive = page === item.page;
+            const isCreate = item.page === "create";
+            return (
+              <button
+                key={item.page}
+                type="button"
+                className={`floating-dock-tab${isActive ? " is-active" : ""}${isCreate ? " is-create" : ""}`}
+                role="tab"
+                aria-selected={isActive}
+                onMouseEnter={(e) => handleMouseEnter(item.page, e.currentTarget)}
+                onClick={() => {
+                  if (item.page === "create") {
+                    useStore.getState().setEditing(null);
+                  }
+                  setPage(item.page);
+                }}
+                title={item.label}
+                aria-label={item.label}
+              >
+                <IconComponent size={17} weight={isActive ? "bold" : "regular"} />
+                <span className="floating-dock-tab-label">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right Circular Action: Search Command Palette */}
+        <button
+          type="button"
+          className="floating-dock-circle-btn"
+          onMouseEnter={(e) => handleMouseEnter("search", e.currentTarget)}
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent("keyflow:open-command-palette"));
+            window.dispatchEvent(new CustomEvent("keyflow:toggle-command-palette"));
+          }}
+          title="Open Command Palette (Ctrl+K)"
+          aria-label="Open Command Palette (Ctrl+K)"
+        >
+          <MagnifyingGlass size={16} weight="bold" />
+        </button>
       </div>
-
-      {/* Right Circular Action: Search Command Palette */}
-      <button
-        type="button"
-        className="floating-dock-circle-btn"
-        onMouseEnter={(e) => handleMouseEnter("search", e.currentTarget)}
-        onClick={() => {
-          window.dispatchEvent(new CustomEvent("keyflow:open-command-palette"));
-          window.dispatchEvent(new CustomEvent("keyflow:toggle-command-palette"));
-        }}
-        title="Search commands and settings (Ctrl+K)"
-        aria-label="Search commands"
-      >
-        <MagnifyingGlass size={18} weight="bold" />
-      </button>
-    </div>
+    </>
   );
 }

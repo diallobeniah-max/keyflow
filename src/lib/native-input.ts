@@ -53,6 +53,40 @@ export function initNativeInput(): void {
         appScope: s.appScope,
       }));
     const settings = state.data.settings.shortcuts;
+    if (settings.altCapsLockBypass !== false) {
+      list.push({
+        id: "__system_alt_capslock_bypass",
+        profileId: activeId,
+        key: "CapsLock",
+        mouse: false,
+        modifiers: ["Alt"],
+        trigger: "single",
+        timing: resolveTiming(undefined),
+        actions: [{ type: "toggleCapsLock" } as any],
+        enabled: true,
+        suppressKey: false,
+        keyBehavior: "passThrough",
+        remapTo: undefined,
+        appScope: undefined,
+      });
+      if (settings.hyperKeyConfig?.enabled) {
+        list.push({
+          id: "__system_hyper_capslock_bypass",
+          profileId: activeId,
+          key: "CapsLock",
+          mouse: false,
+          modifiers: ["Hyper"],
+          trigger: "single",
+          timing: resolveTiming(undefined),
+          actions: [{ type: "toggleCapsLock" } as any],
+          enabled: true,
+          suppressKey: false,
+          keyBehavior: "passThrough",
+          remapTo: undefined,
+          appScope: undefined,
+        });
+      }
+    }
     const advanced = state.data.settings.advanced;
     const hkCfg = settings.hyperKeyConfig;
     const ds = state.data.settings.dragSwitcher;
@@ -257,6 +291,13 @@ export function initNativeInput(): void {
 
   const unsubTrayPause = eapi.appInfo?.onTrayTogglePause?.(() => useStore.getState().togglePaused());
   const unsubTraySettings = eapi.appInfo?.onTrayOpenSettings?.(() => useStore.getState().setPage("settings"));
+  const systemThemeQuery = window.matchMedia?.("(prefers-color-scheme: light)");
+  const syncSystemTheme = () => {
+    if (useStore.getState().data.settings.appearance.theme === "system") {
+      pushPopupSnapshot();
+    }
+  };
+  systemThemeQuery?.addEventListener("change", syncSystemTheme);
 
   cleanupFns = [
     unsub1,
@@ -265,5 +306,6 @@ export function initNativeInput(): void {
     ...(unsubHc ? [unsubHc] : []),
     ...(unsubTrayPause ? [unsubTrayPause] : []),
     ...(unsubTraySettings ? [unsubTraySettings] : []),
+    ...(systemThemeQuery ? [() => systemThemeQuery.removeEventListener("change", syncSystemTheme)] : []),
   ];
 }

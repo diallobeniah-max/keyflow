@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, type KeyboardEvent } from "react";
 import { useStore } from "../store/useStore";
 import { KEYBOARD_ROWS, MOUSE_BUTTONS, ACTION_META } from "../lib/constants";
 import { Button, Card, PageHeader } from "../components/ui";
@@ -61,6 +61,20 @@ export function VisualKeyboard() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const hoverTimerRef = useRef<any>(null);
+
+  const activateMouseButton = (key: string) => {
+    if ((counts.get(key) || 0) > 0) {
+      setPopoverKey((current) => current === key ? null : key);
+      return;
+    }
+    openCreate(key, true);
+  };
+
+  const handleMouseButtonKeyDown = (event: KeyboardEvent<SVGElement>, key: string) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    activateMouseButton(key);
+  };
 
   const handleKeyMouseEnter = (k: string) => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
@@ -279,7 +293,11 @@ export function VisualKeyboard() {
                     <path
                       d="M 64 34 C 80 20, 106 20, 106 34 L 106 115 L 40 115 C 37 80, 48 50, 64 34 Z"
                       className={"mouse-svg-btn" + (count ? " is-assigned" : "") + (isHovered ? " is-focused" : "")}
-                      onClick={() => (count > 0 ? setPopoverKey(popoverKey === "MB1" ? null : "MB1") : openCreate("MB1", true))}
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Mouse Left"
+                      onClick={() => activateMouseButton("MB1")}
+                      onKeyDown={(event) => handleMouseButtonKeyDown(event, "MB1")}
                       onMouseEnter={() => setPopoverKey("MB1")}
                     >
                       <title>Left Click (MB1)</title>
@@ -295,7 +313,11 @@ export function VisualKeyboard() {
                     <path
                       d="M 114 34 C 114 20, 140 20, 156 34 C 172 50, 183 80, 180 115 L 114 115 Z"
                       className={"mouse-svg-btn" + (count ? " is-assigned" : "") + (isHovered ? " is-focused" : "")}
-                      onClick={() => (count > 0 ? setPopoverKey(popoverKey === "MB2" ? null : "MB2") : openCreate("MB2", true))}
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Mouse Right"
+                      onClick={() => activateMouseButton("MB2")}
+                      onKeyDown={(event) => handleMouseButtonKeyDown(event, "MB2")}
                       onMouseEnter={() => setPopoverKey("MB2")}
                     >
                       <title>Right Click (MB2)</title>
@@ -315,7 +337,11 @@ export function VisualKeyboard() {
                       height="38"
                       rx="7"
                       className={"mouse-svg-wheel" + (count ? " is-assigned" : "") + (isHovered ? " is-focused" : "")}
-                      onClick={() => (count > 0 ? setPopoverKey(popoverKey === "MB3" ? null : "MB3") : openCreate("MB3", true))}
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Mouse Middle"
+                      onClick={() => activateMouseButton("MB3")}
+                      onKeyDown={(event) => handleMouseButtonKeyDown(event, "MB3")}
                       onMouseEnter={() => setPopoverKey("MB3")}
                     >
                       <title>Middle Click / Wheel (MB3)</title>
@@ -331,7 +357,11 @@ export function VisualKeyboard() {
                     <path
                       d="M 27 130 C 23 130, 20 135, 20 145 C 20 155, 23 160, 27 160 L 33 160 C 33 150, 32 140, 31 130 Z"
                       className={"mouse-svg-side" + (count ? " is-assigned" : "") + (isHovered ? " is-focused" : "")}
-                      onClick={() => (count > 0 ? setPopoverKey(popoverKey === "MB4" ? null : "MB4") : openCreate("MB4", true))}
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Mouse Button 4"
+                      onClick={() => activateMouseButton("MB4")}
+                      onKeyDown={(event) => handleMouseButtonKeyDown(event, "MB4")}
                       onMouseEnter={() => setPopoverKey("MB4")}
                     >
                       <title>Side Button 4 (MB4)</title>
@@ -347,7 +377,11 @@ export function VisualKeyboard() {
                     <path
                       d="M 28 170 C 24 170, 22 175, 22 185 C 22 195, 25 200, 29 200 L 34 200 C 33 190, 32 180, 31 170 Z"
                       className={"mouse-svg-side" + (count ? " is-assigned" : "") + (isHovered ? " is-focused" : "")}
-                      onClick={() => (count > 0 ? setPopoverKey(popoverKey === "MB5" ? null : "MB5") : openCreate("MB5", true))}
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Mouse Button 5"
+                      onClick={() => activateMouseButton("MB5")}
+                      onKeyDown={(event) => handleMouseButtonKeyDown(event, "MB5")}
                       onMouseEnter={() => setPopoverKey("MB5")}
                     >
                       <title>Side Button 5 (MB5)</title>

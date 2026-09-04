@@ -264,6 +264,7 @@ function normalize(text: string): string {
 }
 
 function editDistance(a: string, b: string): number {
+  if (Math.abs(a.length - b.length) > 3) return 99;
   const row = Array.from({ length: b.length + 1 }, (_, index) => index);
   for (let i = 1; i <= a.length; i += 1) {
     let diagonal = row[0];
@@ -281,6 +282,13 @@ function editDistance(a: string, b: string): number {
   return row[b.length];
 }
 
+/** Check if query is an acronym (e.g. "cp" for "Command Palette", "km" for "Keyboard Map") */
+function isAcronym(query: string, text: string): boolean {
+  if (query.length < 2 || query.length > 5) return false;
+  const initials = text.split(" ").filter(Boolean).map((w) => w[0]).join("");
+  return initials.includes(query);
+}
+
 export function searchCommands(commands: CommandDefinition[], query: string, maxResults = 10): CommandDefinition[] {
   const normalizedQuery = normalize(query);
   if (!normalizedQuery) {
@@ -291,30 +299,82 @@ export function searchCommands(commands: CommandDefinition[], query: string, max
   return commands
     .map((item, index) => {
       const title = normalize(item.title);
-      const searchText = normalize([
-        item.title,
-        item.description,
-        item.category,
-        item.shortcut ?? "",
-        ...item.keywords,
-      ].join(" "));
-      const words = searchText.split(" ");
-      let score = 0;
+      const titleWords = title.split(" ").filter(Boolean);
+      const keywords = item.keywords.map(normalize);
+      const category = normalize(item.category);
+      const description = normalize(item.description);
+      const shortcut = normalize(item.shortcut ?? "");
+      const searchText = [title, description, category, shortcut, ...keywords].join(" ");
+      const allWords = searchText.split(" ").filter(Boolean);
 
-      for (const term of queryTerms) {
-        if (searchText.includes(term)) {
-          score += title.includes(term) ? 300 : 100;
-          continue;
-        }
-        const nearest = words.reduce((best, word) => Math.min(best, editDistance(term, word)), Number.POSITIVE_INFINITY);
-        const tolerance = term.length > 6 ? 2 : 1;
-        if (nearest <= tolerance) score += 55;
-        else return { item, score: 0, index };
+      let score = 0;
+      let matchedTerms = 0;
+
+      // 1. Exact query matches
+      if (title === normalizedQuery) {
+        score += 2000;
+        matchedTerms = queryTerms.length;
+      } else if (title.startsWith(normalizedQuery)) {
+        score += 1200;
+        matchedTerms = queryTerms.length;
+      } else if (title.includes(normalizedQuery)) {
+        score += 800;
+        matchedTerms = queryTerms.length;
       }
 
-      if (title === normalizedQuery) score += 1000;
-      else if (title.startsWith(normalizedQuery)) score += 500;
-      if (item.category === "Settings") score += 10;
+      // 2. Acronym match (e.g. "cp" -> "Command Palette")
+      if (isAcronym(normalizedQuery, title)) {
+        score += 650;
+        matchedTerms = queryTerms.length;
+      }
+
+      // 3. Term by term matching with prefix prediction and typo tolerance
+      for (const term of queryTerms) {
+        let termScore = 0;
+
+        if (title.includes(term) || shortcut.includes(term)) {
+          termScore = 350;
+        } else if (searchText.includes(term)) {
+          termScore = 150;
+        } else {
+          // Word-level prefix prediction (e.g. user typed "sett", word is "settings")
+          const isPrefix = allWords.some((w) => w.startsWith(term));
+          if (isPrefix) {
+            termScore = titleWords.some((w) => w.startsWith(term)) ? 280 : 120;
+          } else {
+            // Typo-tolerant distance against each word
+            let bestDist = Number.POSITIVE_INFINITY;
+            for (const word of allWords) {
+              const dist = editDistance(term, word);
+              if (dist < bestDist) bestDist = dist;
+
+              if (word.length > term.length && term.length >= 3) {
+                const prefixDist = editDistance(term, word.slice(0, term.length));
+                if (prefixDist < bestDist) bestDist = prefixDist;
+              }
+            }
+
+            const tolerance = term.length >= 6 ? 2 : term.length >= 3 ? 1 : 0;
+            if (bestDist <= tolerance) {
+              termScore = 90 - bestDist * 25;
+            }
+          }
+        }
+
+        if (termScore > 0) {
+          score += termScore;
+          matchedTerms += 1;
+        }
+      }
+
+      if (matchedTerms < Math.ceil(queryTerms.length / 2)) {
+        return { item, score: 0, index };
+      }
+
+      if (item.category === "Navigation" || item.category === "Quick actions") {
+        score += 15;
+      }
+
       return { item, score, index };
     })
     .filter((result) => result.score > 0)

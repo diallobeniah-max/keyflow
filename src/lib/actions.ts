@@ -20,7 +20,7 @@ const ELECTRON_ACTION_TYPES = new Set<Action["type"]>([
   "pasteText", "typeText", "pressShortcut", "volumeControl", "mediaControl", "toggleMute",
 "brightnessControl", "screenshot", "lockScreen", "openSettings", "showNotification", "copySelected",
   "clipboardHistory", "minimizeWindow", "maximizeWindow", "closeWindow", "moveWindow", "alwaysOnTop",
-  "toggleWasdNavigation", "notesPopup",
+  "toggleWasdNavigation", "notesPopup", "toggleCapsLock",
 ]);
 export async function runAction(action: Action): Promise<void> {
   const store = useStore.getState();

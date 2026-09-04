@@ -42,6 +42,9 @@ export function createDefaultSettings(): Settings {
       appIcon: "monochrome",
       syncAccentWithAppIcon: false,
       showHoverHelp: true,
+      colorCodedSettings: true,
+      settingsWidth: "large",
+      sidebarCollapsed: false,
     },
     shortcuts: {
       globalPause: "Ctrl+Shift+P",
@@ -52,6 +55,10 @@ export function createDefaultSettings(): Settings {
       commandPaletteMaxResults: 8,
       commandPaletteWindowMode: "expanded",
       commandPalettePosition: "center",
+      commandPaletteDefaultShowMore: false,
+      commandPaletteSideViewEnabled: true,
+      commandPaletteDetailLevel: "detailed",
+      altCapsLockBypass: true,
       defaultDoubleTap: 300,
       defaultTripleTap: 420,
       defaultHold: 600,
@@ -155,6 +162,7 @@ export function createDefaultSettings(): Settings {
     },
     wasdNavigation: {
       cursorSize: 32,
+      showStateCard: false,
     },
     notes: {
       saveLocation: "",

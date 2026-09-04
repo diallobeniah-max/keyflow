@@ -30,6 +30,7 @@ export const ACTION_META: Record<ActionType, { label: string; icon: string; colo
   moveWindow: { label: "Move window", icon: "arrowRight", color: "#5D8DFF", category: "Window" },
   alwaysOnTop: { label: "Toggle always-on-top", icon: "pinTop", color: "#5D8DFF", category: "Window" },
   toggleWasdNavigation: { label: "WASD Navigation Mode", icon: "arrows", color: "#5D8DFF", category: "Navigation" },
+  toggleCapsLock: { label: "Toggle Caps Lock", icon: "key", color: "#4F7CFF", category: "System" },
   notesPopup: { label: "Notes Popup", icon: "file", color: "#4F7CFF", category: "Productivity" },
   delay: { label: "Delay / wait", icon: "pause", color: "#7EA2FF", category: "Flow" },
   remapKey: { label: "Remap key", icon: "swap", color: "#5D8DFF", category: "Input" },

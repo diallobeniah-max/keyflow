@@ -6,58 +6,154 @@
  * never linger or destroy a newer one.
  */
 
-import { BrowserWindow, screen } from "electron";
+import { BrowserWindow, nativeTheme, screen } from "electron";
+import type { NavigationFeedbackConfig } from "./navigation-mode.js";
 
-const OVERLAY_WIDTH = 224;
-const OVERLAY_HEIGHT = 96;
-const SHOW_MS = 950;
-const FADE_MS = 200;
+const OVERLAY_WIDTH = 270;
+const OVERLAY_HEIGHT = 88;
+const SHOW_MS = 1100;
+const FADE_MS = 220;
 
 let overlayGeneration = 0;
 
-function overlayHtml(active: boolean): string {
-  const text = active ? "WASD → Arrows" : "WASD Normal";
-  const sub = active ? "Navigation mode active" : "Navigation mode off";
+function normalizeAccent(value?: string): string {
+  return /^#[0-9a-f]{6}$/i.test(value ?? "") ? value! : "#4f7cff";
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const red = Number.parseInt(hex.slice(1, 3), 16);
+  const green = Number.parseInt(hex.slice(3, 5), 16);
+  const blue = Number.parseInt(hex.slice(5, 7), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
+function overlayHtml(active: boolean, config: NavigationFeedbackConfig): string {
+  const accent = normalizeAccent(config.accent);
+  const accentSoft = hexToRgba(accent, 0.22);
+  const accentGlow = hexToRgba(accent, 0.35);
+  const isDark = nativeTheme.shouldUseDarkColors;
+  const surface = isDark ? "rgba(22, 26, 33, 0.92)" : "rgba(255, 255, 255, 0.94)";
+  const textColor = isDark ? "#f1f5f9" : "#0f172a";
+  const subColor = isDark ? "#94a3b8" : "#64748b";
+
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <style>
-  html, body { background: transparent; margin: 0; overflow: hidden; }
+  * { box-sizing: border-box; }
+  html, body {
+    background: transparent;
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
   .halo {
-    position: fixed; inset: 0;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 4px;
-    border-radius: 20px;
-    background: rgba(18, 19, 22, 0.92);
-    border: 2px solid #3b82f6;
-    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.35), 0 0 24px rgba(59, 130, 246, 0.4), 0 12px 32px rgba(0, 0, 0, 0.5);
-    opacity: 1; transition: opacity ${FADE_MS}ms ease-out;
-    font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
-    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px 10px 12px;
+    border-radius: 18px;
+    background: ${surface};
+    border: 1px solid ${isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.08)"};
+    box-shadow:
+      0 0 0 1px ${isDark ? "rgba(0, 0, 0, 0.5)" : "rgba(0, 0, 0, 0.04)"},
+      0 12px 28px rgba(0, 0, 0, ${isDark ? "0.45" : "0.14"}),
+      0 4px 10px rgba(0, 0, 0, 0.08),
+      0 0 0 3px ${active ? accentSoft : "transparent"};
+    backdrop-filter: blur(24px) saturate(140%);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+    color: ${textColor};
     user-select: none;
+    animation: hudPop 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
-  .main { font-size: 16px; font-weight: 650; letter-spacing: 0.3px; color: #ffffff; }
-  .sub { font-size: 11.5px; font-weight: 500; opacity: 0.8; color: #93c5fd; }
-  .dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    background: #3b82f6;
-    box-shadow: 0 0 10px #3b82f6, 0 0 20px rgba(59, 130, 246, 0.8);
+  @keyframes hudPop {
+    from {
+      opacity: 0;
+      transform: scale(0.92) translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
   }
-  body.hide .halo { opacity: 0; }
+  body.hide .halo {
+    opacity: 0;
+    transform: scale(0.94) translateY(2px);
+    transition: all ${FADE_MS}ms cubic-bezier(0.4, 0, 1, 1);
+  }
+  .icon-pod {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    background: ${active ? accent : isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)"};
+    color: ${active ? "#ffffff" : isDark ? "#cbd5e1" : "#475569"};
+    box-shadow: ${active ? `0 2px 10px ${accentGlow}` : "none"};
+    flex-shrink: 0;
+  }
+  .text-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .top-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .main-title {
+    font-size: 13.5px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: ${textColor};
+    line-height: 1.2;
+  }
+  .status-badge {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 1.5px 6px;
+    border-radius: 999px;
+    background: ${active ? accentSoft : isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)"};
+    color: ${active ? accent : subColor};
+    border: 1px solid ${active ? accentSoft : isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.08)"};
+  }
+  .sub-text {
+    font-size: 11px;
+    font-weight: 500;
+    color: ${subColor};
+    line-height: 1.2;
+  }
 </style>
 </head>
 <body>
   <div class="halo">
-    <div class="dot"></div>
-    <div class="main">${text}</div>
-    <div class="sub">${sub}</div>
+    <div class="icon-pod">
+      ${active ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 8 9 8 12 2"></polygon><polygon points="12 22 9 16 15 16 12 22"></polygon><polygon points="2 12 8 9 8 15 2 12"></polygon><polygon points="22 12 16 15 16 9 22 12"></polygon></svg>` : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5"></rect><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"></path></svg>`}
+    </div>
+    <div class="text-stack">
+      <div class="top-row">
+        <span class="main-title">${active ? "WASD Navigation" : "Standard Typing"}</span>
+        <span class="status-badge">${active ? "Active" : "Normal"}</span>
+      </div>
+      <span class="sub-text">${active ? "W A S D → Arrow Keys" : "Navigation mode off"}</span>
+    </div>
   </div>
 </body>
 </html>`;
 }
 
-export function showNavigationOverlay(active: boolean): void {
+export function showNavigationOverlay(active: boolean, config: NavigationFeedbackConfig): void {
   const gen = ++overlayGeneration;
   const point = screen.getCursorScreenPoint();
   const display = screen.getDisplayNearestPoint(point).workArea;
@@ -89,7 +185,7 @@ export function showNavigationOverlay(active: boolean): void {
   win.setIgnoreMouseEvents(true, { forward: true });
   win.setMenuBarVisibility(false);
 
-  win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(overlayHtml(active))}`).catch(() => {});
+  win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(overlayHtml(active, config))}`).catch(() => {});
   win.once("ready-to-show", () => {
     if (gen === overlayGeneration && !win.isDestroyed()) win.showInactive();
   });

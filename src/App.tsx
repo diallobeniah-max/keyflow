@@ -23,6 +23,7 @@ import { DragSwitcherOverlay } from "./pages/DragSwitcherOverlay";
 import { ScreenTintOverlay } from "./pages/ScreenTintOverlay";
 import { useStore } from "./store/useStore";
 import { useActiveApp } from "./lib/useActiveApp";
+import { useResolvedTheme } from "./lib/useResolvedTheme";
 
 function isPopupWindow(): boolean {
   return window.location.search.includes("window=popup");
@@ -80,6 +81,7 @@ export default function App() {
   const drawerOpen = useStore((s) => s.drawerOpen);
   const setDrawerOpen = useStore((s) => s.setDrawerOpen);
   const appearance = useStore((s) => s.data.settings.appearance);
+  const resolvedTheme = useResolvedTheme(appearance?.theme);
 
   useActiveApp();
 
@@ -89,6 +91,12 @@ export default function App() {
   }, [appearance?.fontSize]);
 
   useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute("data-theme", resolvedTheme);
+    root.style.colorScheme = resolvedTheme;
+  }, [resolvedTheme]);
+
+  useEffect(() => {
     if (appearance?.reduceMotion) {
       document.documentElement.classList.add("reduce-motion");
     } else {
@@ -96,8 +104,36 @@ export default function App() {
     }
   }, [appearance?.reduceMotion]);
 
+  // Auto-hiding scrollbar: only reveal when actively scrolling, smoothly fade out on idle
+  useEffect(() => {
+    let scrollTimer: number | null = null;
+    const handleScroll = () => {
+      document.documentElement.classList.add("is-scrolling");
+      if (scrollTimer !== null) {
+        window.clearTimeout(scrollTimer);
+      }
+      scrollTimer = window.setTimeout(() => {
+        document.documentElement.classList.remove("is-scrolling");
+        scrollTimer = null;
+      }, 900);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true, capture: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll, { capture: true });
+      if (scrollTimer !== null) window.clearTimeout(scrollTimer);
+    };
+  }, []);
+
   const wasdNavigationActive = useStore((s) => s.wasdNavigationActive);
   const wasdSettings = useStore((s) => s.data.settings?.wasdNavigation);
+
+  useEffect(() => {
+    void window.electronAPI?.input.setWasdFeedbackConfig?.({
+      showStateCard: wasdSettings?.showStateCard === true,
+      accent: appearance?.accent,
+    });
+  }, [appearance?.accent, wasdSettings?.showStateCard]);
 
   useEffect(() => {
     if (wasdNavigationActive) {
@@ -140,7 +176,7 @@ export default function App() {
         <CommandPalette />
       </ErrorBoundary>
       <ToastHost />
-      {appearance?.navigationLayout === "horizontal" && <FloatingBottomDock />}
+      <FloatingBottomDock />
       {!onboardingDone && <Onboarding />}
     </div>
   );
