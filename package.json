@@ -20,7 +20,8 @@
     "electron:build": "npm run icons:generate && npm run native:build && npm run build && npm run electron:compile && electron-builder build --win --config electron-builder.yml",
     "electron:dist": "npm run icons:generate && npm run native:build && npm run build && npm run electron:compile && electron-builder build --win --publish never --config electron-builder.yml",
     "design:check": "node scripts/check-design-system.mjs",
-    "ahk:smoke": "node scripts/ahk-smoke-test.mjs"
+    "ahk:smoke": "node scripts/ahk-smoke-test.mjs",
+    "test": "node --test scripts/*.test.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

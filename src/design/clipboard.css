@@ -1,0 +1,102 @@
+/* Clipboard surfaces: shared tokens, bounded scroll owners and responsive controls. */
+.clipboard-preferences {
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  padding: var(--space-4);
+}
+.clipboard-preferences > summary {
+  cursor: pointer;
+  font-size: var(--type-body-strong-size);
+  line-height: var(--type-body-strong-line);
+  font-weight: var(--type-body-strong-weight);
+  color: var(--color-text-primary);
+}
+.clipboard-preferences[open] > summary { margin-bottom: var(--space-4); }
+.clipboard-layout-option { min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.clipboard-layout-option > .nav-layout-card { width: 100%; height: auto; flex: 1; }
+.clipboard-settings-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.clipboard-settings-card, .clipboard-card-head > div, .clipboard-banner-info { min-width: 0; }
+.clipboard-toggle-row small { display: block; line-height: var(--type-small-line); }
+.clipboard-toggle-row input { flex-shrink: 0; }
+.clipboard-inspector-section-head, .clipboard-banner-actions,
+.clipboard-detail-header-row, .clipboard-detail-actions-deck,
+.clipboard-preview-area-toggle-row { flex-wrap: wrap; gap: var(--space-2); }
+.clipboard-detail-titles, .clipboard-detail-content { min-width: 0; }
+.clipboard-detail-titles h4 { overflow-wrap: anywhere; }
+.clipboard-contained-detail-box { overscroll-behavior: contain; }
+.clipboard-contained-master-box { min-width: 0; }
+.clipboard-contained-master-scroll { min-height: 0; overscroll-behavior: contain; }
+.clipboard-contained-item:focus-visible,
+.clipboard-preferences > summary:focus-visible,
+.clip-paste-shell button:focus-visible,
+.clip-shelf-card:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.clip-paste-shell { box-shadow: var(--shadow-lg); }
+.clip-paste-shell.phase-entering, .clip-paste-shell.pos-top.phase-entering {
+  animation: kf-motion-popover-enter var(--motion-default) both;
+}
+.clip-paste-shell.phase-closing, .clip-paste-shell.pos-top.phase-closing {
+  animation: kf-motion-popover-exit var(--motion-fast) both;
+  pointer-events: none;
+}
+.clip-paste-shell :is(.clip-paste-topbar, .clip-paste-bottom-strip) { gap: var(--space-2); }
+.clip-paste-pinboards { min-width: 0; flex: 1; }
+.clip-paste-top-actions { flex-shrink: 0; }
+.clip-paste-shelf { min-height: 0; min-width: 0; overscroll-behavior: contain; align-items: start; }
+.clip-shelf-card { scroll-margin: var(--space-3); }
+.clip-shelf-card:hover, .clip-shelf-card.is-selected { transform: none; }
+.clip-shelf-card.is-selected { border-width: 1px; box-shadow: inset 0 0 0 1px var(--color-accent); }
+.clip-shelf-card-header, .clip-shelf-card-footer { flex-shrink: 0; }
+.clip-paste-shelf.layout-center { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.clip-paste-shelf.layout-right .clip-shelf-card { flex: 0 0 auto; height: auto; min-height: 160px; }
+.clip-paste-shelf.rows-2:not(.layout-center):not(.layout-right):not(.scroll-vertical) {
+  grid-template-rows: repeat(2, minmax(180px, 1fr));
+  overflow-y: auto;
+}
+.clip-paste-shelf.rows-3:not(.layout-center):not(.layout-right):not(.scroll-vertical) {
+  grid-template-rows: repeat(3, minmax(160px, 1fr));
+  overflow-y: auto;
+}
+.clip-paste-bottom-strip { flex-wrap: wrap; gap: var(--space-2); }
+.clip-paste-status-left { flex-wrap: wrap; }
+.clip-paste-status-right { min-width: 0; flex: 1; justify-content: flex-end; }
+.clip-bottom-search-bar { width: min(100%, 320px); min-width: 0; flex: 1; }
+.clip-paste-scroll-indicator { background: var(--color-accent); }
+.clip-action-popover { max-width: calc(100% - var(--space-4)); max-height: calc(100% - var(--space-8)); }
+.clip-action-popover-list { min-height: 0; overflow-y: auto; }
+.clipboard-popup-feedback {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: var(--type-small-size);
+  line-height: var(--type-small-line);
+  border-bottom: 1px solid var(--color-border-default);
+  flex-shrink: 0;
+}
+.clip-folder-modal-dialog { max-height: calc(100% - var(--space-4)); overflow-y: auto; }
+@media (max-width: 899px) {
+  .clipboard-contained-master-box { flex-basis: auto; height: 280px; }
+  .clipboard-contained-detail-box { flex: 0 0 auto; height: auto; max-height: 540px; }
+}
+@media (max-width: 599px) {
+  .clipboard-page { padding: var(--space-3); }
+  .clipboard-master-filter-row { flex-wrap: wrap; }
+  .clipboard-kind-select-wrapper { width: 100%; }
+  .clipboard-preview-area-toggle-row { border-radius: var(--radius-md); width: 100%; }
+  .clipboard-preview-badge { display: none; }
+  .clipboard-detail-actions-deck { width: 100%; }
+  .clip-paste-brand-title > span { display: none; }
+  .clip-paste-topbar, .clip-paste-bottom-strip { padding: var(--space-2); }
+  .clip-paste-status-right { flex-basis: 100%; }
+  .clip-paste-hint-pill { display: none; }
+  .clip-paste-shelf.scroll-vertical.rows-2:not(.layout-center):not(.layout-right),
+  .clip-paste-shelf.scroll-vertical.rows-3:not(.layout-center):not(.layout-right) { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .clip-paste-shell[class*="phase-"] { animation: none; }
+}
+.reduce-motion .clip-paste-shell[class*="phase-"] { animation: none; }

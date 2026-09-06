@@ -33,6 +33,41 @@ interface ActionAPI {
   run: (action: any) => Promise<ActionResult>;
 }
 
+type ClipboardKind = "text" | "html" | "url" | "email" | "image" | "screenshot" | "files" | "color" | "code" | "json" | "xml" | "csv";
+type ClipboardSurface = "edge" | "bottom" | "center";
+type ClipboardOverlayLayout = "horizontal" | "center" | "right";
+type ClipboardHorizontalPosition = "bottom" | "top";
+type ClipboardScrollDirection = "horizontal" | "vertical";
+type ClipboardGridRows = 1 | 2 | 3;
+
+interface ClipboardUrlMeta {
+  domain: string;
+  title?: string;
+  description?: string;
+  favicon?: string;
+  siteName?: string;
+  /** Direct URL to a preview thumbnail (og:image or YouTube HQ thumbnail) */
+  thumbnailUrl?: string;
+  /** True when the URL points to a YouTube video */
+  isYouTube?: boolean;
+}
+
+interface ClipboardItemSummary { id: string; kind: ClipboardKind; title: string; preview: string; capturedAt: number; lastUsedAt?: number; copyCount: number; useCount: number; pinned: boolean; pinboardIds: string[]; sourceApp?: string; bytes?: number; fileCount?: number; color?: string; dimensions?: { width: number; height: number }; thumbnailDataUrl?: string; urlMeta?: ClipboardUrlMeta; }
+interface ClipboardItemDetail extends ClipboardItemSummary { text?: string; html?: string; url?: string; paths?: string[]; imageDataUrl?: string; formats: string[]; nativeFormats: string[]; }
+interface ClipboardPinboard { id: string; name: string; color: string; order: number; icon?: string; }
+interface ClipboardSettings { paused: boolean; maxItems: number; defaultSurface: ClipboardSurface; excludedApps: string[]; layout?: ClipboardOverlayLayout; horizontalPosition?: ClipboardHorizontalPosition; scrollDirection?: ClipboardScrollDirection; gridRows?: ClipboardGridRows; useAppAccentColor?: boolean; closeOnBlur?: boolean; captureText: boolean; captureImages: boolean; captureFiles: boolean; captureLinks: boolean; ignorePasswordManagers: boolean; retentionDays: 0 | 7 | 30; }
+interface ClipboardSnapshot { items: ClipboardItemSummary[]; pinboards: ClipboardPinboard[]; settings: ClipboardSettings; }
+interface ClipboardAPI {
+  getSnapshot: () => Promise<ClipboardSnapshot>; getItem: (id: string) => Promise<ClipboardItemDetail | null>; setSettings: (patch: Partial<ClipboardSettings>) => Promise<ClipboardSnapshot>;
+  createPinboard: (input: { name: string; color?: string; icon?: string }) => Promise<ClipboardSnapshot>; updatePinboard: (id: string, patch: Partial<ClipboardPinboard>) => Promise<ClipboardSnapshot>; deletePinboard: (id: string) => Promise<ClipboardSnapshot>;
+  setPinned: (id: string, pinned: boolean) => Promise<ClipboardSnapshot>; moveToPinboard: (id: string, pinboardId: string | null) => Promise<ClipboardSnapshot>; rename: (id: string, title: string) => Promise<ClipboardSnapshot>; delete: (id: string) => Promise<ClipboardSnapshot>; clearUnpinned: () => Promise<ClipboardSnapshot>;
+  reorderItems?: (sourceId: string, targetId: string) => Promise<ClipboardSnapshot>; assignPinboard?: (itemId: string, pinboardId: string) => Promise<ClipboardSnapshot>; unassignPinboard?: (itemId: string, pinboardId: string) => Promise<ClipboardSnapshot>;
+  copy: (id: string, plainText?: boolean) => Promise<{ ok: boolean }>; paste: (id: string, plainText?: boolean, keepOpen?: boolean) => Promise<ActionResult>; addDroppedFiles: (paths: string[]) => Promise<ClipboardSnapshot>; startDrag: (id: string) => void; openSurface: (surface: ClipboardSurface) => Promise<boolean>;
+  toggle?: () => Promise<boolean>; show?: () => Promise<boolean>; setKeepOpen?: (keepOpen: boolean) => Promise<boolean>;
+  probeFormats?: () => Promise<Array<{ format: string; size?: number }>>; hidePopup?: () => Promise<void>;
+  onChanged: (callback: (snapshot: ClipboardSnapshot) => void) => () => void; onOpenSurface: (callback: (surface: ClipboardSurface) => void) => () => void;
+}
+
 interface NativeStatus {
   backend: string;
   engineStatus: string;
@@ -93,6 +128,45 @@ interface HotCornersAPI {
 interface ScreenTintAPI {
   update: (config: { enabled: boolean; color: string; strength: number }) => Promise<boolean>;
   onUpdate: (callback: (config: { enabled: boolean; color: string; strength: number }) => void) => () => void;
+}
+
+interface MediaPlayerAPI {
+  getState: () => Promise<{ enabled: boolean; position: string; customX?: number; customY?: number }>;
+  updateConfig: (config: { enabled?: boolean; position?: string; customX?: number; customY?: number; autoHide?: boolean }) => Promise<boolean>;
+  setEnabled: (enabled: boolean) => Promise<boolean>;
+  toggle: () => Promise<boolean>;
+  onStateChanged: (callback: (state: { enabled: boolean; position: string; customX?: number; customY?: number }) => void) => () => void;
+  onPositionChanged?: (callback: (pos: { customX: number; customY: number }) => void) => () => void;
+}
+
+interface DimScreenDisplayInfo {
+  id: number;
+  label: string;
+  bounds: { x: number; y: number; width: number; height: number };
+  isPrimary: boolean;
+  hasHardwareBrightness: boolean;
+}
+
+interface DimScreenState {
+  enabled: boolean;
+  level: number;
+  extraDimEnabled: boolean;
+  extraDimStrength: number;
+  applyTo: "all" | "primary" | "selected";
+  selectedDisplayIds?: number[];
+  startEnabled?: boolean;
+  rememberLevel?: boolean;
+}
+
+interface DimScreenAPI {
+  getState: () => Promise<DimScreenState>;
+  update: (config: Partial<DimScreenState>) => Promise<DimScreenState>;
+  setEnabled: (enabled: boolean) => Promise<DimScreenState>;
+  setLevel: (level: number) => Promise<DimScreenState>;
+  setExtraDim: (enabled: boolean, strength?: number) => Promise<DimScreenState>;
+  toggle: () => Promise<DimScreenState>;
+  listDisplays: () => Promise<DimScreenDisplayInfo[]>;
+  onStateChanged: (callback: (state: DimScreenState) => void) => () => void;
 }
 
 interface PopupData {
@@ -197,9 +271,13 @@ interface ElectronAPI {
   windowControls: WindowControls;
   appInfo: AppInfo;
   actions: ActionAPI;
+  clipboard: ClipboardAPI;
+  executeAction?: (action: any) => Promise<ActionResult>;
   input: InputAPI;
   hotCorners?: HotCornersAPI;
   screenTint?: ScreenTintAPI;
+  dimScreen?: DimScreenAPI;
+  mediaPlayer?: MediaPlayerAPI;
   popup: PopupAPI;
   dragSwitcher?: DragSwitcherAPI;
   notes?: NotesAPI;

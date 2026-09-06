@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
 import { useStore } from "../store/useStore";
 import { AppSelect, AppSelectOption } from "./ui/AppSelect";
+import { motionClassName, useMotionPresence } from "../lib/motion";
 
 export interface ButtonProps {
   variant?: "primary" | "secondary" | "ghost" | "danger" | "subtle";
@@ -584,6 +585,7 @@ export function Modal({
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
   const titleId = useId();
+  const motion = useMotionPresence(open, "dialog");
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -645,11 +647,10 @@ export function Modal({
     };
   }, [open]);
 
-  if (!open) return null;
   return createPortal(
-    <div className="modal-backdrop anim-fade-in" onMouseDown={onClose}>
+    motion.rendered ? <div className={`modal-backdrop ${motion.className}`} onMouseDown={onClose}>
       <div
-        className="modal anim-modal-enter"
+        className="modal kf-motion__surface"
         style={width ? { width } : undefined}
         onMouseDown={(e) => e.stopPropagation()}
         ref={dialogRef}
@@ -668,7 +669,7 @@ export function Modal({
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-footer row">{footer}</div>}
       </div>
-    </div>,
+    </div> : null,
     document.body
   );
 }
@@ -724,11 +725,35 @@ export function ToastHost() {
   return (
     <div className="toast-wrap" aria-live="polite">
       {toasts.map((t) => (
-        <div key={t.id} className={"toast " + t.kind} onClick={() => remove(t.id)}>
-          <span className="toast-indicator" />
-          <span>{t.message}</span>
-        </div>
+        <ToastMessage key={t.id} id={t.id} kind={t.kind} message={t.message} onDismiss={remove} />
       ))}
+    </div>
+  );
+}
+
+function ToastMessage({
+  id,
+  kind,
+  message,
+  onDismiss,
+}: {
+  id: string;
+  kind: string;
+  message: string;
+  onDismiss: (id: string) => void;
+}) {
+  const [dismissed, setDismissed] = React.useState(false);
+  const motion = useMotionPresence(!dismissed, "toast");
+
+  useEffect(() => {
+    if (dismissed && !motion.rendered) onDismiss(id);
+  }, [dismissed, id, motion.rendered, onDismiss]);
+
+  if (!motion.rendered) return null;
+  return (
+    <div className={`toast ${kind} ${motion.className}`} onClick={() => setDismissed(true)}>
+      <span className="toast-indicator" />
+      <span>{message}</span>
     </div>
   );
 }

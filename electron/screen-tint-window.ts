@@ -39,7 +39,7 @@ export class ScreenTintWindowManager {
 
   setMainWindowFocused(focused: boolean): void {
     this.mainWindowFocused = focused;
-    this.syncWindows();
+    // Screen tint is a display warmth filter; it stays active across all monitors even when KeyFlow is focused.
   }
 
   destroy(): void {
@@ -53,11 +53,11 @@ export class ScreenTintWindowManager {
   }
 
   private syncWindows(): void {
-    if (!this.config.enabled || this.mainWindowFocused) {
+    if (!this.config.enabled) {
       for (const window of this.windows.values()) {
         if (!window.isDestroyed()) window.hide();
       }
-      console.log(`[screen-tint] overlays hidden enabled=${this.config.enabled} focused=${this.mainWindowFocused}`);
+      console.log(`[screen-tint] overlays hidden enabled=false`);
       return;
     }
 
@@ -109,12 +109,15 @@ export class ScreenTintWindowManager {
     });
     window.webContents.on("did-finish-load", () => this.send(window));
 
-    const url = `${this.options.devUrl}/?window=screen-tint`;
+    const colorParam = encodeURIComponent(this.config.color || "#F2C078");
+    const strengthParam = String(this.config.strength ?? 18);
+    const url = `${this.options.devUrl}/?window=screen-tint&color=${colorParam}&strength=${strengthParam}`;
     if (this.options.isDev) {
       void window.loadURL(url).catch((error) => console.error(`[screen-tint] load failed: ${error.message}`));
     } else {
-      void window.loadFile(`${this.options.appPath}/dist/index.html`, { query: { window: "screen-tint" } })
-        .catch((error) => console.error(`[screen-tint] load failed: ${error.message}`));
+      void window.loadFile(`${this.options.appPath}/dist/index.html`, {
+        query: { window: "screen-tint", color: this.config.color || "#F2C078", strength: strengthParam },
+      }).catch((error) => console.error(`[screen-tint] load failed: ${error.message}`));
     }
     return window;
   }

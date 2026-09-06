@@ -72,10 +72,14 @@ function isModifierOnly(key: string): boolean {
 
 interface BindableShortcut {
   /** Key in settings.shortcuts that holds this binding string */
-  settingsKey: "globalPause" | "emergencySafe" | "commandPaletteShortcut";
+  settingsKey: "globalPause" | "emergencySafe" | "commandPaletteShortcut" | "clipboardShortcut";
   label: string;
   description: string;
   icon: string;
+  /** An optional suggested value shown as a quick-fill tip when unassigned */
+  recommendation?: string;
+  /** Short note explaining why this recommendation is useful */
+  recommendationNote?: string;
 }
 
 const BINDABLE_SHORTCUTS: BindableShortcut[] = [
@@ -96,6 +100,14 @@ const BINDABLE_SHORTCUTS: BindableShortcut[] = [
     label: "Command Palette",
     description: "Open the searchable command and settings palette",
     icon: "search",
+  },
+  {
+    settingsKey: "clipboardShortcut",
+    label: "Clipboard History",
+    description: "Open KeyFlow's floating clipboard overlay — or leave unassigned and use the Open button in the app",
+    icon: "clipboard",
+    recommendation: "Win+V",
+    recommendationNote: "Use Win+V to take over Windows' built-in clipboard, or pick your own combo",
   },
 ];
 
@@ -255,24 +267,43 @@ interface BindingRowProps {
 
 function BindingRow({ shortcut, value, allValues, isEditing, onEdit, onSave, onCancel }: BindingRowProps) {
   const chips = acceleratorToChips(value);
+  const isUnassigned = !value;
+  const hasRecommendation = isUnassigned && shortcut.recommendation;
 
   return (
     <div id={`row-sc-bind-${shortcut.settingsKey}`} className="sc-binding-row">
       <div className="sc-binding-info">
         <span className="sc-binding-label">{shortcut.label}</span>
         <span className="sc-binding-desc">{shortcut.description}</span>
+        {hasRecommendation && (
+          <span className="sc-binding-tip">
+            <span className="sc-binding-tip-icon">💡</span>
+            {shortcut.recommendationNote}
+          </span>
+        )}
       </div>
       <div className="sc-binding-control">
         {!isEditing ? (
           <div className="sc-binding-display">
-            <KeyChipRow chips={chips} empty="Not assigned" />
+            {hasRecommendation ? (
+              <button
+                type="button"
+                className="sc-btn sc-btn-recommend"
+                onClick={() => onSave(shortcut.recommendation!)}
+                title={`Quick-assign ${shortcut.recommendation}`}
+              >
+                Use {shortcut.recommendation}
+              </button>
+            ) : (
+              <KeyChipRow chips={chips} empty="Not assigned" />
+            )}
             <button
               type="button"
               className="sc-btn sc-btn-secondary"
               onClick={onEdit}
               aria-label={`Edit shortcut for ${shortcut.label}`}
             >
-              Edit
+              {isUnassigned ? "Assign" : "Edit"}
             </button>
           </div>
         ) : (
@@ -301,6 +332,7 @@ export const ShortcutBindingPage: FC<ShortcutBindingPageProps> = ({ onBack }) =>
     globalPause: shortcuts.globalPause,
     emergencySafe: shortcuts.emergencySafe,
     commandPaletteShortcut: shortcuts.commandPaletteShortcut,
+    clipboardShortcut: shortcuts.clipboardShortcut,
   };
 
   const handleSave = (settingsKey: string, accelerator: string) => {

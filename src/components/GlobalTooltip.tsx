@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useStore } from "../store/useStore";
+import { useMotionPresence } from "../lib/motion";
 
 interface TooltipState {
   visible: boolean;
@@ -25,6 +26,7 @@ export function GlobalTooltip() {
   const timerRef = useRef<any>(null);
   const currentTargetRef = useRef<HTMLElement | null>(null);
   const lastActiveTimeRef = useRef<number>(0);
+  const motion = useMotionPresence(tooltip.visible, "tooltip");
 
   useEffect(() => {
     const handleMouseOver = (e: MouseEvent) => {
@@ -108,7 +110,7 @@ export function GlobalTooltip() {
     };
   }, [enabled]);
 
-  if (!tooltip.visible || !tooltip.targetRect || !tooltip.text) {
+  if (!motion.rendered || !tooltip.targetRect || !tooltip.text) {
     return null;
   }
 
@@ -118,7 +120,7 @@ export function GlobalTooltip() {
 
   return (
     <div
-      className={`kf-global-tooltip is-${position} anim-fade-in no-drag-region`}
+      className={`kf-global-tooltip is-${position} ${motion.className} no-drag-region`}
       style={{
         top: `${topY}px`,
         left: `${centerX}px`,

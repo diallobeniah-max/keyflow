@@ -10,7 +10,16 @@ interface TintConfig {
 const DEFAULT_CONFIG: TintConfig = { enabled: true, color: SCREEN_TINT_DEFAULT_COLOR, strength: 18 };
 
 export function ScreenTintOverlay() {
-  const [config, setConfig] = useState<TintConfig>(DEFAULT_CONFIG);
+  const [config, setConfig] = useState<TintConfig>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const color = params.get("color") || SCREEN_TINT_DEFAULT_COLOR;
+      const strength = params.has("strength") ? Number(params.get("strength")) : 18;
+      return { enabled: true, color, strength };
+    } catch {
+      return DEFAULT_CONFIG;
+    }
+  });
 
   useEffect(() => {
     document.documentElement.classList.add("screen-tint-window");

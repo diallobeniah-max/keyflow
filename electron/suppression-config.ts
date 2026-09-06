@@ -131,25 +131,21 @@ export function compileHyperModifiers(modifiers: string[], includeShift = false)
 }
 
 export function buildNativeHyperSpec(context: SuppressionContext, entries: any[] = []) {
+  if (context.paused || context.safeMode) return null;
   const cfg = context.hyperKeyConfig;
   if (!cfg || !cfg.enabled || !cfg.key) return null;
   const vk = keyToVk(cfg.key);
   if (vk === undefined) return null;
 
-  // Modifier Hyper keys (Right Alt, Ctrl, Shift, Win variants) must NOT carry a
-  // tap action — Raycast parity. Quick Press is only for non-modifier keys.
-  let tapActionId: string | undefined;
-  if (!isModifierHyperKey(cfg.key)) {
-    tapActionId = cfg.tapActionId || undefined;
-    if (tapActionId) {
-      const existing = (entries ?? []).find((e: any) => e && e.id === tapActionId);
-      if (!existing) {
-        const actions = resolveActionForHyperTap(tapActionId);
-        if (actions.length > 0) {
-          tapActionId = HYPER_TAP_SYNTHETIC_ID;
-        }
-      }
+  let tapActionId = cfg.tapActionId || undefined;
+  if (tapActionId && tapActionId !== "none") {
+    const existing = (entries ?? []).find((e: any) => e && e.id === tapActionId);
+    if (!existing) {
+      const actions = resolveActionForHyperTap(tapActionId);
+      tapActionId = actions.length > 0 ? HYPER_TAP_SYNTHETIC_ID : undefined;
     }
+  } else {
+    tapActionId = undefined;
   }
 
   return {
@@ -194,7 +190,7 @@ export function buildNativeShortcutConfig(entries: any[], context: SuppressionCo
     if (!entry?.enabled || entry?.mouse) continue;
     let vk = keyToVk(entry.key);
     if (vk === undefined && (entry.key?.toLowerCase() === "hyper" || entry.key?.toLowerCase() === "hyperkey")) {
-      vk = keyToVk(context.hyperKeyConfig?.key) ?? 0xa5;
+      vk = context.hyperKeyConfig?.enabled ? keyToVk(context.hyperKeyConfig.key) : undefined;
     }
     if (vk === undefined) continue;
     const kind = String(entry.trigger ?? "single");
@@ -222,10 +218,9 @@ export function buildNativeShortcutConfig(entries: any[], context: SuppressionCo
   }
 
   // Inject synthetic Hyper Tap shortcut entry if the configured tap action is
-  // not an existing shortcut. Only non-modifier Hyper keys (Caps Lock, F-keys,
-  // Apps, Scroll/Num Lock) can have a Quick Press / tap action.
+  // not an existing shortcut.
   const cfg = context.hyperKeyConfig;
-  if (cfg?.enabled && cfg?.tapActionId && cfg.tapActionId !== "none" && !isModifierHyperKey(cfg.key)) {
+  if (cfg?.enabled && keyToVk(cfg.key) !== undefined && cfg?.tapActionId && cfg.tapActionId !== "none") {
     const existing = (entries ?? []).find((e: any) => e && e.id === cfg.tapActionId);
     if (!existing) {
       const actions = resolveActionForHyperTap(cfg.tapActionId);

@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import {
   Books,
+  ClipboardText,
   Desktop,
   GearSix,
   Keyboard,
@@ -75,6 +76,7 @@ export function Sidebar() {
   ];
 
   const NAV_MANAGE: NavItem[] = [
+    { page: "clipboard", label: "Clipboard", icon: ClipboardText },
     { page: "profiles", label: "Profiles", icon: UsersThree, badge: profiles.length },
     { page: "library", label: "Action Library", icon: Books },
     { page: "notes", label: "Notes", icon: NoteBlank },

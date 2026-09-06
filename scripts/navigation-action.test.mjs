@@ -57,6 +57,7 @@ test("controller starts OFF and reflects state", () => {
 test("toggle ON sends native, plays navigation-on sound, shows overlay, notifies renderer", () => {
   const { deps, calls } = spyDeps();
   const c = new NavigationModeController(deps);
+  c.setFeedbackConfig({ showStateCard: true });
   const result = c.toggle();
 
   assert.deepEqual(calls.native, [true]);
@@ -71,6 +72,7 @@ test("toggle ON sends native, plays navigation-on sound, shows overlay, notifies
 test("toggle OFF sends native false, plays navigation-off, shows overlay, notifies renderer", () => {
   const { deps, calls } = spyDeps();
   const c = new NavigationModeController(deps);
+  c.setFeedbackConfig({ showStateCard: true });
   c.toggle();
   const result = c.toggle();
 

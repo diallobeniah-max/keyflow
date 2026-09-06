@@ -209,6 +209,7 @@ export class NativeInputHelper {
   private pendingHyperKey: unknown = null;
   private pendingAppList: ((apps: NativeAppInfo[]) => void) | null = null;
   private pendingActiveApp: ((app: NativeAppInfo | null) => void) | null = null;
+  private activeAppRequest: Promise<NativeAppInfo | null> | null = null;
   private currentConfigVersion = 0;
   private lastAckVersion = 0;
   private pendingCapture = false;
@@ -309,16 +310,22 @@ export class NativeInputHelper {
    */
   getActiveApp(): Promise<NativeAppInfo | null> {
     if (this.status !== "ready") return Promise.resolve(null);
-    return new Promise((resolve) => {
-      this.pendingActiveApp = resolve;
+    // Clipboard capture and the app-context UI can request this concurrently.
+    // Share the request instead of replacing the first caller's resolver.
+    if (this.activeAppRequest) return this.activeAppRequest;
+    const request = new Promise<NativeAppInfo | null>((resolve) => {
+      const finish = (value: NativeAppInfo | null) => {
+        clearTimeout(timer);
+        if (this.pendingActiveApp === finish) this.pendingActiveApp = null;
+        resolve(value);
+      };
+      const timer = setTimeout(() => finish(null), 3000);
+      this.pendingActiveApp = finish;
       this.send({ type: "getActiveApp", version: NATIVE_PROTOCOL_VERSION });
-      setTimeout(() => {
-        if (this.pendingActiveApp) {
-          this.pendingActiveApp = null;
-          resolve(null);
-        }
-      }, 3000);
     });
+    this.activeAppRequest = request;
+    void request.then(() => { if (this.activeAppRequest === request) this.activeAppRequest = null; });
+    return request;
   }
 
   getStatus(): NativeHelperStatus {
@@ -335,6 +342,10 @@ export class NativeInputHelper {
     if (this.isElevated && this.elevatedBridge) {
       return;
     }
+    if (this.proc && !this.proc.killed) {
+      console.log("[native-input] helper process already running, skipping redundant spawn");
+      return;
+    }
     const path = resolveNativeHelperPath();
     if (!path) {
       console.error("[native-input] helper binary not found (run `npm run native:build`)");
@@ -349,7 +360,6 @@ export class NativeInputHelper {
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });
-    this.proc = proc;
     this.proc = proc;
 
     proc.on("error", (err) => {

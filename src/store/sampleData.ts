@@ -161,6 +161,19 @@ const shortcuts: Shortcut[] = [
     enabled: true,
     createdAt: now,
   },
+  {
+    id: "sc-clipboard-history",
+    name: "Clipboard history popup",
+    profileId: "prof-default",
+    key: "V",
+    modifiers: ["Win"],
+    trigger: "combo",
+    timing: { tapInterval: 300, holdDuration: 600, delay: 0, cooldown: 250 },
+    actions: [action("clipboardHistory")],
+    enabled: true,
+    keyBehavior: "suppress",
+    createdAt: now,
+  },
 ];
 
 const library: Action[] = [

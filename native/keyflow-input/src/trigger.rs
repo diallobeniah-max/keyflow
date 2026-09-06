@@ -190,10 +190,9 @@ pub fn is_configured_hyper_physical_key(vk: u32, spec: &Option<HyperKeySpec>) ->
 }
 
 /// True when the configured Hyper key is itself a Windows modifier key
-/// (Ctrl / Alt / Shift / Win variants). Raycast parity: such a key activates
-/// the Hyper modifier chord immediately and has NO Quick Press / tap behavior.
-/// Non-modifier keys (Caps Lock, F1–F12, Apps, Scroll/Num Lock) may keep the
-/// tap-vs-chord gesture model.
+/// (Ctrl / Alt / Shift / Win variants). Modifier keys activate the virtual
+/// Hyper mask immediately; tap-vs-chord behavior is controlled independently
+/// by the configured tap action.
 pub fn is_modifier_hyper_key(spec: &Option<HyperKeySpec>) -> bool {
     let Some(h) = spec.as_ref() else { return false; };
     h.enabled && crate::keymap::modifier_bit(h.vk) != 0
@@ -295,6 +294,7 @@ impl TriggerEngine {
     }
 
     pub fn is_hyper_key_suppressed(&self, vk: u32) -> bool {
+        if self.paused { return false; }
         if let Some(spec) = &self.hyper_spec {
             spec.enabled && spec.suppress_original && is_configured_hyper_physical_key(vk, &self.hyper_spec)
         } else {
@@ -496,18 +496,19 @@ impl TriggerEngine {
             self.hyper_repeat_count = 0;
             eprintln!("[hyper-physical] hyperDown vk={}", ev.vk);
             eprintln!("[hyper-state] Idle -> Active");
+            let has_tap_action = self.hyper_spec.as_ref().map_or(false, |s| {
+                s.tap_action_id.as_ref().map_or(false, |id| !id.is_empty() && id != "none")
+            });
             if is_modifier_hyper_key(&self.hyper_spec) {
-                // Raycast parity: a modifier Hyper key activates the VIRTUAL
-                // Ctrl+Alt+Win mask immediately on physical down. No tap-vs-
-                // chord state machine, and no SendInput.
-                self.hyper_tap_pending = false;
                 self.activate_hyper_virtual();
-            } else {
-                // Non-modifier Hyper key (Caps Lock / F-keys / Apps): the
-                // tap-vs-chord gesture model is acceptable here. The virtual
-                // mask is established lazily on the first secondary key.
-                self.hyper_tap_pending = true;
-                eprintln!("[hyper-state] reason=non-modifier-hyper-down (tap pending)");
+            }
+            // Non-modifier Hyper keys establish the virtual mask lazily when
+            // a secondary key arrives, but tap state must always reflect the
+            // configured action. This keeps "None" chord-only and avoids a
+            // stale pending tap after a settings reload.
+            self.hyper_tap_pending = has_tap_action;
+            if self.hyper_tap_pending {
+                eprintln!("[hyper-state] reason=hyper-down (tap pending vk={})", ev.vk);
             }
             self.assert_hyper_invariants();
 
@@ -586,9 +587,11 @@ impl TriggerEngine {
             // keys activate on Hyper DOWN; non-modifier Hyper keys activate
             // here lazily once).
             eprintln!("[hyper-secondary] down vk={}", ev.vk);
+            // Chord activation must not depend on a configured tap action.
+            // Scroll Lock / Apps / Caps Lock with tap=None still act as Hyper.
+            self.activate_hyper_virtual();
             if self.hyper_tap_pending {
                 self.hyper_tap_pending = false;
-                self.activate_hyper_virtual();
                 eprintln!("[hyper-chord] tapCancelled=true secondary vk={}", ev.vk);
             }
             if let Some(hyper) = &self.hyper_spec {
@@ -787,16 +790,10 @@ impl TriggerEngine {
             self.generation += 1;
             eprintln!("[hyper-physical] hyperUp vk={}", ev.vk);
 
-            if is_modifier_hyper_key(&self.hyper_spec) {
-                // Raycast parity: clear the VIRTUAL mask and go Idle. No tap
-                // action, no __keyflow_hyper_tap__, and nothing to release via
-                // SendInput because Hyper never injected anything.
-                self.deactivate_hyper_virtual();
-                eprintln!("[hyper-state] Active -> Idle reason=modifier-hyper-up (virtual mask cleared, no tap)");
-            } else if self.hyper_tap_pending {
-                // Non-modifier Hyper key released alone = Quick Press / tap.
+            if self.hyper_tap_pending {
                 self.hyper_tap_pending = false;
-                eprintln!("[hyper-state] Active -> Idle reason=non-modifier-hyper-up (TAP-DETECTED)");
+                self.deactivate_hyper_virtual();
+                eprintln!("[hyper-state] Active -> Idle reason=hyper-up (TAP-DETECTED vk={})", ev.vk);
                 let matching = self.matching_rules(ev);
                 let has_multi = matching.iter().any(|&ri| matches!(self.rules[ri].kind, TriggerKind::Double | TriggerKind::Triple));
                 if !has_multi {
@@ -812,10 +809,8 @@ impl TriggerEngine {
                     }
                 }
             } else {
-                // Non-modifier Hyper key released after a chord: clear the
-                // virtual mask (nothing physically injected to release).
                 self.deactivate_hyper_virtual();
-                eprintln!("[hyper-state] Active -> Idle reason=non-modifier-hyper-up (chord, virtual mask cleared)");
+                eprintln!("[hyper-state] Active -> Idle reason=hyper-up (chord/no-tap, virtual mask cleared)");
             }
             self.hyper_state = HyperState::Idle;
             self.hyper_physical_down = false;
@@ -1556,6 +1551,36 @@ mod tests {
     }
 
     #[test]
+    fn modifier_hyper_with_tap_action() {
+        let mut e = TriggerEngine::new();
+        e.set_hyper_key(Some(HyperKeySpec {
+            enabled: true,
+            vk: 0xA5,
+            include_shift: false,
+            suppress_original: true,
+            tap_action_id: Some("showPopup".to_string()),
+        }));
+        let hyper_t = rule_with_mods("sc-hyper-t", 0x54, TriggerKind::Single, HYPER_MODS);
+        e.reload(vec![hyper_t]);
+
+        // 1. Tap alone -> fires tap_action_id
+        let f_down = down(&mut e, 0xA5, 0);
+        assert!(f_down.is_empty());
+        let f_up = up(&mut e, 0xA5, 50);
+        assert_eq!(f_up.len(), 1);
+        assert_eq!(f_up[0].id, "showPopup");
+
+        // 2. Chord -> fires chord, does NOT fire tap
+        down(&mut e, 0xA5, 100);
+        let f_t = down(&mut e, 0x54, 120);
+        assert_eq!(f_t.len(), 1);
+        assert_eq!(f_t[0].id, "sc-hyper-t");
+        up(&mut e, 0x54, 140);
+        let f_up2 = up(&mut e, 0xA5, 160);
+        assert!(f_up2.is_empty(), "chord release must not fire tap action");
+    }
+
+    #[test]
     fn modifier_hyper_reconfiguration_live() {
         let mut e = TriggerEngine::new();
         e.set_hyper_key(Some(modifier_hyper(0xA5)));
@@ -1629,6 +1654,37 @@ mod tests {
         assert_eq!(crate::inject::test_inject_count(), 0, "no SendInput for the non-modifier chord cycle");
         assert_eq!(e.hyper_state, HyperState::Idle);
         assert_eq!(e.mods, 0);
+    }
+
+    #[test]
+    fn scroll_lock_chords_with_and_without_tap_survive_repeat_and_pause() {
+        for tap_action in [None, Some("showPopup".to_string())] {
+            let mut e = TriggerEngine::new();
+            e.set_hyper_key(Some(HyperKeySpec {
+                enabled: true, vk: 0x91, include_shift: false,
+                suppress_original: true, tap_action_id: tap_action.clone(),
+            }));
+            e.reload(vec![rule_with_mods("hyper-o", 0x4f, TriggerKind::Single, HYPER_MODS)]);
+            for cycle in 0..10 {
+                let t = cycle * 1000;
+                down(&mut e, 0x91, t);
+                down(&mut e, 0x91, t + 10);
+                let fired = down(&mut e, 0x4f, t + 50);
+                assert_eq!(fired.len(), 1, "ScrollLock+O must work even with tap=None");
+                assert_eq!(fired[0].id, "hyper-o");
+                up(&mut e, 0x4f, t + 80);
+                assert!(up(&mut e, 0x91, t + 120).is_empty());
+                assert_eq!(e.mods, 0);
+            }
+            down(&mut e, 0x91, 11000);
+            let tap = up(&mut e, 0x91, 11050);
+            assert_eq!(tap.len(), if tap_action.is_some() { 1 } else { 0 });
+            e.set_paused(true);
+            assert!(!e.is_hyper_key_suppressed(0x91), "pause must release the physical key");
+            e.set_paused(false);
+            down(&mut e, 0x91, 12000);
+            assert_eq!(down(&mut e, 0x4f, 12050).len(), 1);
+        }
     }
 
     /// Critical regression: Hyper chords must fire identically whether WASD

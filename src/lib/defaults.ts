@@ -51,6 +51,8 @@ export function createDefaultSettings(): Settings {
       emergencySafe: "Ctrl+Shift+K",
       commandPaletteEnabled: true,
       commandPaletteShortcut: "Ctrl+K",
+      clipboardShortcutEnabled: true,
+      clipboardShortcut: "",
       commandPaletteShowCategories: true,
       commandPaletteMaxResults: 8,
       commandPaletteWindowMode: "expanded",
@@ -187,6 +189,21 @@ export function createDefaultSettings(): Settings {
       trackpadPassThrough: true,
       customPresets: [],
     },
+    dimScreen: {
+      enabled: false,
+      level: 30,
+      extraDimEnabled: false,
+      extraDimStrength: 40,
+      applyTo: "all",
+      selectedDisplayIds: [],
+      startEnabled: false,
+      rememberLevel: true,
+    },
+    mediaPlayer: {
+      enabled: false,
+      position: "top-center",
+      autoHide: false,
+    },
   };
 }
 
@@ -292,13 +309,25 @@ export function migrateHyperConfig(current?: Partial<import("../types/index.js")
   };
   if (!current) return def;
   const rawKey = (current.key ?? "").trim();
-  const isInvalidKey = !rawKey || rawKey.toLowerCase() === "none" || rawKey.toLowerCase() === "undefined";
+  // An explicit None is a supported opt-out. Only a missing/undefined key is
+  // migrated to the safe Right Alt default for older persisted settings.
+  const isExplicitNone = rawKey.toLowerCase() === "none";
+  const isInvalidKey = !rawKey || rawKey.toLowerCase() === "undefined";
+  if (isExplicitNone) {
+    return {
+      enabled: current.enabled ?? true,
+      key: "None",
+      includeShift: !!current.includeShift,
+      tapActionId: current.tapActionId ?? "showPopup",
+      suppressOriginal: current.suppressOriginal ?? true,
+    };
+  }
   if (isInvalidKey) {
     return {
       enabled: current.enabled ?? true,
       key: "AltRight",
       includeShift: !!current.includeShift,
-      tapActionId: current.tapActionId || "showPopup",
+      tapActionId: current.tapActionId ?? "showPopup",
       suppressOriginal: true,
     };
   }
@@ -306,7 +335,7 @@ export function migrateHyperConfig(current?: Partial<import("../types/index.js")
     enabled: current.enabled ?? true,
     key: current.key || "AltRight",
     includeShift: !!current.includeShift,
-    tapActionId: current.tapActionId || "showPopup",
+    tapActionId: current.tapActionId ?? "showPopup",
     suppressOriginal: current.suppressOriginal ?? true,
   };
 }

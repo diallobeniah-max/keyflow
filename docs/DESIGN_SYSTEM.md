@@ -164,3 +164,5 @@ The persistent bottom dock is the only in-page navigation surface allowed to use
 | `--motion-slow` | `220ms cubic-bezier(0.16, 1, 0.3, 1)` | Drawers, panels, secondary expansions |
 | `--motion-layout` | `420ms cubic-bezier(0.16, 1, 0.3, 1)` | Major layout morphs, settings width changes, container resizes |
 | `--motion-spring` | `240ms cubic-bezier(0.175, 0.885, 0.32, 1.15)` | Spring-loaded badges, tactile button presses |
+
+All transient surface animation is implemented through the shared `src/lib/motion.ts` and `src/design/motion.css` Motion System. See `docs/MOTION_SYSTEM.md`; component-local keyframes and `transition: all` are not approved for new UI.

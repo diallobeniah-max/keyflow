@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Icon } from "./Icon";
+import { MOTION_DURATION, motionClassName } from "../lib/motion";
 
 interface PopupItemData {
   id: string;
@@ -29,8 +30,8 @@ interface PopupShellSettings {
 
 type Phase = "hidden" | "preparing" | "opening" | "open" | "closing";
 
-const OPEN_DURATION_MS = 140;
-const CLOSE_DURATION_MS = 120;
+const OPEN_DURATION_MS = MOTION_DURATION.popover;
+const CLOSE_DURATION_MS = MOTION_DURATION.popover;
 const FOCUS_FAILSAFE_MS = 350;
 
 function isEditableEventTarget(target: EventTarget | null): boolean {
@@ -395,13 +396,7 @@ export function PopupShell() {
 
   const overlayClass = [
     "popup-overlay",
-    phase === "opening"
-      ? "popup-opening"
-      : phase === "open"
-      ? "popup-open"
-      : phase === "closing"
-      ? "popup-closing"
-      : "popup-hidden",
+    motionClassName("popover", phase === "closing" || phase === "hidden" ? "exit" : "enter"),
   ]
     .filter(Boolean)
     .join(" ");

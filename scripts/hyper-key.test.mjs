@@ -11,9 +11,23 @@ import { keyToVk } from "../dist-electron/win-vk.js";
 import { getSafeHyperKeySuggestions } from "../src/lib/conflict.ts";
 import { migrateHyperShortcuts, migrateHyperConfig, isModifierHyperKeyName } from "../src/lib/defaults.ts";
 
-test("migrateHyperConfig migrates 'None' or invalid physical key to canonical 'AltRight'", () => {
+test("None never silently captures Right Alt, and pause/safe mode disable physical Hyper", () => {
+  for (const key of ["None", "ScrollLock", "AltRight", ""]) {
+    assert.equal(migrateHyperConfig({ key, enabled: true, tapActionId: "" }).tapActionId, "", "chord-only choice survives reload");
+  }
+  const cfg = { enabled: true, key: "None", tapActionId: "showPopup" };
+  const standalone = { id: "hyper-double", key: "Hyper", enabled: true, modifiers: [], trigger: "double" };
+  assert.equal(buildNativeHyperSpec({ hyperKeyConfig: cfg }), null);
+  assert.deepEqual(buildNativeShortcutConfig([standalone], { hyperKeyConfig: cfg }), []);
+  const active = { ...cfg, key: "ScrollLock" };
+  assert.equal(buildNativeHyperSpec({ hyperKeyConfig: active, paused: true }), null);
+  assert.equal(buildNativeHyperSpec({ hyperKeyConfig: active, safeMode: true }), null);
+  assert.equal(buildNativeHyperSpec({ hyperKeyConfig: { ...active, tapActionId: "deleted-shortcut" } }).tapActionId, undefined);
+});
+
+test("migrateHyperConfig preserves explicit None and defaults missing keys to AltRight", () => {
   const migratedNone = migrateHyperConfig({ enabled: true, key: "None" });
-  assert.equal(migratedNone.key, "AltRight");
+  assert.equal(migratedNone.key, "None");
   assert.equal(migratedNone.enabled, true);
   assert.equal(migratedNone.tapActionId, "showPopup");
 
@@ -62,8 +76,7 @@ test("buildNativeHyperSpec builds spec from suppression context", () => {
   assert.equal(spec.enabled, true);
   assert.equal(spec.vk, 165); // Right Alt
   assert.equal(spec.suppressOriginal, true);
-  // Raycast parity: a modifier Hyper key (Right Alt) must NOT carry a tap action.
-  assert.equal(spec.tapActionId, undefined, "modifier Hyper keys must not attach a tap action");
+  assert.equal(spec.tapActionId, "sc-f-popup", "modifier Hyper keys support tap actions");
 });
 
 test("buildNativeHyperSpec keeps tap action for non-modifier hyper keys", () => {
@@ -81,7 +94,7 @@ test("buildNativeHyperSpec keeps tap action for non-modifier hyper keys", () => 
   assert.equal(spec.tapActionId, "sc-f-popup");
 });
 
-test("buildNativeHyperSpec resolves synthetic ID for built-in tap actions (non-modifier only)", () => {
+test("buildNativeHyperSpec resolves synthetic ID for built-in tap actions (all hyper keys)", () => {
   const spec = buildNativeHyperSpec({
     hyperKeyConfig: {
       enabled: true,
@@ -96,7 +109,7 @@ test("buildNativeHyperSpec resolves synthetic ID for built-in tap actions (non-m
   assert.equal(spec.vk, 20); // Caps Lock
   assert.equal(spec.tapActionId, HYPER_TAP_SYNTHETIC_ID);
 
-  // The old behavior (Right Ctrl carrying a tap action) must be gone.
+  // Modifier Hyper keys (e.g. Right Ctrl / Right Alt) also support tap actions
   const modifierSpec = buildNativeHyperSpec({
     hyperKeyConfig: {
       enabled: true,
@@ -105,7 +118,7 @@ test("buildNativeHyperSpec resolves synthetic ID for built-in tap actions (non-m
       suppressOriginal: true,
     },
   }, []);
-  assert.equal(modifierSpec.tapActionId, undefined, "modifier Hyper keys never resolve a synthetic tap id");
+  assert.equal(modifierSpec.tapActionId, HYPER_TAP_SYNTHETIC_ID, "modifier Hyper keys resolve synthetic tap id");
 });
 
 test("buildNativeHyperSpec returns null when disabled or key missing", () => {
@@ -136,7 +149,7 @@ test("resolveActionForHyperTap constructs proper action payload", () => {
   assert.deepEqual(resolveActionForHyperTap(""), []);
 });
 
-test("buildNativeShortcutConfig creates synthetic shortcut entry for hyper tap action (non-modifier only)", () => {
+test("buildNativeShortcutConfig creates synthetic shortcut entry for hyper tap action (including modifier keys)", () => {
   const context = {
     hyperKeyConfig: {
       enabled: true,
@@ -149,7 +162,7 @@ test("buildNativeShortcutConfig creates synthetic shortcut entry for hyper tap a
   assert.notEqual(synthetic, undefined);
   assert.equal(synthetic.key.vk, 20);
 
-  // Modifier Hyper keys (e.g. Right Alt) must NOT get a synthetic tap entry.
+  // Modifier Hyper keys (e.g. Right Alt) also get a synthetic tap entry.
   const modifierContext = {
     hyperKeyConfig: {
       enabled: true,
@@ -158,7 +171,9 @@ test("buildNativeShortcutConfig creates synthetic shortcut entry for hyper tap a
     },
   };
   const modifierSpecs = buildNativeShortcutConfig([], modifierContext);
-  assert.equal(modifierSpecs.find((s) => s.id === HYPER_TAP_SYNTHETIC_ID), undefined, "no synthetic tap for modifier Hyper keys");
+  const modSynthetic = modifierSpecs.find((s) => s.id === HYPER_TAP_SYNTHETIC_ID);
+  assert.notEqual(modSynthetic, undefined, "synthetic tap created for modifier Hyper keys");
+  assert.equal(modSynthetic.key.vk, 0xa5);
 });
 
 test("buildNativeShortcutConfig maps Hyper modifier to compiled native modifiers (includeShift false/true)", () => {
@@ -228,9 +243,10 @@ test("getSafeHyperKeySuggestions excludes CapsLock if assigned to Screenshot", (
 
   assert.notEqual(rightAlt, undefined);
   assert.equal(rightAlt.safe, true);
+  assert.equal(suggestions[0].value, "None");
 });
 
-test("Cross-layer Hyper Contract: config builder -> spec generation (modifier key, no tap)", () => {
+test("Cross-layer Hyper Contract: config builder -> spec generation (modifier key with tap)", () => {
   const context = {
     hyperKeyConfig: {
       enabled: true,
@@ -255,12 +271,12 @@ test("Cross-layer Hyper Contract: config builder -> spec generation (modifier ke
   const specs = buildNativeShortcutConfig(userShortcuts, context);
   const hyperSpec = buildNativeHyperSpec(context, userShortcuts);
 
-  // Hyper Spec: modifier key -> enabled, but NO tap action attached.
+  // Hyper Spec: modifier key -> enabled, tap action attached.
   assert.equal(hyperSpec.enabled, true);
   assert.equal(hyperSpec.vk, 165); // Right Alt VK
-  assert.equal(hyperSpec.tapActionId, undefined, "Right Alt must have no tap action under Raycast parity");
+  assert.equal(hyperSpec.tapActionId, HYPER_TAP_SYNTHETIC_ID, "Right Alt has synthetic tap action");
 
-  // Specs array contains ONLY the user shortcut — no synthetic tap entry.
+  // Specs array contains the user shortcut AND the synthetic tap entry.
   const chordSpec = specs.find((s) => s.id === "sc-hyper-t");
   const tapSpec = specs.find((s) => s.id === HYPER_TAP_SYNTHETIC_ID);
 
@@ -268,7 +284,7 @@ test("Cross-layer Hyper Contract: config builder -> spec generation (modifier ke
   assert.deepEqual(chordSpec.modifiers.sort(), ["alt", "ctrl", "win"].sort());
   assert.equal(chordSpec.key.vk, 84); // T
 
-  assert.equal(tapSpec, undefined, "no synthetic tap entry for modifier Hyper key");
+  assert.notEqual(tapSpec, undefined, "synthetic tap entry generated for modifier Hyper key");
 });
 
 test("Standalone Hyper key shortcut resolves key: 'Hyper' to physical Hyper key VK", () => {

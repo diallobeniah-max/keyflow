@@ -8,6 +8,7 @@ import { formatShortcutLabel, formatTriggerLabel } from "../lib/conflict";
 import { SETTINGS_INDEX } from "../lib/settingsIndex";
 import { Icon } from "./Icon";
 import { Button, Toggle } from "./ui";
+import { MOTION_DURATION, motionClassName } from "../lib/motion";
 
 const SETTING_BOOLEAN_MAP: Record<string, { section: string; key: string; label: string }> = {
   "gen-startup": { section: "general", key: "launchOnStartup", label: "Launch on startup" },
@@ -123,7 +124,7 @@ export function CommandPalette() {
       setPreviewOpen(false);
       setSideViewOpen(false);
       closeTimerRef.current = null;
-    }, 140);
+    }, MOTION_DURATION.dialog);
   }, [isClosing]);
 
   useEffect(() => {
@@ -275,14 +276,13 @@ export function CommandPalette() {
 
   return createPortal(
     <div
-      className={"command-palette-scrim " + (isClosing ? "anim-fade-out" : "anim-fade-in") + (position === "top" ? " is-top" : "")}
+      className={`command-palette-scrim ${motionClassName("dialog", isClosing ? "exit" : "enter")}${position === "top" ? " is-top" : ""}`}
       role="presentation"
       onMouseDown={closePalette}
     >
       <section
         className={
-          "command-palette " +
-          (isClosing ? "anim-modal-exit" : "anim-modal-enter") +
+          "command-palette kf-motion__surface " +
           (windowMode === "compact" ? " is-compact" : "") +
           (query.trim() ? " has-query" : "") +
           (previewOpen ? " has-preview" : "") +

@@ -1,4 +1,4 @@
-﻿# KeyFlow Windows Functional Audit
+# KeyFlow Windows Functional Audit
 
 **Project:** `E:\New folder\Coding\New folder (3)\keyflow`  
 **Audit date:** 2026-08-02  
@@ -652,3 +652,13 @@ A single safe native action was tested automatically without locking Windows, ch
 * Result: `[safe-action] PASS: showNotification resolved`
 * Exit status: `0`
 * The temporary harness was removed after the run.
+
+## Dim Screen Architecture Audit
+
+The Dim Screen system was engineered to deliver Windows display dimming with zero flashing during app switching:
+
+* **Hardware Provider**: `HardwareBrightnessProvider` (`electron/hardware-brightness.ts`) queries and sets physical backlight levels using Windows WMI (`root/wmi: WmiMonitorBrightness` and `WmiMonitorBrightnessMethods`).
+* **Baseline Restoration**: Captures the user's pre-dim physical brightness before applying the dim level, and restores the exact baseline upon disable.
+* **Persistent Extra Dim**: `DimScreenManager` (`electron/dim-screen-manager.ts`) creates borderless, click-through, always-on-top (`screen-saver` level) transparent windows per display (`showInactive()`, `focusable: false`). Unlike Screen Tint, it does not hide when the main window gains focus, ensuring continuous dimness across Alt+Tab.
+* **Screen Tint Coexistence**: Screen Tint (`ScreenTintWindowManager`) and Dim Screen (`DimScreenManager`) remain independent subsystems with dedicated settings pages, stores, and IPC bridges.
+

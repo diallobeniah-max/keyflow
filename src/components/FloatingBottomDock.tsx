@@ -6,6 +6,7 @@ import {
   Plus,
   UsersThree,
   Books,
+  ClipboardText,
   NoteBlank,
   GearSix,
   MagnifyingGlass,
@@ -55,6 +56,7 @@ export function FloatingBottomDock() {
     { page: "create", label: "Create", icon: Plus },
     { page: "profiles", label: "Profiles", icon: UsersThree },
     { page: "library", label: "Library", icon: Books },
+    { page: "clipboard", label: "Clipboard", icon: ClipboardText },
     { page: "notes", label: "Notes", icon: NoteBlank },
     { page: "settings", label: "Settings", icon: GearSix },
   ];

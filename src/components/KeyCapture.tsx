@@ -48,7 +48,9 @@ export function KeyCapture({
       setCapturing(false);
       setListening(false);
       onChangeKey(token);
-      onChangeMods(availableMods.filter((m) => mods.includes(m)));
+      if (mods.length > 0) {
+        onChangeMods(availableMods.filter((m) => mods.includes(m)));
+      }
     });
   }
 
@@ -60,7 +62,9 @@ export function KeyCapture({
     setCapturing(false);
     setListening(false);
     onChangeKey(token);
-    onChangeMods(availableMods.filter((m) => mods.includes(m)));
+    if (mods.length > 0) {
+      onChangeMods(availableMods.filter((m) => mods.includes(m)));
+    }
   });
   // Escape cancels listening. In native capture mode the hook swallows Escape
   // and emits CaptureCancelled (handled above); this renderer-side listener is

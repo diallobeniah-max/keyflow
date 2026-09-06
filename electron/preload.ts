@@ -36,6 +36,43 @@ contextBridge.exposeInMainWorld("electronAPI", {
   actions: {
     run: (action) => ipcRenderer.invoke("action:run", action),
   },
+  clipboard: {
+    getSnapshot: () => ipcRenderer.invoke("clipboard:get-snapshot"),
+    getItem: (id) => ipcRenderer.invoke("clipboard:get-item", id),
+    setSettings: (patch) => ipcRenderer.invoke("clipboard:set-settings", patch),
+    createPinboard: (input) => ipcRenderer.invoke("clipboard:create-pinboard", input),
+    updatePinboard: (id, patch) => ipcRenderer.invoke("clipboard:update-pinboard", id, patch),
+    deletePinboard: (id) => ipcRenderer.invoke("clipboard:delete-pinboard", id),
+    setPinned: (id, pinned) => ipcRenderer.invoke("clipboard:set-pinned", id, pinned),
+    moveToPinboard: (id, pinboardId) => ipcRenderer.invoke("clipboard:move-to-pinboard", id, pinboardId),
+    rename: (id, title) => ipcRenderer.invoke("clipboard:rename", id, title),
+    delete: (id) => ipcRenderer.invoke("clipboard:delete", id),
+    clearUnpinned: () => ipcRenderer.invoke("clipboard:clear-unpinned"),
+    copy: (id, plainText = false) => ipcRenderer.invoke("clipboard:copy", id, plainText),
+    paste: (id, plainText = false, keepOpen = false) => ipcRenderer.invoke("clipboard:paste", id, plainText, keepOpen),
+    assignPinboard: (id, board) => ipcRenderer.invoke("clipboard:assign-pinboard", id, board),
+    unassignPinboard: (id, board) => ipcRenderer.invoke("clipboard:unassign-pinboard", id, board),
+    reorderItems: (source, target) => ipcRenderer.invoke("clipboard:reorder-items", source, target),
+    addDroppedFiles: (paths) => ipcRenderer.invoke("clipboard:add-dropped-files", paths),
+    startDrag: (id) => ipcRenderer.send("clipboard:start-drag", id),
+    openSurface: (surface) => ipcRenderer.invoke("clipboard:open-surface", surface),
+    toggle: () => ipcRenderer.invoke("clipboard:toggle"),
+    show: () => ipcRenderer.invoke("clipboard:show"),
+    setKeepOpen: (keepOpen: boolean) => ipcRenderer.invoke("clipboard:set-keep-open", keepOpen),
+    probeFormats: () => ipcRenderer.invoke("clipboard:probe-formats"),
+    hidePopup: () => ipcRenderer.invoke("clipboard:hide-popup"),
+    onChanged: (callback) => {
+      const handler = (_event, snapshot) => callback(snapshot);
+      ipcRenderer.on("clipboard:changed", handler);
+      return () => ipcRenderer.removeListener("clipboard:changed", handler);
+    },
+    onOpenSurface: (callback) => {
+      const handler = (_event, surface) => callback(surface);
+      ipcRenderer.on("clipboard:open-surface", handler);
+      return () => ipcRenderer.removeListener("clipboard:open-surface", handler);
+    },
+  },
+  executeAction: (action) => ipcRenderer.invoke("action:run", action),
   input: {
     updateShortcuts: (entries, context) => ipcRenderer.invoke("input:update-shortcuts", entries, context),
     setPaused: (paused) => ipcRenderer.invoke("input:set-paused", paused),
@@ -97,6 +134,36 @@ contextBridge.exposeInMainWorld("electronAPI", {
       const handler = (_event, config) => callback(config);
       ipcRenderer.on("screen-tint:update", handler);
       return () => ipcRenderer.removeListener("screen-tint:update", handler);
+    },
+  },
+  mediaPlayer: {
+    getState: () => ipcRenderer.invoke("media-player:get-state"),
+    updateConfig: (config) => ipcRenderer.invoke("media-player:update", config),
+    setEnabled: (enabled) => ipcRenderer.invoke("media-player:update", { enabled }),
+    toggle: () => ipcRenderer.invoke("media-player:toggle"),
+    onStateChanged: (callback) => {
+      const handler = (_event, state) => callback(state);
+      ipcRenderer.on("media-player:state-changed", handler);
+      return () => ipcRenderer.removeListener("media-player:state-changed", handler);
+    },
+    onPositionChanged: (callback) => {
+      const handler = (_event, pos) => callback(pos);
+      ipcRenderer.on("media-player:position-changed", handler);
+      return () => ipcRenderer.removeListener("media-player:position-changed", handler);
+    },
+  },
+  dimScreen: {
+    getState: () => ipcRenderer.invoke("dim-screen:get-state"),
+    update: (config) => ipcRenderer.invoke("dim-screen:update", config),
+    setEnabled: (enabled) => ipcRenderer.invoke("dim-screen:set-enabled", enabled),
+    setLevel: (level) => ipcRenderer.invoke("dim-screen:set-level", level),
+    setExtraDim: (enabled, strength) => ipcRenderer.invoke("dim-screen:set-extra-dim", enabled, strength),
+    toggle: () => ipcRenderer.invoke("dim-screen:toggle"),
+    listDisplays: () => ipcRenderer.invoke("dim-screen:list-displays"),
+    onStateChanged: (callback) => {
+      const handler = (_event, state) => callback(state);
+      ipcRenderer.on("dim-screen:state-changed", handler);
+      return () => ipcRenderer.removeListener("dim-screen:state-changed", handler);
     },
   },
   popup: {

@@ -149,6 +149,8 @@ function mergeSettings(s: Partial<Settings> | undefined): Settings {
   const mergedShortcuts = { ...defaults.shortcuts, ...s.shortcuts };
   const defaultHotCorners = defaults.hotCorners!;
   const defaultScreenTint = defaults.screenTint!;
+  const defaultDimScreen = defaults.dimScreen!;
+  const defaultMediaPlayer = defaults.mediaPlayer!;
   mergedShortcuts.hyperKeyConfig = migrateHyperConfig(s.shortcuts?.hyperKeyConfig);
   mergedShortcuts.hyperKey = mergedShortcuts.hyperKeyConfig.key;
   mergedShortcuts.hyperKeyEnabled = mergedShortcuts.hyperKeyConfig.enabled;
@@ -170,6 +172,8 @@ function mergeSettings(s: Partial<Settings> | undefined): Settings {
       corners: { ...defaultHotCorners.corners, ...s.hotCorners?.corners },
     },
     screenTint: { ...defaultScreenTint, ...s.screenTint },
+    dimScreen: { ...defaultDimScreen, ...s.dimScreen },
+    mediaPlayer: { ...defaultMediaPlayer, ...s.mediaPlayer },
   };
 }
 
@@ -223,6 +227,7 @@ export const useStore = create<StoreState>((set, get) => ({
     root.setAttribute("data-backdrop-material", a.backdropMaterial ?? "mica");
     root.setAttribute("data-header-tint", a.headerAccentTint ?? "subtle");
     root.setAttribute("data-header-fit", a.headerAccentFit ?? "full");
+    root.setAttribute("data-layout-width", a.settingsWidth || "large");
     root.classList.toggle("reduce-motion", a.reduceMotion);
     root.classList.toggle("compact", a.compactMode);
     root.style.setProperty("--ui-scale", ({ "90": "0.9", "100": "1", "110": "1.1", "125": "1.25" } as Record<string, string>)[a.uiScale] ?? "1");

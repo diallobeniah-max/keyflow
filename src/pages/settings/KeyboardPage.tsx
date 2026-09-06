@@ -5,6 +5,15 @@ import { SettingsGroup, SettingsRow, Slider, Toggle } from "../../components/ui"
 import { getSafeHyperKeySuggestions } from "../../lib/conflict";
 import { SettingsPageHeader } from "./SettingsPageHeader";
 
+const BUILTIN_HYPER_TAP_OPTIONS = [
+  { value: "showPopup", label: "Quick Menu / Popup Menu" },
+  { value: "notesPopup", label: "Floating Notes Scratchpad" },
+  { value: "screenshot", label: "Screenshot Snip Overlay" },
+  { value: "alwaysOnTop", label: "Toggle Always on Top" },
+  { value: "openSettings", label: "Open Settings" },
+  { value: "", label: "None (chord modifier only)" },
+];
+
 interface KeyboardPageProps {
   onBack?: () => void;
 }
@@ -16,7 +25,7 @@ export const KeyboardPage: FC<KeyboardPageProps> = ({ onBack }) => {
   const patch = useStore((s) => s.patchSettings);
 
   const hyperEnabled = settings.shortcuts.hyperKeyConfig?.enabled ?? false;
-  const hyperKey = settings.shortcuts.hyperKeyConfig?.key || "AltRight";
+  const hyperKey = settings.shortcuts.hyperKeyConfig?.key ?? "AltRight";
   const hyperSuggestions = getSafeHyperKeySuggestions(data.shortcuts, activeProfileId, hyperKey);
   const currentWarning = hyperSuggestions.find((s) => s.value === hyperKey)?.warning;
 
@@ -107,7 +116,7 @@ export const KeyboardPage: FC<KeyboardPageProps> = ({ onBack }) => {
         <SettingsRow
           id="row-sc-hyper-enable"
           title="Enable Hyper Key"
-          desc="Acts as a dedicated KeyFlow modifier key (bit 4) for all Hyper chords"
+          desc="Hold your chosen physical key and press another key to run a Hyper shortcut. Tap it alone to run the tap action."
         >
           <Toggle
             label="Enable Hyper Key"
@@ -115,9 +124,10 @@ export const KeyboardPage: FC<KeyboardPageProps> = ({ onBack }) => {
             onChange={(v) =>
               patch("shortcuts", {
                 hyperKeyConfig: {
+                  ...settings.shortcuts.hyperKeyConfig,
                   enabled: v,
                   key: hyperKey,
-                  tapActionId: settings.shortcuts.hyperKeyConfig?.tapActionId || "sc-f-popup",
+                  tapActionId: settings.shortcuts.hyperKeyConfig?.tapActionId ?? "showPopup",
                   suppressOriginal: true,
                 },
               })
@@ -129,7 +139,7 @@ export const KeyboardPage: FC<KeyboardPageProps> = ({ onBack }) => {
           <SettingsRow
             id="row-sc-hyper-key"
             title="Physical Hyper Key"
-            desc="Select an unused physical key. CapsLock is preserved for Screenshot."
+            desc={hyperKey === "None" ? "No physical Hyper key is assigned. Choose a key to enable taps and chords." : `Use the ${hyperSuggestions.find((s) => s.value === hyperKey)?.label.replace(" (Current)", "") ?? hyperKey} key on your keyboard. A laptop may require Fn to send this key.`}
           >
             <div className="col gap-xs w-220">
               <AppSelect
@@ -138,9 +148,10 @@ export const KeyboardPage: FC<KeyboardPageProps> = ({ onBack }) => {
                 onChange={(key) =>
                   patch("shortcuts", {
                     hyperKeyConfig: {
+                      ...settings.shortcuts.hyperKeyConfig,
                       enabled: hyperEnabled,
                       key,
-                      tapActionId: settings.shortcuts.hyperKeyConfig?.tapActionId || "sc-f-popup",
+                      tapActionId: settings.shortcuts.hyperKeyConfig?.tapActionId ?? "showPopup",
                       suppressOriginal: true,
                     },
                   })
@@ -159,26 +170,27 @@ export const KeyboardPage: FC<KeyboardPageProps> = ({ onBack }) => {
           <SettingsRow
             id="row-sc-hyper-tap"
             title="Tap Hyper Key Action"
-            desc="Action triggered when the Hyper key is pressed and released alone without holding another key"
+            desc="Action triggered when the Hyper key is tapped alone without holding another key. Holding it chords with other keys."
           >
             <div className="w-220">
               <AppSelect
-                value={settings.shortcuts.hyperKeyConfig?.tapActionId || ""}
-                disabled={!hyperEnabled}
+                value={settings.shortcuts.hyperKeyConfig?.tapActionId === "none" ? "" : settings.shortcuts.hyperKeyConfig?.tapActionId ?? "showPopup"}
+                disabled={!hyperEnabled || hyperKey === "None"}
                 onChange={(tapActionId) =>
                   patch("shortcuts", {
                     hyperKeyConfig: {
+                      ...settings.shortcuts.hyperKeyConfig,
                       enabled: hyperEnabled,
                       key: hyperKey,
-                      tapActionId: tapActionId || undefined,
+                      tapActionId,
                       suppressOriginal: true,
                     },
                   })
                 }
                 options={[
-                  { value: "", label: "None (chord modifier only)" },
+                  ...BUILTIN_HYPER_TAP_OPTIONS,
                   ...data.shortcuts
-                    .filter((s) => s.profileId === activeProfileId)
+                    .filter((s) => s.profileId === activeProfileId && !s.id.startsWith("__system_"))
                     .map((s) => ({ value: s.id, label: s.name || `${s.key} (${s.trigger})` })),
                 ]}
               />

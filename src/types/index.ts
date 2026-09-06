@@ -44,7 +44,9 @@ export type ActionType =
   | "toggleWasdNavigation"
   | "toggleCapsLock"
   | "delay"
-  | "remapKey";
+  | "remapKey"
+  | "toggleDimScreen"
+  | "dimScreenControl";
 
 export interface ActionPayload {
   path?: string;
@@ -73,6 +75,8 @@ export interface ActionPayload {
   sound?: boolean;
   /** Remap target key name (remapKey action / TriggerType "remap"). */
   remapTarget?: string;
+  dimScreenMode?: "toggle" | "enable" | "disable" | "increase" | "decrease" | "set" | "toggleExtraDim";
+  dimLevel?: number;
 }
 
 export interface Action {
@@ -222,6 +226,9 @@ export interface ShortcutSettings {
   /** Enable the in-window searchable command registry shortcut. */
   commandPaletteEnabled: boolean;
   commandPaletteShortcut?: string;
+  /** Global shortcut to trigger KeyFlow Clipboard popup grid (overrides Windows Win+V). */
+  clipboardShortcutEnabled?: boolean;
+  clipboardShortcut?: string;
   commandPaletteShowCategories?: boolean;
   commandPaletteMaxResults?: number;
   commandPaletteWindowMode?: "compact" | "expanded";
@@ -379,6 +386,28 @@ export interface HotCornersSettings {
 
 export type ScreenTintPreset = "warm" | "rose" | "yellow" | "blue" | "mint" | "neutral" | "custom";
 
+/** Target display scope for Dim Screen */
+export type DimScreenApplyTo = "all" | "primary" | "selected";
+
+export interface DimScreenSettings {
+  /** Master on/off for the dim overlay */
+  enabled: boolean;
+  /** Dim level 0–100 (100 = black) */
+  level: number;
+  /** Enable extra dimming overlay below hardware minimum */
+  extraDimEnabled: boolean;
+  /** Extra-dim overlay opacity 0–100 */
+  extraDimStrength: number;
+  /** Which displays to dim */
+  applyTo: DimScreenApplyTo;
+  /** Display IDs to dim when applyTo === "selected" */
+  selectedDisplayIds?: number[];
+  /** Restore dim state at startup */
+  startEnabled?: boolean;
+  /** Remember brightness level between sessions */
+  rememberLevel?: boolean;
+}
+
 export interface ScreenTintSettings {
   enabled: boolean;
   color: string;
@@ -467,6 +496,18 @@ export interface Settings {
   wasdNavigation?: WasdNavigationSettings;
   notes?: NotesSettings;
   smoothScroll?: SmoothScrollSettings;
+  dimScreen?: DimScreenSettings;
+  mediaPlayer?: MediaPlayerSettings;
+}
+
+export type MediaPlayerPosition = "top-center" | "top-right" | "bottom-center" | "bottom-right" | "custom";
+
+export interface MediaPlayerSettings {
+  enabled: boolean;
+  position: MediaPlayerPosition;
+  customX?: number;
+  customY?: number;
+  autoHide?: boolean;
 }
 
 export interface RecentAction {
@@ -496,6 +537,7 @@ export type AppPage =
   | "visual"
   | "library"
   | "profiles"
+  | "clipboard"
   | "settings"
   | "notes";
 

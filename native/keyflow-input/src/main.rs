@@ -103,6 +103,10 @@ fn main() -> ExitCode {
         }
     };
 
+    // Initialise before accepting configuration. Doing this after starting the
+    // reader could overwrite an already-acknowledged Hyper spec with None.
+    hook::reload_engine();
+
     // Reader thread: protocol commands + EOF -> quit (fail-open).
     thread::spawn(move || {
         let mut reader = reader;
@@ -380,8 +384,6 @@ fn main() -> ExitCode {
         hook::uninstall_hook(handle);
         return ExitCode::from(2);
     }
-
-    hook::reload_engine();
 
     if let Some(ref t) = token {
         hook::queue(

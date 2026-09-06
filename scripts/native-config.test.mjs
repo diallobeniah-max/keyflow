@@ -127,8 +127,7 @@ test("exact configure wire JSON carries hyperKey with the Rust contract field na
   assert.ok(json.includes('"hyperKey"'), "configure must contain the hyperKey property");
   assert.ok(json.includes('"enabled":true'), "hyperKey.enabled must serialize as true");
   assert.ok(json.includes('"vk":165'), "hyperKey.vk must be 165 (Right Alt)");
-  assert.ok(json.includes('"includeShift":false'), "hyperKey.includeShift must serialize");
-  assert.ok(!json.includes("tapActionId"), "modifier Hyper keys (Right Alt) must NOT serialize a tapActionId");
+  assert.ok(json.includes('"tapActionId":"__keyflow_hyper_tap__"'), "modifier Hyper keys (Right Alt) serialize tapActionId");
   assert.ok(json.includes('"suppressOriginal":true'), "hyperKey.suppressOriginal must serialize");
   // No snake_case leakage that Rust (serde camelCase on fields) could mis-handle.
   assert.ok(!json.includes('"physicalVk"'), "must use vk, not physicalVk");

@@ -4,6 +4,7 @@ import { PopupItem } from "../types";
 import { runActions } from "../lib/actions";
 import { resolvePopupItems, effectivePopupKey, popupKeyMap } from "../lib/popup-items";
 import { Icon } from "./Icon";
+import { useMotionPresence } from "../lib/motion";
 
 const W: Record<string, number> = { compact: 380, comfortable: 460, large: 540 };
 const H: Record<string, number> = { compact: 380, comfortable: 560, large: 640 };
@@ -12,12 +13,19 @@ export function PopupMenu() {
   const popup = useStore((s) => s.popup);
   const close = useStore((s) => s.closePopup);
   const settings = useStore((s) => s.data.settings.popup);
+  const [lastPopup, setLastPopup] = useState(popup);
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
+  const motion = useMotionPresence(Boolean(popup), "popover");
+  const displayedPopup = popup ?? lastPopup;
+
+  useEffect(() => {
+    if (popup) setLastPopup(popup);
+  }, [popup]);
 
   const items = useMemo<PopupItem[]>(() => {
-    if (!popup) return [];
-    let list = [...resolvePopupItems(popup.items, settings.items)];
+    if (!displayedPopup) return [];
+    let list = [...resolvePopupItems(displayedPopup.items, settings.items)];
     if (settings.showNumbers) {
       list = list.map((it, i) =>
         i < 9 && !it.hint ? { ...it, hint: effectivePopupKey(it, i) } : it
@@ -33,7 +41,7 @@ export function PopupMenu() {
     }
     list.sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned));
     return list.slice(0, settings.maxItems);
-  }, [popup, q, settings]);
+  }, [displayedPopup, q, settings]);
 
   useEffect(() => {
     setQ("");
@@ -63,7 +71,7 @@ export function PopupMenu() {
     return () => window.removeEventListener("keydown", onKey, true);
   }, [popup, items, active]);
 
-  if (!popup) return null;
+  if (!motion.rendered || !displayedPopup) return null;
 
   const select = (item: PopupItem) => {
     void runActions(item.actions);
@@ -81,14 +89,14 @@ export function PopupMenu() {
   return (
     <div className="popup-layer" role="presentation" onMouseDown={close}>
       <div
-        className="popup-menu"
+        className={`popup-menu ${motion.className}`}
         role="dialog"
         aria-modal="true"
-        aria-label={popup.title ?? "KeyFlow actions"}
+        aria-label={displayedPopup.title ?? "KeyFlow actions"}
         onMouseDown={(e) => e.stopPropagation()}
         style={{
-          left: Math.max(12, Math.min(popup.x, window.innerWidth - w - 12)),
-          top: Math.max(12, Math.min(popup.y, window.innerHeight - 260)),
+          left: Math.max(12, Math.min(displayedPopup.x, window.innerWidth - w - 12)),
+          top: Math.max(12, Math.min(displayedPopup.y, window.innerHeight - 260)),
           width: w,
           maxHeight: h,
           opacity: settings.opacity,
@@ -101,7 +109,7 @@ export function PopupMenu() {
         <div className="popup-brand">
           <div className="popup-brand-left">
             <span className="brand-logo-dot" />
-            <span className="popup-title">{popup.title ?? "KeyFlow"}</span>
+            <span className="popup-title">{displayedPopup.title ?? "KeyFlow"}</span>
           </div>
           <button
             type="button"

@@ -50,8 +50,8 @@ test("buildNativeHyperSpec parses complete hyperKeyConfig from context", () => {
   assert.notEqual(hyperSpec, null);
   assert.equal(hyperSpec.enabled, true);
   assert.equal(hyperSpec.vk, 0xA5); // Right Alt VK
-  // Raycast parity: Right Alt is a modifier Hyper key and must not attach a tap action.
-  assert.equal(hyperSpec.tapActionId, undefined);
+  // Modifier Hyper key supports tap action
+  assert.equal(hyperSpec.tapActionId, "sc-f-popup");
 });
 
 test("ActionRouter routes any trigger key (ArrowUp, 1, G Double, Hyper+T) to correct action", async () => {

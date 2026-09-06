@@ -10,8 +10,19 @@ Shared renderer components are the implementation boundary for the design system
 * A new variant must be documented here and in `docs/DESIGN_CHANGELOG.md` before use.
 * Preserve editable-field event isolation so global keyboard shortcuts do not fire while typing.
 * Preserve Electron title-bar and native-window behaviour.
+* Use `src/lib/motion.ts` and `src/design/motion.css` for every new popup, dialog, sheet, toast, or tooltip. A closing surface uses `useMotionPresence` so it can exit before unmounting.
 
 ## Component inventory
+
+### Clipboard surfaces
+
+`src/design/clipboard.css` owns the responsive clipboard page and popup refinements.
+Show history by default; put capture/layout preferences in the labelled disclosure.
+Layout selection buttons must not contain other interactive controls. Use the persisted
+engine snapshot for every setting, and never offer a privacy switch the engine cannot enforce.
+Popup headers and footers wrap; the shelf owns scrolling, and multi-row cards keep a readable
+minimum height even when the available monitor height requires scrolling. Popup open/close
+uses the shared motion presets, with one cancellable close timer owned by the window manager.
 
 | Component | Responsibility | Required behaviour |
 |---|---|---|
@@ -36,6 +47,7 @@ Shared renderer components are the implementation boundary for the design system
 | `MouseButtonCard` | Mouse shortcut target | Full-card interaction, clear name/status, keyboard-accessible button semantics |
 | `FloatingBottomDock` | Persistent bottom navigation with centered Create (+) button | May use the documented localized acrylic tokens on its pill, circular actions, and the underlying bottom blur scrim (`--dock-scrim-bg`, `--dock-scrim-blur`); controls, focus states, and content beneath the dock remain readable and click-through |
 | `WASD status card` | Optional transient navigation feedback HUD | Disabled by default; when enabled, it uses a polished unclipped HUD badge with vector iconography, accent highlights, and smooth pop/fade transitions without altering navigation input behavior |
+| `Clipboard workspace` | Local history, preview, pinboard, and quick-view composition | Composes `PageHeader`, `Button`, and `AppSelect`; history entries are semantic buttons, pinboards use the tab pattern, previews treat copied HTML as text rather than executable content, and keyboard item navigation is disabled while typing |
 
 The current codebase still has compatibility exports in `src/components/ui.tsx` (`Button`, `IconButton`, `Select`, `Input`, `Textarea`, `Slider`, `Toggle`, `Card`, `PageIntro`, and `Modal`). These exports may be migrated incrementally to the named `App*` components, but they must not grow competing styling rules.
 

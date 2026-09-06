@@ -187,6 +187,18 @@ export function setNavigationModeController(controller: NavigationModeController
   navigationModeController = controller;
 }
 
+let dimScreenManagerInstance: import("./dim-screen-manager.js").DimScreenManager | null = null;
+
+export function setDimScreenManager(manager: import("./dim-screen-manager.js").DimScreenManager | null): void {
+  dimScreenManagerInstance = manager;
+}
+
+let clipboardHistoryHandler: (() => Promise<void> | void) | null = null;
+
+export function setClipboardHistoryHandler(handler: (() => Promise<void> | void) | null): void {
+  clipboardHistoryHandler = handler;
+}
+
 async function sendMediaVk(plan: MediaKeyPlan): Promise<void> {
   const hex = `0x${(plan.vk ?? 0).toString(16).toUpperCase()}`;
   console.log(`[media-control] command=${plan.command}`);
@@ -258,7 +270,14 @@ export async function runDesktopAction(action: any, mainWindow: BrowserWindow | 
         await openSnipOverlay();
         return { ok: true, action: actionType, mode: "snipOverlay" };
       }
-      case "clipboardHistory": await sendKeys("Win+V"); break;
+      case "clipboardHistory": {
+        if (clipboardHistoryHandler) {
+          await clipboardHistoryHandler();
+        } else {
+          await sendKeys("Win+V");
+        }
+        break;
+      }
       case "copySelected": await sendKeys("Ctrl+C"); break;
       case "lockScreen": await detached("rundll32.exe", ["user32.dll,LockWorkStation"]); break;
       case "openSettings": await shell.openExternal(payload.settingsPage ?? "ms-settings:"); break;
@@ -294,6 +313,26 @@ export async function runDesktopAction(action: any, mainWindow: BrowserWindow | 
       case "notesPopup":
         notesService.toggle();
         break;
+      case "toggleDimScreen": {
+        await dimScreenManagerInstance?.toggle();
+        return { ok: true, action: actionType };
+      }
+      case "dimScreenControl": {
+        const mode = payload.dimScreenMode ?? "toggle";
+        switch (mode) {
+          case "enable": await dimScreenManagerInstance?.setEnabled(true); break;
+          case "disable": await dimScreenManagerInstance?.setEnabled(false); break;
+          case "increase": await dimScreenManagerInstance?.increaseLevel(payload.dimLevel ?? 10); break;
+          case "decrease": await dimScreenManagerInstance?.decreaseLevel(payload.dimLevel ?? 10); break;
+          case "set": if (typeof payload.dimLevel === "number") await dimScreenManagerInstance?.setLevel(payload.dimLevel); break;
+          case "toggleExtraDim": await dimScreenManagerInstance?.toggleExtraDim(); break;
+          case "toggle":
+          default:
+            await dimScreenManagerInstance?.toggle();
+            break;
+        }
+        return { ok: true, action: actionType };
+      }
       case "minimizeWindow": mainWindow?.minimize(); break;
       case "maximizeWindow": mainWindow?.maximize(); break;
       case "closeWindow": mainWindow?.close(); break;

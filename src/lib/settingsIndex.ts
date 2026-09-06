@@ -21,6 +21,8 @@ export interface SettingSearchItem {
     | "smoothScroll"
     | "appIcon"
     | "screenTint"
+    | "dimScreen"
+    | "mediaPlayer"
     | "privacy"
     | "backup"
     | "advanced"
@@ -504,6 +506,77 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
     description: "Adjust the opacity of the system-wide tint overlay",
     keywords: ["tint amount", "opacity", "intensity", "strength", "screen color"],
     anchorId: "row-tint-strength",
+  },
+
+  // Dim Screen
+  {
+    id: "dim-screen",
+    title: "Dim Screen",
+    category: "dimScreen",
+    categoryLabel: "Dim Screen",
+    description: "Hardware backlight dimming and persistent dark overlays that remain continuously dim across all application switches",
+    keywords: ["dim", "brightness", "dimmer", "screen dim", "hardware brightness", "dark", "backlight", "night mode", "monitor", "display"],
+    synonyms: ["screen dimmer", "display brightness", "darken screen"],
+    anchorId: "row-dim-enable",
+  },
+  {
+    id: "dim-screen-level",
+    title: "Display brightness level",
+    category: "dimScreen",
+    categoryLabel: "Dim Screen",
+    description: "Adjust physical hardware backlight or software dimming level from 0% to 100%",
+    keywords: ["brightness", "level", "percentage", "dim level", "backlight", "slider"],
+    synonyms: ["brightness level", "dim percentage"],
+    anchorId: "row-dim-level",
+  },
+  {
+    id: "dim-screen-extra",
+    title: "Extra Dim",
+    category: "dimScreen",
+    categoryLabel: "Dim Screen",
+    description: "Dim beyond the physical hardware backlight minimum using a smooth click-through overlay",
+    keywords: ["extra dim", "ultra dim", "night", "darker", "overlay", "midnight"],
+    synonyms: ["super dim", "ultra dark"],
+    anchorId: "row-dim-extra-enable",
+  },
+  {
+    id: "dim-screen-extra-strength",
+    title: "Extra Dim intensity",
+    category: "dimScreen",
+    categoryLabel: "Dim Screen",
+    description: "Additional darkness density applied on top of the physical backlight",
+    keywords: ["extra dim intensity", "extra dim strength", "opacity", "darkness"],
+    anchorId: "row-dim-extra-strength",
+  },
+  {
+    id: "dim-screen-monitors",
+    title: "Target displays",
+    category: "dimScreen",
+    categoryLabel: "Dim Screen",
+    description: "Configure which connected screens receive hardware and overlay dimming",
+    keywords: ["monitors", "displays", "multi monitor", "primary display", "screen selection"],
+    anchorId: "row-dim-apply-to",
+  },
+
+  // Media Player Pill
+  {
+    id: "media-player",
+    title: "Media Player Pill",
+    category: "mediaPlayer",
+    categoryLabel: "Media Player Pill",
+    description: "Floating Apple-style capsule overlay providing instant play, pause, track skipping, and volume control anywhere on your display",
+    keywords: ["media player", "pill", "apple", "dynamic island", "music", "play", "pause", "volume", "skip", "track", "overlay", "spotify", "youtube"],
+    synonyms: ["music controller", "floating media player", "media widget"],
+    anchorId: "row-media-player-enable",
+  },
+  {
+    id: "media-player-position",
+    title: "Media player screen placement",
+    category: "mediaPlayer",
+    categoryLabel: "Media Player Pill",
+    description: "Select Top Center Dynamic Island, corners, or freely drag the media player capsule anywhere on your screen",
+    keywords: ["placement", "position", "draggable", "dynamic island", "top center", "corner", "media widget"],
+    anchorId: "row-media-player-position",
   },
 
   // Privacy & Safety

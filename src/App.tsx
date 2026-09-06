@@ -6,6 +6,7 @@ import { PopupMenu } from "./components/PopupMenu";
 import { CommandPalette } from "./components/CommandPalette";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ToastHost } from "./components/ui";
+import { motionClassName } from "./lib/motion";
 import { GlobalTooltip } from "./components/GlobalTooltip";
 import { FloatingBottomDock } from "./components/FloatingBottomDock";
 import { Dashboard } from "./pages/Dashboard";
@@ -21,6 +22,10 @@ import { PopupShell } from "./components/PopupShell";
 import { NotesPopupShell } from "./components/NotesPopupShell";
 import { DragSwitcherOverlay } from "./pages/DragSwitcherOverlay";
 import { ScreenTintOverlay } from "./pages/ScreenTintOverlay";
+import { DimScreenOverlay } from "./pages/DimScreenOverlay";
+import { MediaPlayerOverlay } from "./pages/MediaPlayerOverlay";
+import { ClipboardOverlay } from "./pages/ClipboardOverlay";
+import { Clipboard } from "./pages/Clipboard";
 import { useStore } from "./store/useStore";
 import { useActiveApp } from "./lib/useActiveApp";
 import { useResolvedTheme } from "./lib/useResolvedTheme";
@@ -43,10 +48,22 @@ function isScreenTintWindow(): boolean {
   return window.location.search.includes("window=screen-tint");
 }
 
+function isDimScreenWindow(): boolean {
+  return window.location.search.includes("window=dim-screen");
+}
+
+function isMediaPlayerWindow(): boolean {
+  return window.location.search.includes("window=media-player");
+}
+
+function isClipboardPopupWindow(): boolean {
+  return window.location.search.includes("window=clipboard-popup");
+}
+
 function Router() {
   const page = useStore((s) => s.currentPage);
   return (
-    <div key={page} className="page-transition-wrap anim-page-enter">
+    <div key={page} className={`page-transition-wrap ${motionClassName("page")}`}>
       {(() => {
         switch (page) {
           case "dashboard":
@@ -61,6 +78,8 @@ function Router() {
             return <ActionLibrary />;
           case "profiles":
             return <Profiles />;
+          case "clipboard":
+            return <Clipboard />;
           case "settings":
             return <Settings />;
           case "notes":
@@ -78,6 +97,9 @@ export default function App() {
   if (isNotesWindow()) return <><GlobalTooltip /><NotesPopupShell /></>;
   if (isDragSwitcherWindow()) return <><GlobalTooltip /><DragSwitcherOverlay /></>;
   if (isScreenTintWindow()) return <><GlobalTooltip /><ScreenTintOverlay /></>;
+  if (isDimScreenWindow()) return <><GlobalTooltip /><DimScreenOverlay /></>;
+  if (isMediaPlayerWindow()) return <><GlobalTooltip /><MediaPlayerOverlay /></>;
+  if (isClipboardPopupWindow()) return <><GlobalTooltip /><ClipboardOverlay /></>;
 
   const onboardingDone = useStore((s) => s.data.onboardingDone);
   const drawerOpen = useStore((s) => s.drawerOpen);
@@ -86,7 +108,7 @@ export default function App() {
   const smoothScroll = useStore((s) => s.data.settings.smoothScroll);
   const resolvedTheme = useResolvedTheme(appearance?.theme);
 
-  const mainRef = useRef<HTMLElement>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
   useSmoothScroll(mainRef, smoothScroll);
 
   useEffect(() => {
@@ -142,6 +164,9 @@ export default function App() {
 
   const wasdNavigationActive = useStore((s) => s.wasdNavigationActive);
   const wasdSettings = useStore((s) => s.data.settings?.wasdNavigation);
+  const setPage = useStore((s) => s.setPage);
+
+  useEffect(() => window.electronAPI?.clipboard.onOpenSurface(() => setPage("clipboard")), [setPage]);
 
   useEffect(() => {
     void window.electronAPI?.input.setWasdFeedbackConfig?.({
@@ -179,11 +204,13 @@ export default function App() {
             aria-hidden="true"
           />
         )}
-        <main ref={mainRef} className="main">
+        <main className="main">
           <TopBar />
-          <ErrorBoundary>
-            <Router />
-          </ErrorBoundary>
+          <div ref={mainRef} className="content" data-scroll-owner="app-content">
+            <ErrorBoundary>
+              <Router />
+            </ErrorBoundary>
+          </div>
         </main>
       </div>
       <PopupMenu />

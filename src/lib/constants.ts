@@ -34,6 +34,8 @@ export const ACTION_META: Record<ActionType, { label: string; icon: string; colo
   notesPopup: { label: "Notes Popup", icon: "file", color: "#4F7CFF", category: "Productivity" },
   delay: { label: "Delay / wait", icon: "pause", color: "#7EA2FF", category: "Flow" },
   remapKey: { label: "Remap key", icon: "swap", color: "#5D8DFF", category: "Input" },
+  toggleDimScreen: { label: "Toggle Dim Screen", icon: "moon", color: "#4F7CFF", category: "System" },
+  dimScreenControl: { label: "Dim Screen control", icon: "moon", color: "#5D8DFF", category: "System" },
 };
 
 export const TRIGGER_META: Record<TriggerType, { label: string; desc: string; icon: string }> = {

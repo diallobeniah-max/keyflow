@@ -1,0 +1,147 @@
+/*
+ * KeyFlow Motion Library
+ *
+ * This is the sole animation vocabulary for transient renderer UI. Pair a
+ * `kf-motion--<preset>` class with `is-enter` or `is-exit`; use
+ * `useMotionPresence` for components that must remain mounted while closing.
+ */
+
+@keyframes kf-motion-page-enter {
+  from { opacity: 0; transform: translateY(var(--space-2)); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes kf-motion-popover-enter {
+  from { opacity: 0; transform: translateY(calc(var(--space-1) * -1)) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes kf-motion-popover-exit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(calc(var(--space-1) * -1)) scale(0.98); }
+}
+
+@keyframes kf-motion-scrim-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes kf-motion-scrim-exit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes kf-motion-dialog-enter {
+  from { opacity: 0; transform: translateY(var(--space-2)) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes kf-motion-dialog-exit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(var(--space-1)) scale(0.98); }
+}
+
+@keyframes kf-motion-toast-enter {
+  from { opacity: 0; transform: translateX(var(--space-3)); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes kf-motion-toast-exit {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(var(--space-3)); }
+}
+
+.kf-motion--page.is-enter {
+  animation: kf-motion-page-enter var(--motion-normal) both;
+}
+
+.kf-motion--popover.is-enter {
+  animation: kf-motion-popover-enter var(--motion-default) both;
+  transform-origin: top center;
+}
+
+.kf-motion--popover.is-exit {
+  animation: kf-motion-popover-exit var(--motion-fast) both;
+  pointer-events: none;
+  transform-origin: top center;
+}
+
+.kf-motion--dialog.is-enter,
+.kf-motion--sheet.is-enter {
+  animation: kf-motion-scrim-enter var(--motion-slow) both;
+}
+
+.kf-motion--dialog.is-exit,
+.kf-motion--sheet.is-exit {
+  animation: kf-motion-scrim-exit var(--motion-fast) both;
+  pointer-events: none;
+}
+
+.kf-motion--dialog.is-enter .kf-motion__surface,
+.kf-motion--sheet.is-enter .kf-motion__surface {
+  animation: kf-motion-dialog-enter var(--motion-slow) both;
+}
+
+.kf-motion--dialog.is-exit .kf-motion__surface,
+.kf-motion--sheet.is-exit .kf-motion__surface {
+  animation: kf-motion-dialog-exit var(--motion-fast) both;
+}
+
+.kf-motion--toast.is-enter {
+  animation: kf-motion-toast-enter var(--motion-default) both;
+}
+
+.kf-motion--toast.is-exit {
+  animation: kf-motion-toast-exit var(--motion-fast) both;
+  pointer-events: none;
+}
+
+/* Tooltip placement owns the outer transform; animate its contents instead. */
+.kf-motion--tooltip.is-enter .kf-tooltip-inner {
+  animation: kf-motion-popover-enter var(--motion-fast) both;
+}
+
+.kf-motion--tooltip.is-exit .kf-tooltip-inner {
+  animation: kf-motion-popover-exit var(--motion-fast) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kf-motion,
+  .kf-motion * {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+  }
+}
+
+.reduce-motion .kf-motion,
+.reduce-motion .kf-motion * {
+  animation-duration: 1ms !important;
+  animation-delay: 0ms !important;
+}
+
+/* Compatibility aliases: existing surfaces share the same approved movement
+   while they are incrementally migrated to `motionClassName`/presence. */
+.anim-page-enter,
+.anim-page-back,
+.anim-page-forward {
+  animation: kf-motion-page-enter var(--motion-normal) both;
+}
+
+.anim-modal-enter,
+.anim-dropdown-enter,
+.anim-menu-enter,
+.anim-scale-in {
+  animation: kf-motion-dialog-enter var(--motion-slow) both;
+}
+
+.anim-modal-exit {
+  animation: kf-motion-dialog-exit var(--motion-fast) both;
+}
+
+.anim-fade-in {
+  animation: kf-motion-scrim-enter var(--motion-default) both;
+}
+
+.anim-fade-out {
+  animation: kf-motion-scrim-exit var(--motion-fast) both;
+}

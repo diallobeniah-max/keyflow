@@ -15,6 +15,7 @@ import { HotCornersPage } from "./settings/HotCornersPage";
 import { AlwaysOnTopPage } from "./settings/AlwaysOnTopPage";
 import { AppearancePage } from "./settings/AppearancePage";
 import { ScreenTintPage } from "./settings/ScreenTintPage";
+import { DimScreenPage } from "./settings/DimScreenPage";
 import { AppIconPage } from "./settings/AppIconPage";
 import { PopupMenuPage } from "./settings/PopupMenuPage";
 import { PrivacyPage } from "./settings/PrivacyPage";
@@ -23,6 +24,7 @@ import { AdvancedPage } from "./settings/AdvancedPage";
 import { AboutPage } from "./settings/AboutPage";
 import { ShortcutBindingPage } from "./settings/ShortcutBindingPage";
 import { SmoothScrollPage } from "./settings/SmoothScrollPage";
+import { MediaPlayerPage } from "./settings/MediaPlayerPage";
 
 export function Settings() {
   const settings = useStore((s) => s.data.settings);
@@ -92,6 +94,10 @@ export function Settings() {
         return <SmoothScrollPage {...props} />;
       case "screenTint":
         return <ScreenTintPage {...props} />;
+      case "dimScreen":
+        return <DimScreenPage {...props} />;
+      case "mediaPlayer":
+        return <MediaPlayerPage {...props} />;
       case "appIcon":
         return <AppIconPage {...props} />;
       case "popup":

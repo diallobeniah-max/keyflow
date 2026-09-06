@@ -303,6 +303,46 @@ export function Dashboard() {
           </div>
         </div>
 
+        {/* Module 4b: Clipboard Shelf */}
+        <div className="card utility-card">
+          <div className="spread mb-sm">
+            <div className="row gap-sm">
+              <div className="utility-card-icon">
+                <Icon name="clipboard" size={18} />
+              </div>
+              <div>
+                <div className="bold small">Clipboard Shelf</div>
+                <div className="muted tiny">Paste-Style Card Ribbon</div>
+              </div>
+            </div>
+            <span className="chip chip-subtle">Win+V</span>
+          </div>
+          <p className="muted tiny mb-sm">
+            Always-on-top paste overlay with multi-layout display, rich links, and visual color swatches.
+          </p>
+          <div className="spread pt-sm border-top-subtle">
+            <span className="chip chip-subtle">
+              <span>Trigger: <b>Win + V</b></span>
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const eapi = (window as any).electronAPI;
+                if (eapi?.clipboard?.toggle) {
+                  void eapi.clipboard.toggle();
+                } else if (eapi?.clipboard?.openSurface) {
+                  void eapi.clipboard.openSurface("bottom");
+                } else {
+                  void eapi?.actions?.run?.({ type: "clipboardHistory" });
+                }
+              }}
+            >
+              Open Clipboard →
+            </Button>
+          </div>
+        </div>
+
         {/* Module 5: Screen Drag Switcher */}
         <div className="card utility-card">
           <div className="spread mb-sm">

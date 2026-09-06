@@ -12,6 +12,8 @@ export type SettingsSectionId =
   | "appearance"
   | "smoothScroll"
   | "screenTint"
+  | "dimScreen"
+  | "mediaPlayer"
   | "appIcon"
   | "popup"
   | "privacy"
@@ -141,6 +143,20 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
         summary: (d) => (d.settings.screenTint?.enabled ? "Active" : "Off"),
       },
       {
+        id: "dimScreen",
+        label: "Dim Screen",
+        icon: "moon",
+        accentColor: "indigo",
+        summary: (d) => (d.settings.dimScreen?.enabled ? `${d.settings.dimScreen?.level ?? 30}%` : "Off"),
+      },
+      {
+        id: "mediaPlayer",
+        label: "Media Player Pill",
+        icon: "play",
+        accentColor: "purple",
+        summary: (d) => (d.settings.mediaPlayer?.enabled ? "Active" : "Off"),
+      },
+      {
         id: "appIcon",
         label: "App Icon",
         icon: "sparkles",
@@ -208,6 +224,8 @@ export function resolveSettingsSectionId(raw: string | undefined | null): Settin
   if (lower === "general") return "appBehavior";
   if (lower === "shortcuts") return "keyboard";
   if (lower === "data") return "backup";
+  if (lower === "dim" || lower === "dimscreen" || lower === "dim-screen") return "dimScreen";
+  if (lower === "media" || lower === "mediaplayer" || lower === "media-player") return "mediaPlayer";
   // Direct matches
   for (const group of SETTINGS_NAV_GROUPS) {
     for (const item of group.items) {

@@ -413,6 +413,7 @@ export function getSafeHyperKeySuggestions(
   activeHyperKey?: string,
 ): { value: string; label: string; safe: boolean; warning?: string }[] {
   const CANDIDATES = [
+    { value: "None", label: "None (Disabled)" },
     { value: "AltRight", label: "Right Alt" },
     { value: "ControlRight", label: "Right Ctrl" },
     { value: "Apps", label: "Menu / Application Key" },
@@ -423,7 +424,7 @@ export function getSafeHyperKeySuggestions(
 
   const assignedKeys = new Set(
     allShortcuts
-      .filter((s) => s.enabled && (!activeProfileId || s.profileId === activeProfileId))
+      .filter((s) => s.enabled && !s.id?.startsWith("__system_") && (!activeProfileId || s.profileId === activeProfileId))
       .map((s) => s.key.toLowerCase()),
   );
 

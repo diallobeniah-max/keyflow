@@ -4,6 +4,7 @@ import {
   dialog,
   ipcMain,
   Menu,
+  nativeImage,
   nativeTheme,
   Tray,
 } from "electron";
@@ -17,6 +18,7 @@ import { PopupWindowManager } from "./popup-window.js";
 import { DragSwitcherWindowManager } from "./drag-switcher-window.js";
 import { HotCornersManager } from "./hot-corners.js";
 import { ScreenTintWindowManager } from "./screen-tint-window.js";
+import { DimScreenManager } from "./dim-screen-manager.js";
 import { notesService } from "./notes-window.js";
 import { autoBackupService } from "./auto-backup.js";
 import { nextPopupGeneration, routeMatchedShortcut, notifyRendererMatched } from "./action-router.js";
@@ -24,7 +26,9 @@ import { NativeInputHelper, buildNativeKeyConfig, resolveNativeHelperPath } from
 import { NavigationModeController } from "./navigation-mode.js";
 import { showNavigationOverlay, setSystemCursorBlue, restoreSystemCursor } from "./navigation-overlay.js";
 import { playKeyFlowSound } from "./sound.js";
-import { setNavigationModeController } from "./actions.js";
+import { setNavigationModeController, setClipboardHistoryHandler, setDimScreenManager } from "./actions.js";
+import { clipboardEngine, type ClipboardSurface } from "./clipboard-engine.js";
+import { ClipboardWindowManager } from "./clipboard-window.js";
 import { setNativeKeyInjector } from "./actions.js";
 import { nativeKeyName } from "./vk-catalog.js";
 import { AhkSuppressionManager } from "./ahk-suppression-manager.js";
@@ -49,6 +53,8 @@ let popupManager: PopupWindowManager | null = null;
 let dragSwitcherManager: DragSwitcherWindowManager | null = null;
 let hotCornersManager: HotCornersManager | null = null;
 let screenTintManager: ScreenTintWindowManager | null = null;
+let dimScreenManager: DimScreenManager | null = null;
+let clipboardWindowManager: ClipboardWindowManager | null = null;
 let ahkManager: AhkSuppressionManager | null = null;
 let nativeHelper: NativeInputHelper | null = null;
 let navigationModeController: NavigationModeController | null = null;
@@ -175,6 +181,11 @@ function isPopupAction(action: any): boolean {
 async function runActionsDesktop(actions: any[]): Promise<ActionResult[]> {
   const results: ActionResult[] = [];
   for (const action of actions ?? []) {
+    if (action?.type === "clipboardHistory") {
+      clipboardWindowManager?.toggle();
+      results.push({ ok: true, action: "clipboardHistory" });
+      continue;
+    }
     if (isPopupAction(action)) {
       popupManager?.toggle({
         items: action.payload?.popupItems ?? [],
@@ -333,6 +344,7 @@ function createWindow(): void {
     mainWindow = null;
     popupManager?.destroy();
     dragSwitcherManager?.destroy();
+    clipboardWindowManager?.destroy();
   });
 
   mainWindow.on("close", (event) => {
@@ -344,7 +356,105 @@ function createWindow(): void {
 }
 
 function registerIPC(): void {
+  clipboardEngine.subscribe((snapshot) => {
+    mainWindow?.webContents.send("clipboard:changed", snapshot);
+    clipboardWindowManager?.sync(snapshot);
+  });
+  ipcMain.handle("clipboard:get-snapshot", () => clipboardEngine.snapshot());
+  ipcMain.handle("clipboard:get-item", (_event, id: unknown) => typeof id === "string" ? clipboardEngine.getItem(id) : null);
+  ipcMain.handle("clipboard:set-settings", (_event, patch: unknown) => {
+    if (!patch || typeof patch !== "object") throw new Error("Invalid clipboard settings.");
+    return clipboardEngine.setSettings(patch as Record<string, unknown>);
+  });
+  ipcMain.handle("clipboard:create-pinboard", (_event, input: unknown) => {
+    if (!input || typeof input !== "object") throw new Error("Invalid pinboard.");
+    const value = input as { name?: unknown; color?: unknown; icon?: unknown };
+    return clipboardEngine.createPinboard({ name: typeof value.name === "string" ? value.name : "", color: typeof value.color === "string" ? value.color : "var(--color-accent)", icon: typeof value.icon === "string" ? value.icon : undefined });
+  });
+  ipcMain.handle("clipboard:update-pinboard", (_event, id: unknown, patch: unknown) => {
+    if (typeof id !== "string" || !patch || typeof patch !== "object") throw new Error("Invalid pinboard update.");
+    return clipboardEngine.updatePinboard(id, patch as Record<string, unknown>);
+  });
+  ipcMain.handle("clipboard:delete-pinboard", (_event, id: unknown) => {
+    if (typeof id !== "string") throw new Error("Invalid pinboard id.");
+    return clipboardEngine.deletePinboard(id);
+  });
+  ipcMain.handle("clipboard:set-pinned", (_event, id: unknown, pinned: unknown) => {
+    if (typeof id !== "string" || typeof pinned !== "boolean") throw new Error("Invalid pin request.");
+    return clipboardEngine.setPinned(id, pinned);
+  });
+  ipcMain.handle("clipboard:move-to-pinboard", (_event, id: unknown, pinboardId: unknown) => {
+    if (typeof id !== "string" || (pinboardId !== null && typeof pinboardId !== "string")) throw new Error("Invalid pinboard move.");
+    return clipboardEngine.moveToPinboard(id, pinboardId);
+  });
+  ipcMain.handle("clipboard:rename", (_event, id: unknown, title: unknown) => {
+    if (typeof id !== "string" || typeof title !== "string") throw new Error("Invalid clipboard rename.");
+    return clipboardEngine.rename(id, title);
+  });
+  ipcMain.handle("clipboard:assign-pinboard", (_event, id: unknown, board: unknown) => {
+    if (typeof id !== "string" || typeof board !== "string") throw new Error("Invalid pinboard assignment.");
+    return clipboardEngine.assignPinboard(id, board);
+  });
+  ipcMain.handle("clipboard:unassign-pinboard", (_event, id: unknown, board: unknown) => {
+    if (typeof id !== "string" || typeof board !== "string") throw new Error("Invalid pinboard assignment.");
+    return clipboardEngine.unassignPinboard(id, board);
+  });
+  ipcMain.handle("clipboard:reorder-items", (_event, source: unknown, target: unknown) => {
+    if (typeof source !== "string" || typeof target !== "string") throw new Error("Invalid clipboard reorder.");
+    return clipboardEngine.reorderItems(source, target);
+  });
+  ipcMain.handle("clipboard:delete", (_event, id: unknown) => {
+    if (typeof id !== "string") throw new Error("Invalid clipboard item id.");
+    return clipboardEngine.delete(id);
+  });
+  ipcMain.handle("clipboard:clear-unpinned", () => clipboardEngine.clearUnpinned());
+  ipcMain.handle("clipboard:copy", async (_event, id: unknown, plainText = false) => {
+    if (typeof id !== "string" || typeof plainText !== "boolean") throw new Error("Invalid clipboard copy request.");
+    await clipboardEngine.restoreToClipboard(id, plainText); return { ok: true };
+  });
+  ipcMain.handle("clipboard:paste", async (_event, id: unknown, plainText = false, keepOpen = false) => {
+    if (typeof id !== "string" || typeof plainText !== "boolean") throw new Error("Invalid clipboard paste request.");
+    await clipboardEngine.restoreToClipboard(id, plainText);
+    await clipboardWindowManager?.hideForPaste();
+    const result = await runDesktopAction({ type: "pressShortcut", payload: { shortcut: "Ctrl+V" } }, mainWindow);
+    clipboardWindowManager?.restoreAfterPaste(keepOpen === true);
+    return result;
+  });
+  ipcMain.handle("clipboard:add-dropped-files", (_event, paths: unknown) => clipboardEngine.addDroppedFiles(paths));
+  ipcMain.on("clipboard:start-drag", (event, id: unknown) => {
+    if (typeof id !== "string") return;
+    try {
+      const staged = clipboardEngine.stageForDrag(id);
+      (event.sender as any).startDrag({ file: staged.file, files: staged.files, icon: nativeImage.createEmpty() });
+    } catch (error) { console.warn("[clipboard] drag staging failed", error); }
+  });
+  ipcMain.handle("clipboard:open-surface", (_event, _surface: unknown) => {
+    clipboardWindowManager?.show();
+    return true;
+  });
+  ipcMain.handle("clipboard:toggle", () => {
+    clipboardWindowManager?.toggle();
+    return true;
+  });
+  ipcMain.handle("clipboard:show", () => {
+    clipboardWindowManager?.show();
+    return true;
+  });
+  ipcMain.handle("clipboard:set-keep-open", (_event, keepOpen: boolean) => {
+    clipboardWindowManager?.setKeepOpen(keepOpen);
+    return true;
+  });
+  ipcMain.handle("clipboard:probe-formats", () => clipboardEngine.probeFormats());
+  ipcMain.handle("clipboard:hide-popup", () => {
+    clipboardWindowManager?.requestClose();
+    return true;
+  });
+
   ipcMain.handle("action:run", (_event, action: any) => {
+    if (action?.type === "clipboardHistory") {
+      clipboardWindowManager?.toggle();
+      return { ok: true, action: "clipboardHistory" } as ActionResult;
+    }
     if (isPopupAction(action)) {
       popupManager?.toggle({
         items: action.payload?.popupItems ?? [],
@@ -403,6 +513,13 @@ function registerIPC(): void {
     screenTintManager?.update(config);
     return true;
   });
+  ipcMain.handle("dim-screen:update", (_event, config: any) => dimScreenManager?.update(config));
+  ipcMain.handle("dim-screen:get-state", () => dimScreenManager?.getState());
+  ipcMain.handle("dim-screen:set-enabled", (_event, enabled: boolean) => dimScreenManager?.setEnabled(enabled));
+  ipcMain.handle("dim-screen:set-level", (_event, level: number) => dimScreenManager?.setLevel(level));
+  ipcMain.handle("dim-screen:set-extra-dim", (_event, enabled: boolean, strength?: number) => dimScreenManager?.setExtraDim(enabled, strength));
+  ipcMain.handle("dim-screen:toggle", () => dimScreenManager?.toggle());
+  ipcMain.handle("dim-screen:list-displays", () => dimScreenManager?.listDisplays() ?? []);
   ipcMain.handle("window:minimize", () => mainWindow?.minimize());
   ipcMain.handle("window:toggle-maximize", () => {
     if (mainWindow?.isMaximized()) mainWindow.unmaximize();
@@ -796,6 +913,28 @@ app.whenReady().then(() => {
     isDev: process.env.NODE_ENV === "development" || process.argv.includes("--dev"),
     appPath: app.getAppPath(),
   });
+  dimScreenManager = new DimScreenManager();
+  dimScreenManager.setWindowOptions({
+    devUrl: DEV_URL,
+    preloadPath: PRELOAD_PATH,
+    isDev: process.env.NODE_ENV === "development" || process.argv.includes("--dev"),
+    appPath: app.getAppPath(),
+  });
+  dimScreenManager.setOnStateChanged((state) => {
+    mainWindow?.webContents.send("dim-screen:state-changed", state);
+  });
+  setDimScreenManager(dimScreenManager);
+  clipboardEngine.setSourceAppProvider(() => nativeHelper?.getActiveApp() ?? Promise.resolve(null));
+  clipboardEngine.start();
+  clipboardWindowManager = new ClipboardWindowManager({
+    devUrl: DEV_URL,
+    preloadPath: PRELOAD_PATH,
+    isDev: process.env.NODE_ENV === "development" || process.argv.includes("--dev"),
+    appPath: app.getAppPath(),
+  });
+  setClipboardHistoryHandler(() => {
+    clipboardWindowManager?.toggle();
+  });
   registerIPC();
   createWindow();
 
@@ -890,4 +1029,5 @@ app.on("will-quit", () => {
   dragSwitcherManager?.destroy();
   hotCornersManager?.stop();
   screenTintManager?.destroy();
+  dimScreenManager?.destroy();
 });

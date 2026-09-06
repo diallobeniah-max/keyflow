@@ -112,6 +112,17 @@ export function createCommandRegistry(data: PersistedState): CommandDefinition[]
     ),
     command(
       {
+        id: "navigate.clipboard",
+        title: "Open Clipboard",
+        description: "Search, preview, pin, drag, and paste local clipboard history.",
+        category: "Navigation",
+        icon: "clipboard",
+        keywords: ["copy", "paste", "history", "pinboard", "quick paste"],
+      },
+      ({ navigate }) => navigate("clipboard")
+    ),
+    command(
+      {
         id: "navigate.notes",
         title: "Open Notes Settings",
         description: "Configure floating notepad preferences, slash commands, and save location.",
@@ -207,6 +218,23 @@ export function createCommandRegistry(data: PersistedState): CommandDefinition[]
         keywords: ["preview", "layout", "compact", "responsive", "snap", "left", "right", "fit", "scale", "density"],
       },
       ({ openLayoutPreview }) => openLayoutPreview()
+    ),
+    command(
+      {
+        id: "action.toggle-dim-screen",
+        title: "Toggle Dim Screen",
+        description: "Instantly toggle system-wide display dimming on or off.",
+        category: "Quick actions",
+        icon: "moon",
+        keywords: ["dim", "screen", "brightness", "night", "dark", "backlight"],
+      },
+      ({ toast }) => {
+        if (typeof window !== "undefined" && window.electronAPI?.dimScreen?.toggle) {
+          window.electronAPI.dimScreen.toggle().then((state) => {
+            toast(state.enabled ? `Dim Screen engaged (${state.level}%)` : "Dim Screen disabled", state.enabled ? "info" : "success");
+          }).catch(() => {});
+        }
+      }
     ),
   ];
 

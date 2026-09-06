@@ -21,33 +21,48 @@ const BUILTIN_PRESETS: {
   label: string;
   description: string;
   badge?: string;
+  icon: string;
+  specs: string[];
 }[] = [
   {
     id: "native",
     label: "Native",
-    description: "OS default stepped scrolling, no animation",
+    description: "OS default stepped scrolling with raw hardware steps",
     badge: "Off",
+    icon: "mouse",
+    specs: ["OS Stepped", "0ms delay"],
   },
   {
     id: "smooth",
     label: "Smooth",
-    description: "Natural fluid animation, moderate acceleration",
+    description: "Natural fluid animation with balanced deceleration",
     badge: "Default",
+    icon: "sparkles",
+    specs: ["280ms", "100px", "3× max"],
   },
   {
     id: "silky",
     label: "Silky",
-    description: "Longer, softer glide with gentle deceleration",
+    description: "Longer, softer glide with gentle progressive easing",
+    badge: "Fluid",
+    icon: "droplet",
+    specs: ["450ms", "100px", "2× max"],
   },
   {
     id: "fast",
     label: "Fast",
-    description: "Short snappy animation with high acceleration",
+    description: "Snappy low-latency impulse for coding and rapid navigation",
+    badge: "Snappy",
+    icon: "lightning",
+    specs: ["160ms", "100px", "4× max"],
   },
   {
     id: "custom",
     label: "Custom",
-    description: "Manual control over every parameter",
+    description: "Manual fine-tuned control over all motion parameters",
+    badge: "Manual",
+    icon: "sliders",
+    specs: ["User tuned"],
   },
 ];
 
@@ -292,6 +307,11 @@ export const SmoothScrollPage: FC<SmoothScrollPageProps> = ({ onBack }) => {
           {/* Built-in Presets */}
           {BUILTIN_PRESETS.map((p) => {
             const isActive = settings.preset === p.id;
+            const currentSpecs =
+              p.id === "custom"
+                ? [`${settings.animationTime}ms`, `${settings.stepSize}px`, `${settings.accelerationMax}× max`]
+                : p.specs;
+
             return (
               <button
                 key={p.id}
@@ -301,17 +321,35 @@ export const SmoothScrollPage: FC<SmoothScrollPageProps> = ({ onBack }) => {
                 aria-pressed={isActive}
               >
                 <div className="ss-preset-card-header">
-                  <span className="ss-preset-card-label">{p.label}</span>
-                  {p.badge && (
-                    <span className={`ss-preset-card-badge${isActive ? " is-active" : ""}`}>
-                      {p.badge}
-                    </span>
-                  )}
-                  {isActive && (
-                    <span className="ss-preset-card-check" aria-hidden="true">✓</span>
-                  )}
+                  <div className="row gap-xs items-center">
+                    <div className="ss-preset-icon-box">
+                      <Icon name={p.icon as any} size={15} />
+                    </div>
+                    <span className="ss-preset-card-label">{p.label}</span>
+                  </div>
+                  <div className="row gap-xs items-center">
+                    {p.badge && (
+                      <span className={`ss-preset-card-badge${isActive ? " is-active" : ""}`}>
+                        {p.badge}
+                      </span>
+                    )}
+                    {isActive && (
+                      <span className="ss-preset-card-check" aria-hidden="true">
+                        <Icon name="check" size={11} />
+                      </span>
+                    )}
+                  </div>
                 </div>
+
                 <p className="ss-preset-card-desc">{p.description}</p>
+
+                <div className="ss-spec-chips">
+                  {currentSpecs.map((spec, i) => (
+                    <span key={i} className="ss-spec-chip">
+                      {spec}
+                    </span>
+                  ))}
+                </div>
               </button>
             );
           })}
@@ -329,46 +367,59 @@ export const SmoothScrollPage: FC<SmoothScrollPageProps> = ({ onBack }) => {
               >
                 <div className="ss-preset-card-header">
                   <div className="row gap-xs items-center">
-                    <span className={`ss-preset-color-dot ${cp.color || "purple"}`} />
+                    <div className="ss-preset-icon-box">
+                      <span className={`ss-preset-color-dot ${cp.color || "purple"}`} />
+                    </div>
                     <span className="ss-preset-card-label text-ellipsis">{cp.name}</span>
                   </div>
-                  {isActive && (
-                    <span className="ss-preset-card-check" aria-hidden="true">✓</span>
-                  )}
-                  <button
-                    type="button"
-                    className="ss-preset-card-delete"
-                    onClick={(e) => handleDeleteCustomPreset(e, cp.id)}
-                    title={`Delete preset ${cp.name}`}
-                    aria-label={`Delete preset ${cp.name}`}
-                  >
-                    ×
-                  </button>
+                  <div className="row gap-xs items-center">
+                    {isActive && (
+                      <span className="ss-preset-card-check" aria-hidden="true">
+                        <Icon name="check" size={11} />
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="ss-preset-card-delete"
+                      onClick={(e) => handleDeleteCustomPreset(e, cp.id)}
+                      title={`Delete preset ${cp.name}`}
+                      aria-label={`Delete preset ${cp.name}`}
+                    >
+                      <Icon name="close" size={10} />
+                    </button>
+                  </div>
                 </div>
-                <p className="ss-preset-card-desc">
-                  {cp.animationTime}ms • {cp.stepSize}px • {cp.accelerationMax}×
-                </p>
+
+                <p className="ss-preset-card-desc">Custom curve profile</p>
+
+                <div className="ss-spec-chips">
+                  <span className="ss-spec-chip">{cp.animationTime}ms</span>
+                  <span className="ss-spec-chip">{cp.stepSize}px</span>
+                  <span className="ss-spec-chip">{cp.accelerationMax}× max</span>
+                </div>
               </button>
             );
           })}
-        </div>
 
-        {/* Create New Preset Trigger Button */}
-        {!creatingNew && (
-          <div className="mt-sm flex-start">
+          {/* Quick Create Preset Card in the deck */}
+          {!creatingNew && (
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
+              className="ss-preset-add-card"
               onClick={() => {
                 setCreatingNew(true);
                 setShowAdvanced(true);
               }}
+              title="Save current scrolling settings as a custom preset"
             >
-              <Icon name="plus" size={13} />
-              <span>Create New Preset from Current Settings</span>
+              <div className="ss-preset-icon-box">
+                <Icon name="plus" size={14} />
+              </div>
+              <span className="ss-preset-add-label">+ New Custom Preset</span>
+              <span className="ss-preset-add-desc">Save current parameters</span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Create New Preset Panel */}
         {creatingNew && (
@@ -596,6 +647,13 @@ export const SmoothScrollPage: FC<SmoothScrollPageProps> = ({ onBack }) => {
         accentColor="green"
       >
         <div className="ss-preview-container">
+          <div className="ss-preview-header">
+            <div className="row gap-xs items-center">
+              <Icon name="mouse" size={13} className="text-secondary" />
+              <span className="tiny bold uppercase tracking-wider text-secondary">Interactive Test Area</span>
+            </div>
+            <span className="tiny text-muted">Scroll mouse wheel here to test animation response</span>
+          </div>
           <div ref={previewRef} className="ss-preview-scroll">
             {PREVIEW_ITEMS.map((item, i) => (
               <div key={i} className="ss-preview-row">

@@ -2,6 +2,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useId, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { Icon } from "../Icon";
+import { useMotionPresence } from "../../lib/motion";
 
 export interface AppSelectOption {
   value: string;
@@ -92,6 +93,7 @@ export function AppSelect({
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<CSSProperties>();
   const [searchQuery, setSearchQuery] = useState("");
+  const menuMotion = useMotionPresence(open, "popover");
 
   const isSearchable = searchable ?? options.length >= 6;
 
@@ -118,10 +120,13 @@ export function AppSelect({
 
   const close = (restoreFocus = false) => {
     setOpen(false);
-    setMenuStyle(undefined);
     setSearchQuery("");
     if (restoreFocus) window.requestAnimationFrame(() => triggerRef.current?.focus());
   };
+
+  useEffect(() => {
+    if (!open && !menuMotion.rendered) setMenuStyle(undefined);
+  }, [menuMotion.rendered, open]);
 
   const updateMenuPosition = () => {
     const trigger = triggerRef.current;
@@ -280,10 +285,10 @@ export function AppSelect({
     }
   };
 
-  const menu = open && menuStyle ? createPortal(
+  const menu = menuMotion.rendered && menuStyle ? createPortal(
     <div
       ref={menuRef}
-      className="app-select__menu"
+      className={`app-select__menu ${menuMotion.className}`}
       id={listboxId}
       role="listbox"
       aria-labelledby={labelledByIds}

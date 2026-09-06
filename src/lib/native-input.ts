@@ -69,7 +69,7 @@ export function initNativeInput(): void {
         remapTo: undefined,
         appScope: undefined,
       });
-      if (settings.hyperKeyConfig?.enabled) {
+      if (settings.hyperKeyConfig?.enabled && settings.hyperKeyConfig?.key !== "CapsLock") {
         list.push({
           id: "__system_hyper_capslock_bypass",
           profileId: activeId,
@@ -121,6 +121,29 @@ export function initNativeInput(): void {
       color: tint?.color ?? SCREEN_TINT_DEFAULT_COLOR,
       strength: tint?.strength ?? 18,
     }).catch((error: unknown) => console.warn("[screen-tint] update failed", error));
+    const dim = state.data.settings.dimScreen;
+    if (dim) {
+      void eapi.dimScreen?.update({
+        enabled: !!dim.enabled,
+        level: dim.level ?? 30,
+        extraDimEnabled: !!dim.extraDimEnabled,
+        extraDimStrength: dim.extraDimStrength ?? 40,
+        applyTo: dim.applyTo ?? "all",
+        selectedDisplayIds: dim.selectedDisplayIds ?? [],
+        startEnabled: !!dim.startEnabled,
+        rememberLevel: !!dim.rememberLevel,
+      }).catch((error: unknown) => console.warn("[dim-screen] update failed", error));
+    }
+    const mp = state.data.settings.mediaPlayer;
+    if (mp) {
+      void eapi.mediaPlayer?.updateConfig?.({
+        enabled: !!mp.enabled,
+        position: mp.position ?? "top-center",
+        customX: mp.customX,
+        customY: mp.customY,
+        autoHide: !!mp.autoHide,
+      }).catch((error: unknown) => console.warn("[media-player] update failed", error));
+    }
   };
 
   const syncStartup = () => {
@@ -243,6 +266,8 @@ export function initNativeInput(): void {
       state.data.settings.dragSwitcher !== previous.data.settings.dragSwitcher ||
       state.data.settings.hotCorners !== previous.data.settings.hotCorners ||
       state.data.settings.screenTint !== previous.data.settings.screenTint ||
+      state.data.settings.dimScreen !== previous.data.settings.dimScreen ||
+      state.data.settings.mediaPlayer !== previous.data.settings.mediaPlayer ||
       state.data.settings.general !== previous.data.settings.general ||
       state.paused !== previous.paused ||
       state.safeMode !== previous.safeMode
@@ -291,6 +316,13 @@ export function initNativeInput(): void {
 
   const unsubTrayPause = eapi.appInfo?.onTrayTogglePause?.(() => useStore.getState().togglePaused());
   const unsubTraySettings = eapi.appInfo?.onTrayOpenSettings?.(() => useStore.getState().setPage("settings"));
+  const unsubMpPos = eapi.mediaPlayer?.onPositionChanged?.((pos: { customX: number; customY: number }) => {
+    useStore.getState().patchSettings("mediaPlayer" as any, {
+      position: "custom",
+      customX: pos.customX,
+      customY: pos.customY,
+    } as any);
+  });
   const systemThemeQuery = window.matchMedia?.("(prefers-color-scheme: light)");
   const syncSystemTheme = () => {
     if (useStore.getState().data.settings.appearance.theme === "system") {
@@ -306,6 +338,7 @@ export function initNativeInput(): void {
     ...(unsubHc ? [unsubHc] : []),
     ...(unsubTrayPause ? [unsubTrayPause] : []),
     ...(unsubTraySettings ? [unsubTraySettings] : []),
+    ...(unsubMpPos ? [unsubMpPos] : []),
     ...(systemThemeQuery ? [() => systemThemeQuery.removeEventListener("change", syncSystemTheme)] : []),
   ];
 }

@@ -1,5 +1,131 @@
 # Design Changelog
 
+## 2026-09-06 — In-app smooth scroll physics overhaul
+
+* **Smooth Scroll Target Physics & Runaway Speed Protection (`src/lib/smooth-scroll-engine.ts`)**:
+  - Replaced legacy unbounded stacking impulse queue with unified target-momentum physics.
+  - Eliminated runaway speed compounding where scrolling continuously caused exponential velocity spikes;
+    target lead is strictly capped to a tuned cruising buffer.
+  - Implemented frame-rate-independent exponential decay ($1 - e^{-\lambda \Delta t}$), delivering identical
+    motion duration and curves across 60Hz, 120Hz, 144Hz, and 240Hz monitors.
+  - Added subpixel accumulator to eliminate micro-stuttering and truncation hitches.
+  - Added instant direction reversal with zero latency.
+  - Added instant trackpad gesture pass-through with no multi-frame recognition delay.
+  - Added nested scrollable detection and boundary collision handling.
+
+
+* Clipboard Hub opens on history; capture and layout settings live in a labelled disclosure.
+* Separated nested layout buttons; added wrapping toolbars, compact inspector sizing,
+  visible keyboard focus, token-backed clipboard styling and shared popup motion.
+* Capture switches and retention are persisted engine settings. Removed the misleading
+  incognito switch; private copies cannot be identified reliably, so the UI advises pausing capture.
+* Popup receives live history/settings updates; folder assignments/reordering and selected
+  icon/color now reach the backend. Copy errors are reported and filtered-out details clear.
+* One main-process close timer prevents stale dismissal after reopen. Popup bounds stay
+  inside small/scaled monitor work areas; keep-open paste no longer immediately recloses.
+* Hyper settings preserve chord-only tap choices and Shift configuration. Scroll Lock
+  chords activate without a tap action; None never silently binds Right Alt, and paused
+  Hyper releases its physical key. Added native regression coverage and isolated Electron QA.
+
+## Shared Motion System
+
+* **Professional transient motion (`src/lib/motion.ts`, `src/design/motion.css`)**:
+  - Added one approved motion contract for page entrances, popovers, dialogs, sheets, toasts, and tooltips.
+  - Applied consistent enter and exit states to shared `Modal`, `ToastHost`, `AppSelect`, Global Tooltip, Command Palette, and both popup shells.
+  - All shared motion respects both the KeyFlow reduce-motion setting and Windows/browser reduced-motion preference; focus, keyboard actions, and close requests remain immediate.
+
+## 2026-09-05 — Clipboard Polish: Multi-Row Grid Density (1, 2, 3), Folders & Icons, Drag-and-Drop Reordering, Smooth Animations, and Real-Time Stage
+
+* **1, 2, and 3 Grid Rows Density Options (`src/pages/ClipboardOverlay.tsx`, `src/pages/Clipboard.tsx`, `src/index.css`, `electron/clipboard-contract.ts`, `electron/clipboard-engine.ts`)**:
+  - Added user-configurable `gridRows: 1 | 2 | 3` settings and persistence.
+  - Implemented `.clip-paste-shelf.rows-2` and `.rows-3` multi-row shelf layouts for horizontal scrolling and multi-column grid layouts for vertical scrolling.
+  - Added quick-access `[ 1 | 2 | 3 ]` density toggle buttons (`.clip-grid-rows-selector`) to the overlay status bar and configuration segmented groups in Clipboard Hub.
+* **Hold to Reorganize & Folder Drop (`src/pages/ClipboardOverlay.tsx`, `src/index.css`, `electron/clipboard-engine.ts`)**:
+  - Enabled HTML5 drag-and-drop on shelf cards (`draggable={true}`) with live dragging and hover states (`.is-dragging`, `.is-drag-over`).
+  - Cards can be rearranged by dropping onto any card, invoking `reorderItems(sourceId, targetId)` on the clipboard engine.
+  - Cards can also be dropped directly onto folder tabs (`.clip-paste-pin-tab-wrap.is-drop-target`) to instantly assign them to that collection.
+* **Folder (Pinboard) Customization Modal (`src/pages/ClipboardOverlay.tsx`, `src/index.css`, `electron/clipboard-engine.ts`)**:
+  - Replaced native browser prompts with an in-app Folder Settings Modal (`.clip-folder-modal-dialog`) with backdrop blur.
+  - Supports naming/renaming folders, picking custom icons from a curated palette of Phosphor icons (Folder, Star, BookmarkSimple, Briefcase, Code, Palette, Heart, Lightning, Sparkle, Link, FileText, Image), choosing theme colors from design-token swatches, and deleting folders.
+  - Folder tabs show active color dots, custom icons, and an inline edit button on active tabs.
+  - Added "Move to Folder" submenu in the card Action Palette (`Ctrl+K`).
+* **Hardware-Accelerated Stutter-Free Open & Close Animation (`electron/clipboard-window.ts`, `src/pages/ClipboardOverlay.tsx`, `src/index.css`)**:
+  - Switched from 2D `translateY` to GPU-accelerated 3D transforms (`translate3d(0, 18px, 0)`) with `will-change: transform, opacity;` and spring-like cubic bezier easing, eliminating backdrop-filter blur stutter.
+  - Added directional keyframes for top-docked vs bottom-docked overlays (`clipOverlayEnterTop`, `clipOverlayExitTop`).
+  - Added IPC notification (`clipboard-popup:request-close`) with delayed window hiding (150ms) on blur/dismiss so the exit animation finishes cleanly before Electron hides the window.
+* **Streamlined Horizontal Shelf Controls & Segmented Buttons (`src/pages/Clipboard.tsx`, `src/index.css`)**:
+  - Replaced cramped, text-wrapped button pills with single-line segmented control groups: Dock (`Bottom` | `Top`), Scroll (`Horizontal` | `Vertical`), and Density (`1` | `2` | `3`).
+* **Preview Area Tab Polish & Real-Time Live Stage (`src/pages/Clipboard.tsx`, `src/index.css`)**:
+  - Modernized Preview Area mode tabs (`.clipboard-preview-area-toggle-row`) into a clean segmented pill container, removing the harsh red active border.
+  - Updated live screen mockup cards to render real-time clipboard clips from history with actual image thumbnails, color swatches, URLs, and code snippets instead of static placeholders.
+
+## 2026-09-05 — Clipboard Polish: Horizontal/Vertical Scrolling, Theme Sync, Image Lightbox, and Permanent Bottom Search
+
+* **Horizontal & Vertical Shelf Scrolling (`src/pages/ClipboardOverlay.tsx`, `src/pages/Clipboard.tsx`, `src/index.css`, `electron/clipboard-engine.ts`)**:
+  - Added full support for both Horizontal ribbon scrolling and Vertical card stack scrolling.
+  - Implemented automatic mouse-wheel translation in horizontal mode (`deltaY` mapped to `scrollLeft`), enabling smooth horizontal scrolling with standard mouse wheels on Windows.
+  - Added dedicated toggle button (`.clip-scroll-dir-btn`) on the overlay status bar and configuration toggles in Clipboard Hub settings.
+* **App Theme & Dark/Light Mode Synchronization (`src/pages/ClipboardOverlay.tsx`, `src/pages/Clipboard.tsx`, `electron/clipboard-engine.ts`)**:
+  - Dynamically synchronizes overlay `data-theme` (light/dark/system) and CSS variables with KeyFlow application appearance settings on load and change.
+  - Added `useAppAccentColor` setting: users can elect to synchronize the clipboard accent color with the active app accent, or disable it to maintain a clean neutral monochrome theme.
+  - Replaced loud purple background banners on text/image card headers with elevated surface styling and border tokens.
+* **Image Previews & Tap-to-Expand Lightbox Modal (`src/pages/ClipboardOverlay.tsx`, `src/index.css`, `electron/clipboard-engine.ts`)**:
+  - Replaced placeholder icons with actual copied image thumbnails generated in the background without renderer lag.
+  - Added expand icon button (`.clip-image-expand-btn`) on hover/focus and click-to-expand functionality.
+  - Implemented high-resolution Lightbox Preview Modal (`.clip-lightbox-dialog`) with backdrop blur, item title, resolution dimensions tag, byte size tag, and direct Paste (`Enter`) and Copy (`Ctrl+C`) actions.
+* **Permanent Bottom Search Bar & Toolbar Streamlining (`src/pages/ClipboardOverlay.tsx`, `src/index.css`)**:
+  - Removed thumbs up, thumbs down, and comment feedback buttons from the bottom bar.
+  - Replaced round collapsing search pill with a prominent permanent bottom search bar (`.clip-bottom-search-bar`) with `Ctrl+F` shortcut, clear button, and integrated category filter popover.
+* **Fluid Entrance & Exit Animations (`src/pages/ClipboardOverlay.tsx`, `src/index.css`)**:
+  - Implemented `@keyframes clipOverlayEnter` and `@keyframes clipOverlayExit` transitions with smooth easing for popup open and dismiss actions.
+
+## 2026-09-05 — Local Clipboard Manager, Multi-Layout Floating Overlay, and Rich Link Previews
+
+* **Clipboard UI Glitch Fixes & Positioning Polish (`src/pages/Clipboard.tsx`, `src/pages/ClipboardOverlay.tsx`, `src/index.css`)**:
+  - **Horizontal Shelf Top/Bottom Preview**: Fixed flex-direction alignment in Live Preview mockup so docked top shelf correctly renders at the top of the simulated screen, matching selected architecture.
+  - **Master Filter Bar Spacing**: Isolated clip count header (`Clips (N)`) from search and kind dropdown with `.clipboard-master-filter-row`, eliminating squished wrapping.
+  - **Eliminated Duplicate Text**: Replaced redundant preview text under titles with intelligent metadata subtitles (`sourceApp`, character count, file count, URL domain, or HEX color).
+  - **Detail Actions Deck Alignment**: Fixed button wrapping in the detail header with `flex-wrap: nowrap`, `white-space: nowrap`, and responsive title flexing.
+  - **Multi-Layout Overlay Rendering**: Fixed broken container and card track selectors for Centered Spotlight (fluid multi-column grid) and Right-Side Flyout (vertical drawer stack) with responsive link previews.
+  - **Keyboard & Search UX**: Enabled `Escape` key to cleanly collapse active search before dismissing the overlay, and fixed quick-paste digit conflict while searching in the bottom pill.
+* **Collapsing Search Pill & Hover Filter Popover (`src/pages/ClipboardOverlay.tsx`, `src/index.css`)**:
+  - Replaced static top-heavy search bar with a compact, circular bottom-right search pill (`.clip-search-round-btn`).
+  - Expanding animation on click reveals full-width pill input with clear and collapse actions (`.clip-search-pill-expanded`).
+  - Hovering the search pill reveals a floating context popover menu (`.clip-filter-popover-menu`) with quick-type filtering: All Clips, YouTube Videos, Pictures & Snips, Web Links, Text Clips, Code & JSON, Files & Folders, and Colors.
+  - Active filter badge (`.clip-active-filter-pill`) allows single-click clearing back to full clipboard history.
+* **YouTube & Open Graph Media Previews (`electron/clipboard-contract.ts`, `electron/clipboard-engine.ts`, `src/pages/ClipboardOverlay.tsx`, `src/pages/Clipboard.tsx`)**:
+  - Instant YouTube video detection (`youtube.com/watch`, `youtu.be`, `shorts`, `embed`) with zero-latency high-resolution thumbnail generation (`img.youtube.com/vi/{id}/hqdefault.jpg`).
+  - Background Open Graph `og:image` extraction for general URLs with thumbnail banners in overlay cards and hub inspector.
+  - Contextual "▶ Play on YouTube" action with direct YouTube badge and shortcut support.
+* **Live Layout Preview Area (`src/pages/Clipboard.tsx`, `src/index.css`)**:
+  - Repurposed bottom section into a dedicated "Preview Area" with two primary modes:
+    1. **Layout Live Preview**: Interactive screen stage visualizing the active architecture (Horizontal Shelf with bottom/top dock, Centered Spotlight with search & tile grid, Right-Side Flyout with vertical slide drawer) with a direct "Launch Overlay (Test)" button.
+    2. **Clips & Format Inspector**: Contained fixed-width master list and detail pane with rich media link inspection and live Win32 format probing.
+* **Shortcut Customization & Win+V Recommendation (`src/lib/defaults.ts`, `src/pages/settings/ShortcutBindingPage.tsx`)**:
+  - Set default clipboard shortcut to unassigned (`""`) so Win+V is an explicit, optional recommendation rather than an automatic override.
+  - Added "Use Win+V" recommendation tip and quick-assign chip in the Shortcut Binding settings page.
+* **Notes Window Launch Route Fix (`src/main.tsx`)**:
+  - Added `window=notes` to the lightweight window initialization path alongside `window=clipboard-popup`, avoiding hangs on initial full-store loads.
+
+* **Interactive 3-Layout Visual Selector (`src/pages/Clipboard.tsx`)**:
+  - Implemented 3 tactile visual preview cards with wireframe window diagrams matching KeyFlow's Appearance settings pattern:
+    1. **Horizontal Shelf**: Docked ribbon anchored to the bottom (default) or top of the primary monitor. Features an interactive sub-selector toggle (`Bottom` vs `Top`).
+    2. **Centered Spotlight**: Screen-centered floating modal palette (880×600) with a multi-column responsive grid layout for quick broad scanning.
+    3. **Right-Side Flyout**: Vertical slide-over drawer (400px wide) docked flush against the right display edge for side-by-side reference workflows.
+  - Selected state indicates active mode with accent border, soft glow, and an animated checkmark badge.
+* **Rich Link Cards & Open Graph Metadata (`electron/clipboard-contract.ts`, `electron/clipboard-engine.ts`, `src/pages/ClipboardOverlay.tsx`)**:
+  - Automatically identifies copied web URLs (`http://`, `https://`) and provides asynchronous, non-blocking metadata extraction (Open Graph title, description, site name, and domain favicon).
+  - Overlay renders a dedicated rich link preview card displaying the site domain chip, page headline, text snippet, and an inline "Open" action button.
+  - Clipboard Hub Inspector includes an expanded URL card with "Open in Browser ↗" integration (`Ctrl + O`).
+* **Reliable Launch & Overlay Controls (`electron/clipboard-window.ts`, `src/pages/Dashboard.tsx`)**:
+  - Added "Clipboard Shelf" quick-access card on the Dashboard matching the Floating Scratchpad style with a single-click "Open Clipboard →" action.
+  - Added `keepOpen` toggle mode (`Ctrl + Shift + Enter`) allowing repeated copying/pasting without window auto-dismissal.
+  - Resolved blur auto-dismissal race conditions with an initial grace period and synchronized bounds resizing across all 3 layouts.
+* **Component and Token Compliance (`src/index.css`)**:
+  - Added `.clipboard-layout-3col`, `.nav-wireframe-shelf-ribbon`, `.nav-wireframe-spotlight-box`, `.nav-wireframe-right-drawer`, `.clipboard-pos-toggle-wrap`, `.clip-shelf-link-body`, and `.clipboard-url-preview-card`.
+  - 100% token-backed with 0 design check violations.
+
+
 ## 2026-09-04 — System-Wide Smooth Scrolling Across All Windows Applications
 
 * **Native Windows OS Smooth Scrolling (`native/keyflow-input/src/smooth_scroll.rs`)**:

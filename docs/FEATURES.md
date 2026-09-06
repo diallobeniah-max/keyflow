@@ -26,6 +26,7 @@
 - Show notification
 - Clipboard/window actions
 - Delay
+- Toggle Dim Screen / Dim Screen control (hardware WMI backlight + Extra Dim overlay)
 
 ## Pages
 
@@ -35,5 +36,5 @@
 - Visual Keyboard
 - Action Library
 - Profiles
-- Settings
+- Settings (with dedicated Dim Screen, Screen Tint, Smooth Scrolling, and Shortcut Bindings sections)
 - Onboarding
