@@ -67,6 +67,8 @@ class NotesWindowService {
   private configPath: string;
   private isTestMode: boolean = false;
   private testPresetInfo: { presetId: string; presetName: string } | null = null;
+  private lastToggleTime: number = 0;
+  private lastOpenTime: number = 0;
 
   constructor() {
     this.configPath = join(app.getPath("userData"), "keyflow-notes-config.json");
@@ -350,6 +352,8 @@ class NotesWindowService {
       resizable: true,
       fullscreenable: false,
       hasShadow: true,
+      roundedCorners: true,
+      thickFrame: false,
       icon: iconPath,
       webPreferences: {
         preload: join(__dirname, "preload.js"),
@@ -441,6 +445,14 @@ class NotesWindowService {
   }
 
   public toggle() {
+    const now = Date.now();
+    // Debounce rapid duplicate invocation / key bounce (e.g. within 350ms)
+    if (now - this.lastToggleTime < 350) {
+      console.log(`[Notes] toggle debounced (${now - this.lastToggleTime}ms since last toggle)`);
+      return;
+    }
+    this.lastToggleTime = now;
+
     const wasTestMode = this.isTestMode;
     this.isTestMode = false;
     this.testPresetInfo = null;
@@ -452,8 +464,17 @@ class NotesWindowService {
     // Regular shortcut/menu opens must never inherit the size-testing controls.
     this.publishTestModeState(win, false);
     if (win.isVisible()) {
+      // If the window was opened within the last 600ms, ignore accidental double-trigger closing
+      if (now - this.lastOpenTime < 600) {
+        console.log(`[Notes] Ignoring close - opened just ${now - this.lastOpenTime}ms ago`);
+        return;
+      }
       win.hide();
     } else {
+      this.lastOpenTime = now;
+      if (win.isMinimized()) {
+        win.restore();
+      }
       if (this.getPreferences().followMouseOnOpen) {
         const cursor = screen.getCursorScreenPoint();
         const display = screen.getDisplayNearestPoint(cursor);
@@ -468,13 +489,9 @@ class NotesWindowService {
 
       const notifyShow = () => {
         if (win && !win.isDestroyed()) {
-          win.showInactive();
+          win.show();
           win.moveTop();
-          setTimeout(() => {
-            if (win && !win.isDestroyed()) {
-              win.focus();
-            }
-          }, 50);
+          win.focus();
         }
       };
 

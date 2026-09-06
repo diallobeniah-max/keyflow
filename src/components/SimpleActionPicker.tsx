@@ -14,12 +14,13 @@ export interface PrimaryActionDef {
 
 export const PRIMARY_ACTIONS: PrimaryActionDef[] = [
   { type: "screenshot", label: "Screenshot", desc: "Windows snipping tool or full capture", icon: "screenshot", category: "System" },
+  { type: "clipboardHistory", label: "Clipboard", desc: "Open clipboard manager & history", icon: "clipboard", category: "System" },
   { type: "notesPopup", label: "Notes Popup", desc: "Open floating rich-text desktop notepad", icon: "file", category: "Productivity" },
   { type: "alwaysOnTop", label: "Always on Top", desc: "Pin or toggle active window on top", icon: "pinTop", category: "Window" },
   { type: "toggleWasdNavigation", label: "WASD Navigation Mode", desc: "Use W, A, S and D as arrow keys", icon: "arrows", category: "Navigation" },
   { type: "openApp", label: "Open app", desc: "Launch an application by name or path", icon: "window", category: "Launch" },
   { type: "showPopup", label: "Popup menu", desc: "Show a quick action menu", icon: "popup", category: "Flow" },
-  { type: "pasteText", label: "Paste text", desc: "Paste snippets or templates", icon: "clipboard", category: "Text" },
+  { type: "pasteText", label: "Paste text", desc: "Paste snippets or templates", icon: "copy", category: "Text" },
   { type: "mediaControl", label: "Media control", desc: "Play, pause, or skip tracks", icon: "play", category: "Media" },
   { type: "volumeControl", label: "Volume", desc: "Volume up, down, or mute", icon: "volume", category: "Media" },
   { type: "openFolder", label: "Open folder", desc: "Open Documents, Downloads, or custom folder", icon: "folder", category: "Launch" },
@@ -111,6 +112,12 @@ export function SimpleActionPicker({
 
       {/* Action-specific simple configuration fields */}
       <div className="action-config-box">
+        {currentType === "clipboardHistory" && (
+          <div className="notice info">
+            Opens the KeyFlow floating clipboard manager & shelf to quickly browse, search, and paste previous clips.
+          </div>
+        )}
+
         {currentType === "alwaysOnTop" && (
           <div className="col gap-sm">
             <div className="grid cols-2">

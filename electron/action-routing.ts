@@ -2,7 +2,7 @@ export const ELECTRON_DESKTOP_ACTIONS = new Set([
   "openApp", "openFile", "openFolder", "openWebsite", "runCommand", "runPowershell", "runBatch",
   "pasteText", "typeText", "pressShortcut", "volumeControl", "mediaControl", "toggleMute",
   "brightnessControl", "screenshot", "lockScreen", "openSettings", "showNotification", "copySelected",
-  "clipboardHistory", "minimizeWindow", "maximizeWindow", "closeWindow", "moveWindow", "alwaysOnTop",
+  "clipboardHistory", "notesPopup", "minimizeWindow", "maximizeWindow", "closeWindow", "moveWindow", "alwaysOnTop",
   "showPopup", "toggleWasdNavigation", "toggleCapsLock", "toggleDimScreen", "dimScreenControl",
 ]);
 

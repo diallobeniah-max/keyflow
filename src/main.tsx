@@ -17,6 +17,11 @@ const isDimScreen = window.location.search.includes("window=dim-screen");
 const isMediaPlayer = window.location.search.includes("window=media-player");
 const isClipboardPopup = window.location.search.includes("window=clipboard-popup");
 
+if (isPopup || isNotes || isDragSwitcher || isScreenTint || isDimScreen || isMediaPlayer || isClipboardPopup) {
+  document.documentElement.classList.add("window-popup-mode");
+  document.body.classList.add("window-popup-mode");
+}
+
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 
 if (isPopup) {

@@ -34,6 +34,13 @@ body {
   user-select: none;
 }
 
+html.window-popup-mode,
+body.window-popup-mode,
+body.window-popup-mode #root {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
 button, input, select, textarea {
   font: inherit;
   color: inherit;
@@ -6714,7 +6721,7 @@ body {
 }
 
 /* ==========================================================================
-   Notes Popup Feature (Floating Rich-Text Note Editor)
+   Notes Popup Feature (Floating Rich-Text Note Editor — Apple Notes / Bear Style)
    ========================================================================== */
 
 .notes-popup-root {
@@ -6723,10 +6730,12 @@ body {
   flex-direction: column;
   background: var(--color-bg-app);
   color: var(--color-text-primary);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-xl);
   overflow: hidden;
-  border: 1px solid var(--color-border-default);
+  border: 1px solid var(--color-border-subtle);
   box-shadow: var(--shadow-popup);
+  position: relative;
+  transition: border-color var(--motion-fast), box-shadow var(--motion-fast);
 }
 
 .notes-popup-header {
@@ -6745,24 +6754,6 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-
-/* ==========================================================================
-   Notes Popup Feature (Floating Rich-Text Note Editor — Apple Notes / Bear Style)
-   ========================================================================== */
-
-.notes-popup-root {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: var(--color-bg-app);
-  color: var(--color-text-primary);
-  border-radius: var(--radius-card);
-  overflow: hidden;
-  border: 1px solid var(--color-border-subtle);
-  box-shadow: var(--shadow-popup);
-  position: relative;
-  transition: border-color var(--motion-fast), box-shadow var(--motion-fast);
 }
 
 .notes-popup-root.is-test-mode {
