@@ -5,6 +5,7 @@ import "./design/tokens.css";
 import "./index.css";
 import "./design/clipboard.css";
 import "./design/motion.css";
+import "./design/gestures.css";
 import { useStore } from "./store/useStore";
 import { initEngine, getEngine } from "./lib/engine";
 import { initNativeInput } from "./lib/native-input";
@@ -16,17 +17,22 @@ const isScreenTint = window.location.search.includes("window=screen-tint");
 const isDimScreen = window.location.search.includes("window=dim-screen");
 const isMediaPlayer = window.location.search.includes("window=media-player");
 const isClipboardPopup = window.location.search.includes("window=clipboard-popup");
+const isGestureTrail = window.location.search.includes("window=gesture-trail");
 
-if (isPopup || isNotes || isDragSwitcher || isScreenTint || isDimScreen || isMediaPlayer || isClipboardPopup) {
+// Immediately apply appearance tokens from initial state so theme matches before render
+useStore.getState().applyAppearance();
+
+if (isPopup || isNotes || isDragSwitcher || isScreenTint || isDimScreen || isMediaPlayer || isClipboardPopup || isGestureTrail) {
   document.documentElement.classList.add("window-popup-mode");
   document.body.classList.add("window-popup-mode");
 }
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 
-if (isPopup) {
-  root.render(<React.StrictMode><App /></React.StrictMode>);
-} else if (isNotes || isDragSwitcher || isScreenTint || isDimScreen || isMediaPlayer || isClipboardPopup) {
+if (isPopup || isNotes || isDragSwitcher || isScreenTint || isDimScreen || isMediaPlayer || isClipboardPopup || isGestureTrail) {
+  void useStore.getState().load().then(() => {
+    useStore.getState().applyAppearance();
+  });
   root.render(<React.StrictMode><App /></React.StrictMode>);
 } else {
   initEngine();

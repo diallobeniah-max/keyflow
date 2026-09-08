@@ -55,19 +55,19 @@ export function ActionLibrary() {
             return (
               <Card key={a.id} hover className={`anim-card-enter ${staggerClass}`}>
                 <div className="spread mb-md">
-                  <div className="row gap-sm">
-                    <div className="stat-icon">
+                  <div className="row gap-sm min-w-0">
+                    <div className="stat-icon flex-shrink-0">
                       <Icon name={meta?.icon ?? "app"} size={16} />
                     </div>
-                    <div>
-                      <h4 className="bold small no-margin">
+                    <div className="min-w-0">
+                      <h4 className="bold small no-margin text-ellipsis">
                         {a.label ?? meta?.label ?? a.type}
                       </h4>
-                      <div className="muted tiny">{meta?.category ?? "General"}</div>
+                      <div className="muted tiny text-ellipsis">{meta?.category ?? "General"}</div>
                     </div>
                   </div>
 
-                  <div className="row gap-xs">
+                  <div className="row gap-xs flex-shrink-0">
                     <Button size="sm" variant="ghost" icon="play" onClick={() => void runAction(a)}>
                       Run
                     </Button>

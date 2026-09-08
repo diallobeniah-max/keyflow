@@ -174,11 +174,26 @@ export const HotCornersPage: FC<HotCornersPageProps> = ({ onBack }) => {
                   ? `sc:${cornerObj.shortcutId}`
                   : cornerObj.action
                 : "none";
+
+              let actionBadge = "None (Inactive)";
+              if (cornerObj?.type === "shortcut") {
+                const sc = data.shortcuts.find((s) => s.id === cornerObj.shortcutId);
+                actionBadge = sc?.name || sc?.key || "Shortcut";
+              } else if (cornerObj?.type === "builtin" && cornerObj.action !== "none") {
+                const actionMeta = HOT_CORNER_ACTIONS.find((a) => a.value === cornerObj.action);
+                actionBadge = actionMeta?.label || cornerObj.action;
+              }
+
               return (
                 <div key={pos} className="hot-corner-quadrant-card">
                   <div className="hot-corner-quadrant-head">
                     <span className="bold small">{label}</span>
-                    <span className="chip chip-subtle">{currentAction}</span>
+                    <span
+                      className={`chip ${currentAction !== "none" ? "chip-accent" : "chip-subtle"}`}
+                      title={actionBadge}
+                    >
+                      {actionBadge}
+                    </span>
                   </div>
                   <div className="mt-xs">
                     <AppSelect

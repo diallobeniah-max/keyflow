@@ -133,6 +133,61 @@ export interface AppListMessage {
   apps: NativeAppInfo[];
 }
 
+export interface HyperGestureItem {
+  id: string;
+  name: string;
+  stroke: string;
+  actionId?: string;
+  enabled: boolean;
+}
+
+export interface HyperGesturesConfig {
+  enabled: boolean;
+  activationThreshold?: number;
+  tapToEnterMode?: boolean;
+  showTrail?: boolean;
+  gestures?: HyperGestureItem[];
+}
+
+export interface TouchpadDragConfig {
+  enabled: boolean;
+  cursorMove?: boolean;
+  speed?: number;
+  acceleration?: number;
+  startThreshold?: number;
+  stopThreshold?: number;
+  releaseDelayMs?: number;
+  allowReleaseAndRestart?: boolean;
+  maxFingerDistance?: number;
+  cursorAveraging?: number;
+  movementThreshold?: number;
+  gracePeriodMs?: number;
+}
+
+export interface GestureTrailMessage {
+  type: "gestureTrail";
+  version: number;
+  status: "idle" | "capturing" | "cancelled" | "matched";
+  points: [number, number][];
+  stroke: string;
+  preview?: string;
+}
+
+export interface GestureTriggeredMessage {
+  type: "gestureTriggered";
+  version: number;
+  gestureId: string;
+  actionId: string;
+}
+
+export interface TouchpadStatusMessage {
+  type: "touchpadStatus";
+  version: number;
+  supported: boolean;
+  deviceCount: number;
+  deviceName?: string;
+}
+
 export function resolveNativeHelperPath(): string | null {
   const fromEnv = process.env.KEYFLOW_INPUT_HELPER;
   if (fromEnv && existsSync(fromEnv)) return fromEnv;
@@ -204,6 +259,12 @@ export class NativeInputHelper {
   private onWindowActivationResult: ((msg: WindowActivationResultMessage) => void) | null = null;
   private pendingDragSwitcher: DragSwitcherConfig | null = null;
   private pendingSmoothScroll: SmoothScrollNativeConfig | null = null;
+  private pendingHyperGestures: HyperGesturesConfig | null = null;
+  private pendingTouchpadDrag: TouchpadDragConfig | null = null;
+  private onGestureTrail: ((msg: GestureTrailMessage) => void) | null = null;
+  private onGestureTriggered: ((msg: GestureTriggeredMessage) => void) | null = null;
+  private onTouchpadStatus: ((msg: TouchpadStatusMessage) => void) | null = null;
+  private pendingTouchpadStatusResolver: ((msg: TouchpadStatusMessage) => void) | null = null;
   private pendingKeys: NativeKeySpec[] = [];
   private pendingShortcuts: unknown[] | null = null;
   private pendingHyperKey: unknown = null;
@@ -518,6 +579,108 @@ export class NativeInputHelper {
     });
   }
 
+  /** Hook for gesture trail point updates and visual preview. */
+  setOnGestureTrail(fn: (msg: GestureTrailMessage) => void): void {
+    this.onGestureTrail = fn;
+  }
+
+  /** Hook for recognized gesture execution. */
+  setOnGestureTriggered(fn: (msg: GestureTriggeredMessage) => void): void {
+    this.onGestureTriggered = fn;
+  }
+
+  /** Hook for precision touchpad capability updates. */
+  setOnTouchpadStatus(fn: (msg: TouchpadStatusMessage) => void): void {
+    this.onTouchpadStatus = fn;
+  }
+
+  /** Configure Hyper-Activated Pointer Gestures. */
+  setHyperGestures(config: HyperGesturesConfig): void {
+    this.pendingHyperGestures = config;
+    if (this.status === "ready") {
+      this.sendHyperGestures();
+    }
+  }
+
+  /** Configure macOS-inspired Three-Finger Trackpad Dragging. */
+  setTouchpadDrag(config: TouchpadDragConfig): void {
+    this.pendingTouchpadDrag = config;
+    if (this.status === "ready") {
+      this.sendTouchpadDrag();
+    }
+  }
+
+  /** Query Precision Touchpad hardware capability. */
+  queryTouchpadStatus(): Promise<TouchpadStatusMessage> {
+    if (this.status !== "ready") {
+      return Promise.resolve({
+        type: "touchpadStatus",
+        version: NATIVE_PROTOCOL_VERSION,
+        supported: false,
+        deviceCount: 0,
+      });
+    }
+    return new Promise((resolve) => {
+      this.pendingTouchpadStatusResolver = resolve;
+      this.send({ type: "queryTouchpadStatus", version: NATIVE_PROTOCOL_VERSION });
+      setTimeout(() => {
+        if (this.pendingTouchpadStatusResolver) {
+          const cb = this.pendingTouchpadStatusResolver;
+          this.pendingTouchpadStatusResolver = null;
+          cb({
+            type: "touchpadStatus",
+            version: NATIVE_PROTOCOL_VERSION,
+            supported: false,
+            deviceCount: 0,
+          });
+        }
+      }, 1000);
+    });
+  }
+
+  private sendHyperGestures(): void {
+    const c = this.pendingHyperGestures;
+    if (!c) return;
+    this.send({
+      type: "setHyperGestures",
+      version: NATIVE_PROTOCOL_VERSION,
+      config: {
+        enabled: !!c.enabled,
+        activationThreshold: c.activationThreshold ?? 24,
+        tapToEnterMode: !!c.tapToEnterMode,
+        showTrail: c.showTrail !== false,
+        gestures: (c.gestures ?? []).map((g) => ({
+          id: g.id,
+          name: g.name,
+          stroke: g.stroke,
+          actionId: g.actionId,
+          enabled: g.enabled !== false,
+        })),
+      },
+    });
+  }
+
+  private sendTouchpadDrag(): void {
+    const c = this.pendingTouchpadDrag;
+    if (!c) return;
+    this.send({
+      type: "setTouchpadDrag",
+      version: NATIVE_PROTOCOL_VERSION,
+      config: {
+        enabled: !!c.enabled,
+        cursorMove: c.cursorMove !== false,
+        speed: c.speed ?? 30,
+        acceleration: c.acceleration ?? 10,
+        startThreshold: c.startThreshold ?? c.movementThreshold ?? 100,
+        stopThreshold: c.stopThreshold ?? 10,
+        releaseDelayMs: c.releaseDelayMs ?? c.gracePeriodMs ?? 500,
+        allowReleaseAndRestart: c.allowReleaseAndRestart !== false,
+        maxFingerDistance: c.maxFingerDistance ?? 150,
+        cursorAveraging: c.cursorAveraging ?? 1,
+      },
+    });
+  }
+
   /**
    * Inject one real SendInput key event via the helper. Resolves true only
    * after the helper confirms SendInput accepted it. Media/volume keys use
@@ -635,6 +798,8 @@ export class NativeInputHelper {
     this.sendConfigure();
     this.sendDragSwitcher();
     this.sendSmoothScroll();
+    this.sendHyperGestures();
+    this.sendTouchpadDrag();
     // Send beginCapture AFTER config so engine reload (which resets gesture
     // state) doesn't race with an already-armed capture. The Rust hook's
     // CAPTURING atomic is independent of the engine, but arming after config
@@ -833,6 +998,22 @@ export class NativeInputHelper {
         if (this.pendingActiveApp) {
           this.pendingActiveApp(app);
           this.pendingActiveApp = null;
+        }
+        break;
+      }
+      case "gestureTrail":
+        this.onGestureTrail?.(msg as GestureTrailMessage);
+        break;
+      case "gestureTriggered":
+        this.onGestureTriggered?.(msg as GestureTriggeredMessage);
+        break;
+      case "touchpadStatus": {
+        const statusMsg = msg as TouchpadStatusMessage;
+        this.onTouchpadStatus?.(statusMsg);
+        if (this.pendingTouchpadStatusResolver) {
+          const res = this.pendingTouchpadStatusResolver;
+          this.pendingTouchpadStatusResolver = null;
+          res(statusMsg);
         }
         break;
       }

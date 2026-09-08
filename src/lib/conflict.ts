@@ -1,5 +1,12 @@
 import type { ModifierKey, Settings, Shortcut, TriggerType } from "../types";
 import { appScopeKey } from "./app-scope.ts";
+import {
+  WINDOWS_SHORTCUTS_CATALOG,
+  lookupWindowsShortcut,
+  isOsSecuredShortcut,
+  getSmartAlternativeShortcuts,
+  type WindowsShortcutEntry,
+} from "./windows-shortcuts-catalog.ts";
 
 const TRIGGER_LABELS: Record<string, string> = {
   single: "Tap",
@@ -21,7 +28,8 @@ export type ConflictType =
   | "gesture_overlap"
   | "risky_bare_key"
   | "profile_overlap"
-  | "system_reserved";
+  | "system_reserved"
+  | "windows_interceptable";
 
 export interface SuggestedShortcut {
   key: string;
@@ -38,6 +46,8 @@ export interface Conflict {
   existingName?: string;
   existingTrigger?: TriggerType;
   suggestions?: SuggestedShortcut[];
+  windowsShortcut?: WindowsShortcutEntry;
+  canOverride?: boolean;
 }
 
 export interface ConflictReport {
@@ -57,9 +67,7 @@ const SYSTEM_SHORTCUTS = [
   "Ctrl+P",
   "Alt+Tab",
   "Alt+F4",
-  "Win+",
   "Ctrl+Shift+Esc",
-  "Ctrl+Alt+Delete",
 ];
 
 import { compileHyperModifiers } from "./defaults.ts";
@@ -175,14 +183,14 @@ export function getSuggestedShortcuts(
       createdAt: 0,
     };
 
-    // Check if this chord conflicts with any enabled shortcut
+    // Check if this chord conflicts with any enabled shortcut or Windows reserved combo
     const report = analyzeShortcutConflicts(testShortcut, allShortcuts, undefined, {
       currentShortcutId: currentId,
       activeProfileId: profileId,
       skipSuggestions: true,
     });
 
-    if (!report.hasBlockingConflict) {
+    if (!report.hasBlockingConflict && !report.conflicts.some((c) => c.type === "windows_interceptable")) {
       suggestions.push({
         key: baseKey,
         modifiers: mods,
@@ -198,7 +206,8 @@ export function getSuggestedShortcuts(
 
 /**
  * Central Conflict Analysis Engine.
- * Examines candidate shortcut against all existing shortcuts in the workspace.
+ * Examines candidate shortcut against all existing shortcuts in the workspace
+ * and against the Windows System Shortcut Catalog.
  */
 export function analyzeShortcutConflicts(
   candidate: Partial<Shortcut>,
@@ -284,7 +293,7 @@ export function analyzeShortcutConflicts(
     });
   }
 
-  // Risky system keys check (e.g. F12, WinKey)
+  // Risky system keys check (e.g. F12, WinKey alone)
   if (RISKY_SYSTEM_KEYS.includes(candidateKey) && !settings?.shortcuts?.allowRisky) {
     conflicts.push({
       level: "warning",
@@ -293,9 +302,36 @@ export function analyzeShortcutConflicts(
     });
   }
 
-  // Reserved OS shortcuts check
+  // Windows System Shortcut Catalog & Reserved OS shortcuts check
   const fullLabel = formatShortcutLabel(candidateMods, candidateKey);
-  if (SYSTEM_SHORTCUTS.some((sys) => fullLabel === sys || (sys.endsWith("+") && fullLabel.startsWith(sys)))) {
+  const winEntry = lookupWindowsShortcut(candidateKey, candidateMods);
+  if (winEntry) {
+    if (winEntry.interceptability === "os-secured") {
+      conflicts.push({
+        level: "error",
+        type: "system_reserved",
+        message: `${fullLabel} is reserved by Windows for ${winEntry.name} and cannot be intercepted.`,
+        windowsShortcut: winEntry,
+        canOverride: false,
+      });
+    } else if (winEntry.interceptability === "conditionally-interceptable") {
+      conflicts.push({
+        level: "warning",
+        type: "windows_interceptable",
+        message: `${fullLabel} is used by Windows for ${winEntry.name}. Keyflow can override this shortcut, though system overlay settings or fullscreen games may take precedence.`,
+        windowsShortcut: winEntry,
+        canOverride: true,
+      });
+    } else {
+      conflicts.push({
+        level: "warning",
+        type: "windows_interceptable",
+        message: `${fullLabel} is used by Windows for ${winEntry.name}. Keyflow will override this shortcut while running.`,
+        windowsShortcut: winEntry,
+        canOverride: true,
+      });
+    }
+  } else if (SYSTEM_SHORTCUTS.some((sys) => fullLabel === sys || (sys.endsWith("+") && fullLabel.startsWith(sys)))) {
     conflicts.push({
       level: "warning",
       type: "system_reserved",
@@ -312,9 +348,9 @@ export function analyzeShortcutConflicts(
       excludeId: currentId,
       activeProfileId: candidateProfile,
     });
-    // Attach suggestions to blocking conflicts
+    // Attach suggestions to blocking conflicts and Windows warnings
     for (const c of conflicts) {
-      if (c.level === "error" || c.type === "risky_bare_key") {
+      if (c.level === "error" || c.type === "risky_bare_key" || c.type === "windows_interceptable") {
         c.suggestions = suggestions;
       }
     }

@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "profiles": [
+    {
+      "id": "prof-default",
+      "name": "Default",
+      "isDefault": true,
+      "appRules": []
+    }
+  ],
+  "shortcuts": [
+    {
+      "id": "legacy-win-v",
+      "name": "Clipboard History",
+      "profileId": "prof-default",
+      "key": "V",
+      "mouse": false,
+      "modifiers": ["Win"],
+      "trigger": "single",
+      "timing": {
+        "tapInterval": 300,
+        "holdDuration": 500,
+        "delay": 0,
+        "cooldown": 350,
+        "timingMode": "auto"
+      },
+      "actions": [
+        {
+          "id": "act-clip-1",
+          "type": "clipboardHistory",
+          "payload": {}
+        }
+      ],
+      "enabled": true,
+      "createdAt": 1700000000000,
+      "keyBehavior": "passThrough"
+    },
+    {
+      "id": "legacy-hyper-o",
+      "name": "Media Playback",
+      "profileId": "prof-default",
+      "key": "O",
+      "mouse": false,
+      "modifiers": ["Hyper"],
+      "trigger": "single",
+      "timing": {
+        "tapInterval": 300,
+        "holdDuration": 500,
+        "delay": 0,
+        "cooldown": 350,
+        "timingMode": "auto"
+      },
+      "actions": [
+        {
+          "id": "act-media-1",
+          "type": "mediaControl",
+          "payload": { "mediaAction": "playPause" }
+        }
+      ],
+      "enabled": true,
+      "createdAt": 1700000000000,
+      "keyBehavior": "passThrough"
+    },
+    {
+      "id": "legacy-topmost",
+      "name": "Toggle Topmost",
+      "profileId": "prof-default",
+      "key": "T",
+      "mouse": false,
+      "modifiers": ["Ctrl", "Shift"],
+      "trigger": "single",
+      "timing": {
+        "tapInterval": 300,
+        "holdDuration": 500,
+        "delay": 0,
+        "cooldown": 350,
+        "timingMode": "auto"
+      },
+      "actions": [
+        {
+          "id": "act-top-1",
+          "type": "alwaysOnTop",
+          "payload": { "topmostMode": "toggle" }
+        }
+      ],
+      "enabled": true,
+      "createdAt": 1700000000000,
+      "keyBehavior": "passThrough"
+    },
+    {
+      "id": "legacy-double-shift",
+      "name": "Notes Popup",
+      "profileId": "prof-default",
+      "key": "Shift",
+      "mouse": false,
+      "modifiers": [],
+      "trigger": "double",
+      "timing": {
+        "tapInterval": 300,
+        "holdDuration": 500,
+        "delay": 0,
+        "cooldown": 350,
+        "timingMode": "auto"
+      },
+      "actions": [
+        {
+          "id": "act-note-1",
+          "type": "notesPopup",
+          "payload": {}
+        }
+      ],
+      "enabled": true,
+      "createdAt": 1700000000000,
+      "keyBehavior": "passThrough"
+    },
+    {
+      "id": "legacy-capslock",
+      "name": "Screenshot",
+      "profileId": "prof-default",
+      "key": "CapsLock",
+      "mouse": false,
+      "modifiers": [],
+      "trigger": "single",
+      "timing": {
+        "tapInterval": 300,
+        "holdDuration": 500,
+        "delay": 0,
+        "cooldown": 350,
+        "timingMode": "auto"
+      },
+      "actions": [
+        {
+          "id": "act-snip-1",
+          "type": "screenshot",
+          "payload": { "screenshotMode": "snipOverlay" }
+        }
+      ],
+      "enabled": true,
+      "createdAt": 1700000000000,
+      "keyBehavior": "suppress",
+      "suppressKey": true
+    }
+  ]
+}

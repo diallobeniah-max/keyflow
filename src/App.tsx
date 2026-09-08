@@ -9,6 +9,7 @@ import { ToastHost } from "./components/ui";
 import { motionClassName } from "./lib/motion";
 import { GlobalTooltip } from "./components/GlobalTooltip";
 import { FloatingBottomDock } from "./components/FloatingBottomDock";
+import { WindowsHistoryBar } from "./components/WindowsHistoryBar";
 import { Dashboard } from "./pages/Dashboard";
 import { Shortcuts } from "./pages/Shortcuts";
 import { CreateShortcut } from "./pages/CreateShortcut";
@@ -25,6 +26,7 @@ import { ScreenTintOverlay } from "./pages/ScreenTintOverlay";
 import { DimScreenOverlay } from "./pages/DimScreenOverlay";
 import { MediaPlayerOverlay } from "./pages/MediaPlayerOverlay";
 import { ClipboardOverlay } from "./pages/ClipboardOverlay";
+import { GestureTrailOverlay } from "./pages/GestureTrailOverlay";
 import { Clipboard } from "./pages/Clipboard";
 import { useStore } from "./store/useStore";
 import { useActiveApp } from "./lib/useActiveApp";
@@ -60,6 +62,10 @@ function isClipboardPopupWindow(): boolean {
   return window.location.search.includes("window=clipboard-popup");
 }
 
+function isGestureTrailWindow(): boolean {
+  return window.location.search.includes("window=gesture-trail");
+}
+
 function Router() {
   const page = useStore((s) => s.currentPage);
   return (
@@ -93,6 +99,25 @@ function Router() {
 }
 
 export default function App() {
+  const appearance = useStore((s) => s.data.settings.appearance);
+  const resolvedTheme = useResolvedTheme(appearance?.theme);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute("data-theme", resolvedTheme);
+    root.style.colorScheme = resolvedTheme;
+  }, [resolvedTheme]);
+
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "keyflow:state" || e.key === "keyflow_state") {
+        void useStore.getState().load();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   if (isPopupWindow()) return <><GlobalTooltip /><PopupShell /></>;
   if (isNotesWindow()) return <><GlobalTooltip /><NotesPopupShell /></>;
   if (isDragSwitcherWindow()) return <><GlobalTooltip /><DragSwitcherOverlay /></>;
@@ -100,20 +125,23 @@ export default function App() {
   if (isDimScreenWindow()) return <><GlobalTooltip /><DimScreenOverlay /></>;
   if (isMediaPlayerWindow()) return <><GlobalTooltip /><MediaPlayerOverlay /></>;
   if (isClipboardPopupWindow()) return <><GlobalTooltip /><ClipboardOverlay /></>;
+  if (isGestureTrailWindow()) return <><GlobalTooltip /><GestureTrailOverlay /></>;
 
   const onboardingDone = useStore((s) => s.data.onboardingDone);
   const drawerOpen = useStore((s) => s.drawerOpen);
   const setDrawerOpen = useStore((s) => s.setDrawerOpen);
-  const appearance = useStore((s) => s.data.settings.appearance);
   const smoothScroll = useStore((s) => s.data.settings.smoothScroll);
-  const resolvedTheme = useResolvedTheme(appearance?.theme);
 
   const mainRef = useRef<HTMLDivElement>(null);
   useSmoothScroll(mainRef, smoothScroll);
 
+  const paused = useStore((s) => s.paused);
+  const safeMode = useStore((s) => s.safeMode);
+
   useEffect(() => {
     void window.electronAPI?.input.setSmoothScroll?.(smoothScroll);
   }, [smoothScroll]);
+
 
   useActiveApp();
 
@@ -127,11 +155,6 @@ export default function App() {
     document.documentElement.setAttribute("data-layout-width", widthMode);
   }, [appearance?.settingsWidth]);
 
-  useEffect(() => {
-    const root = document.documentElement;
-    root.setAttribute("data-theme", resolvedTheme);
-    root.style.colorScheme = resolvedTheme;
-  }, [resolvedTheme]);
 
   useEffect(() => {
     if (appearance?.reduceMotion) {
@@ -164,6 +187,7 @@ export default function App() {
 
   const wasdNavigationActive = useStore((s) => s.wasdNavigationActive);
   const wasdSettings = useStore((s) => s.data.settings?.wasdNavigation);
+  const currentPage = useStore((s) => s.currentPage);
   const setPage = useStore((s) => s.setPage);
 
   useEffect(() => window.electronAPI?.clipboard.onOpenSurface(() => setPage("clipboard")), [setPage]);
@@ -206,7 +230,11 @@ export default function App() {
         )}
         <main className="main">
           <TopBar />
-          <div ref={mainRef} className="content" data-scroll-owner="app-content">
+          <div
+            ref={mainRef}
+            className={`content${currentPage === "settings" ? " is-settings-view" : ""}`}
+            data-scroll-owner="app-content"
+          >
             <ErrorBoundary>
               <Router />
             </ErrorBoundary>
@@ -218,6 +246,7 @@ export default function App() {
         <CommandPalette />
       </ErrorBoundary>
       <ToastHost />
+      <WindowsHistoryBar />
       <FloatingBottomDock />
       {!onboardingDone && <Onboarding />}
     </div>

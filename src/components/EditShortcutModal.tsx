@@ -55,6 +55,11 @@ export function EditShortcutModal({ shortcutId, open, onClose }: EditShortcutMod
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [overrideAcknowledged, setOverrideAcknowledged] = useState(false);
+
+  useEffect(() => {
+    setOverrideAcknowledged(false);
+  }, [draft?.key, draft?.modifiers]);
 
   const handleClose = () => {
     if (isClosing) return;
@@ -81,7 +86,7 @@ export function EditShortcutModal({ shortcutId, open, onClose }: EditShortcutMod
   }, [data.profiles, draft?.profileId]);
 
   const conflictReport = useMemo(() => {
-    if (!draft) return { hasBlockingConflict: false, conflicts: [], suggestions: [] };
+    if (!draft) return { hasBlockingConflict: false, hasWarning: false, conflicts: [], suggestions: [] };
     return analyzeShortcutConflicts(draft, data.shortcuts, data.settings, {
       currentShortcutId: draft.id,
       activeProfileId,
@@ -320,18 +325,179 @@ export function EditShortcutModal({ shortcutId, open, onClose }: EditShortcutMod
             />
           </div>
 
-          {/* Conflict Warnings */}
-          {conflictReport.conflicts.length > 0 && (
-            <div className={"card mb-sm " + (hasError ? "border-danger-soft" : "border-warning-soft")}>
-              <div className="row gap-xs items-center mb-xs">
-                <Icon name="notify" size={16} className={hasError ? "danger-text" : "warning-text"} />
-                <span className={"bold small " + (hasError ? "danger-text" : "warning-text")}>
-                  {hasError ? "Conflicting Shortcut Detected" : "Shortcut Warning"}
-                </span>
+          {/* Conflict Resolution & Status Feedback */}
+          {conflictReport.hasBlockingConflict && (() => {
+            const blocking = conflictReport.conflicts.find((c) => c.level === "error");
+            const isOsSecured = blocking?.canOverride === false || blocking?.type === "system_reserved";
+            const isInternal = blocking?.type === "exact_duplicate" || blocking?.type === "gesture_overlap";
+
+            if (isOsSecured) {
+              return (
+                <div className="card mb-sm border-danger-soft">
+                  <div className="row gap-xs items-center mb-xs">
+                    <Icon name="lock" size={16} className="danger-text" />
+                    <span className="bold small danger-text">
+                      Unavailable: Reserved by Windows ({blocking?.windowsShortcut?.name ?? "OS Security"})
+                    </span>
+                  </div>
+                  <div className="tiny muted mb-xs">
+                    This combination is reserved for Windows system security or session management and cannot be intercepted by any application.
+                  </div>
+                  {conflictReport.suggestions.length > 0 && (
+                    <div className="pt-xs border-top-subtle">
+                      <span className="muted tiny">Available alternative shortcuts:</span>
+                      <div className="row gap-xs wrap mt-xs">
+                        {conflictReport.suggestions.map((sug) => (
+                          <Button
+                            key={sug.label}
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              set({ key: sug.key, modifiers: sug.modifiers, trigger: sug.trigger })
+                            }
+                          >
+                            Use {sug.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            return (
+              <div className="card mb-sm border-danger-soft">
+                <div className="row gap-xs items-center mb-xs">
+                  <Icon name="close" size={16} className="danger-text" />
+                  <span className="bold small danger-text">{blocking?.message}</span>
+                </div>
+                {isInternal && blocking?.existingId && (
+                  <div className="row gap-xs wrap items-center mb-xs">
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => {
+                        useStore.getState().deleteShortcut(blocking.existingId!);
+                      }}
+                    >
+                      Replace Existing
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => set({ key: existing?.key ?? "", modifiers: existing?.modifiers ?? [] })}
+                    >
+                      Reset
+                    </Button>
+                  </div>
+                )}
+                {conflictReport.suggestions.length > 0 && (
+                  <div className="pt-xs border-top-subtle">
+                    <span className="muted tiny">Suggested alternatives:</span>
+                    <div className="row gap-xs wrap mt-xs">
+                      {conflictReport.suggestions.map((sug) => (
+                        <Button
+                          key={sug.label}
+                          size="sm"
+                          variant="secondary"
+                          onClick={() =>
+                            set({ key: sug.key, modifiers: sug.modifiers, trigger: sug.trigger })
+                          }
+                        >
+                          Use {sug.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              {conflictReport.conflicts.map((c, i) => (
-                <div key={i} className="tiny muted mb-xs">{c.message}</div>
-              ))}
+            );
+          })()}
+
+          {!conflictReport.hasBlockingConflict && conflictReport.hasWarning && (() => {
+            const winConflict = conflictReport.conflicts.find((c) => c.type === "windows_interceptable");
+            if (winConflict) {
+              return (
+                <div className="card mb-sm border-warning-soft">
+                  <div className="row gap-xs items-center mb-xs">
+                    <Icon name="shield" size={16} className="warning-text" />
+                    <div>
+                      <span className="bold small warning-text">
+                        Used by Windows: {winConflict.windowsShortcut?.name ?? "Windows System Shortcut"}
+                      </span>
+                      {winConflict.windowsShortcut?.description && (
+                        <div className="tiny muted">{winConflict.windowsShortcut.description}</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="tiny mb-xs" style={{ color: "var(--color-accent)" }}>
+                    Keyflow can override this shortcut while Keyflow is running.
+                  </div>
+                  <div className="row gap-xs wrap items-center pt-xs border-top-subtle">
+                    {!overrideAcknowledged ? (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => setOverrideAcknowledged(true)}
+                      >
+                        Use Anyway
+                      </Button>
+                    ) : (
+                      <span className="chip chip-accent tiny">
+                        <Icon name="check" size={12} /> Override Confirmed
+                      </span>
+                    )}
+                    {conflictReport.suggestions.slice(0, 2).map((sug) => (
+                      <Button
+                        key={sug.label}
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          set({ key: sug.key, modifiers: sug.modifiers, trigger: sug.trigger })
+                        }
+                      >
+                        Switch to {sug.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div className="card mb-sm border-warning-soft">
+                <div className="row gap-xs items-center mb-xs">
+                  <Icon name="notify" size={16} className="warning-text" />
+                  <span className="bold small warning-text">Shortcut Warning</span>
+                </div>
+                {conflictReport.conflicts.map((c, i) => (
+                  <div key={i} className="tiny muted mb-xs">{c.message}</div>
+                ))}
+                {conflictReport.suggestions.length > 0 && (
+                  <div className="row gap-xs wrap mt-xs pt-xs border-top-subtle">
+                    {conflictReport.suggestions.slice(0, 2).map((sug) => (
+                      <Button
+                        key={sug.label}
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          set({ key: sug.key, modifiers: sug.modifiers, trigger: sug.trigger })
+                        }
+                      >
+                        Switch to {sug.label}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {draft.key && !conflictReport.hasBlockingConflict && !conflictReport.hasWarning && (
+            <div className="row gap-xs items-center text-success tiny mb-sm">
+              <Icon name="check" size={14} />
+              <span>Available</span>
             </div>
           )}
 

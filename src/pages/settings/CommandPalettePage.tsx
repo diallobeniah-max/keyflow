@@ -1,6 +1,7 @@
 import type { FC } from "react";
 import { useStore } from "../../store/useStore";
-import { Button, Select, SettingsGroup, SettingsRow, Slider, Toggle } from "../../components/ui";
+import { Button, SettingsGroup, SettingsRow, Slider, Toggle } from "../../components/ui";
+import { AppSelect } from "../../components/ui/AppSelect";
 import { SettingsPageHeader } from "./SettingsPageHeader";
 
 interface CommandPalettePageProps {
@@ -48,8 +49,8 @@ export const CommandPalettePage: FC<CommandPalettePageProps> = ({ onBack }) => {
           title="Activation shortcut"
           desc="Keyboard shortcut used to open and toggle the command palette"
         >
-          <div className="w-220">
-            <Select
+          <div className="settings-select-field">
+            <AppSelect
               value={settings.shortcuts.commandPaletteShortcut || "Ctrl+K"}
               onChange={(v: string) => patch("shortcuts", { commandPaletteShortcut: v })}
               options={[
@@ -126,8 +127,8 @@ export const CommandPalettePage: FC<CommandPalettePageProps> = ({ onBack }) => {
             title="Screen position"
             desc="Choose where the command palette opens on your display"
           >
-            <div className="w-220">
-              <Select
+            <div className="settings-select-field">
+              <AppSelect
                 value={settings.shortcuts.commandPalettePosition ?? "center"}
                 onChange={(v: string) => patch("shortcuts", { commandPalettePosition: v as any })}
                 options={[
@@ -199,8 +200,8 @@ export const CommandPalettePage: FC<CommandPalettePageProps> = ({ onBack }) => {
             title="Details panel depth"
             desc="Choose between full interactive setting controls or compact overview metadata"
           >
-            <div className="w-220">
-              <Select
+            <div className="settings-select-field">
+              <AppSelect
                 value={settings.shortcuts.commandPaletteDetailLevel || "detailed"}
                 onChange={(v: string) => patch("shortcuts", { commandPaletteDetailLevel: v as any })}
                 options={[

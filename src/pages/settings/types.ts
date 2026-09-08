@@ -4,6 +4,7 @@ export type SettingsSectionId =
   | "appBehavior"
   | "notifications"
   | "keyboard"
+  | "gesturesTrackpad"
   | "commandPalette"
   | "shortcutBinding"
   | "wasd"
@@ -66,6 +67,17 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
         icon: "keyboard",
         accentColor: "amber",
         summary: (d) => (d.settings.shortcuts.altCapsLockBypass !== false ? "Caps bypass on" : "Normal"),
+      },
+      {
+        id: "gesturesTrackpad",
+        label: "Gestures & Trackpad",
+        icon: "mouse",
+        accentColor: "blue",
+        summary: (d) => {
+          const g = d.settings.hyperGestures?.enabled ? "Gestures on" : "Gestures off";
+          const t = d.settings.touchpadDrag?.enabled ? "3-finger on" : "3-finger off";
+          return `${g} • ${t}`;
+        },
       },
       {
         id: "commandPalette",

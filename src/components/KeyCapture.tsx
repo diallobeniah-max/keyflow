@@ -6,6 +6,7 @@ import { Button, KeycapBadge } from "./ui";
 import { Icon } from "./Icon";
 import { useStore } from "../store/useStore";
 import { KeyPicker } from "./KeyPicker";
+import { lookupWindowsShortcut } from "../lib/windows-shortcuts-catalog.ts";
 
 const STANDARD_MODS: ModifierKey[] = ["Ctrl", "Alt", "Shift", "Win"];
 
@@ -163,6 +164,29 @@ export function KeyCapture({
         {value && !capturing ? (
           <div className="row gap-xs items-center">
             <KeycapBadge keys={[...modifiers, value]} size="lg" />
+            {(() => {
+              const winEntry = lookupWindowsShortcut(value, modifiers);
+              if (!winEntry) return null;
+              if (winEntry.interceptability === "os-secured") {
+                return (
+                  <span className="chip chip-danger tiny" title={winEntry.description}>
+                    <Icon name="lock" size={11} /> OS Secured
+                  </span>
+                );
+              }
+              if (winEntry.interceptability === "conditionally-interceptable") {
+                return (
+                  <span className="chip chip-warning tiny" title={`Used by Windows: ${winEntry.name} (conditionally interceptable)`}>
+                    <Icon name="shield" size={11} /> Conditionally Interceptable
+                  </span>
+                );
+              }
+              return (
+                <span className="chip chip-warning tiny" title={`Used by Windows: ${winEntry.name} – Keyflow will override`}>
+                  <Icon name="shield" size={11} /> Used by Windows
+                </span>
+              );
+            })()}
             <button
               type="button"
               className="btn btn-ghost btn-xs"

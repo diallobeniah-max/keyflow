@@ -133,8 +133,7 @@ export function AppSelect({
     if (!trigger) return;
     const rect = trigger.getBoundingClientRect();
     const viewportInset = 8;
-    const minMenuWidth = Math.max(rect.width, 240);
-    const width = Math.min(minMenuWidth, Math.max(1, window.innerWidth - viewportInset * 2));
+    const width = Math.min(rect.width, Math.max(1, window.innerWidth - viewportInset * 2));
     const left = clamp(rect.left, viewportInset, Math.max(viewportInset, window.innerWidth - width - viewportInset));
     const below = Math.max(1, window.innerHeight - rect.bottom - viewportInset);
     const above = Math.max(1, rect.top - viewportInset);
@@ -347,6 +346,7 @@ export function AppSelect({
                 onClick={() => choose(option)}
                 onKeyDown={handleOptionKeyDown}
                 onMouseEnter={() => setActiveIndex(index)}
+                title={option.label}
               >
                 <span className="app-select__option-label">{option.label}</span>
                 {option.value === value && <Icon name="check" size={15} />}

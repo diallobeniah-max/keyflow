@@ -45,6 +45,9 @@ export function createDefaultSettings(): Settings {
       colorCodedSettings: true,
       settingsWidth: "large",
       sidebarCollapsed: false,
+      dockTooltips: true,
+      dockLabelMode: "active",
+      lockWindowSize: false,
     },
     shortcuts: {
       globalPause: "Ctrl+Shift+P",
@@ -52,7 +55,7 @@ export function createDefaultSettings(): Settings {
       commandPaletteEnabled: true,
       commandPaletteShortcut: "Ctrl+K",
       clipboardShortcutEnabled: true,
-      clipboardShortcut: "",
+      clipboardShortcut: "Win+V",
       commandPaletteShowCategories: true,
       commandPaletteMaxResults: 8,
       commandPaletteWindowMode: "expanded",
@@ -204,6 +207,31 @@ export function createDefaultSettings(): Settings {
       position: "top-center",
       autoHide: false,
     },
+    hyperGestures: {
+      enabled: false,
+      activationThreshold: 24,
+      tapToEnterMode: false,
+      showTrail: true,
+      gestures: [
+        { id: "hg-up", name: "Maximize / Up", stroke: "U", actionId: "act-maximize", enabled: true },
+        { id: "hg-down", name: "Minimize / Down", stroke: "D", actionId: "act-minimize", enabled: true },
+        { id: "hg-left", name: "Snap Left", stroke: "L", actionId: "act-snap-left", enabled: true },
+        { id: "hg-right", name: "Snap Right", stroke: "R", actionId: "act-snap-right", enabled: true },
+        { id: "hg-close", name: "Close Window", stroke: "DR", actionId: "act-close-window", enabled: true },
+      ],
+    },
+    touchpadDrag: {
+      enabled: false,
+      cursorMove: true,
+      speed: 30,
+      acceleration: 10,
+      startThreshold: 100,
+      stopThreshold: 10,
+      releaseDelayMs: 500,
+      allowReleaseAndRestart: true,
+      maxFingerDistance: 150,
+      cursorAveraging: 1,
+    },
   };
 }
 
@@ -256,6 +284,9 @@ export function resolveDefaultKeyBehavior(
   _actions?: Action[],
   modifiers?: ModifierKey[],
 ): "passThrough" | "suppress" | "disable" | "remap" {
+  if (modifiers && modifiers.some((m) => /^(win|meta)$/i.test(String(m)))) {
+    return "suppress";
+  }
   if (modifiers && modifiers.length > 0) {
     return "passThrough";
   }
@@ -274,6 +305,12 @@ export function resolveDefaultKeyBehavior(
 export function resolveShortcutBehavior(
   shortcut: Partial<Shortcut>,
 ): "passThrough" | "suppress" | "disable" | "remap" {
+  if (shortcut.modifiers && shortcut.modifiers.some((m) => /^(win|meta)$/i.test(String(m)))) {
+    if (shortcut.keyBehavior === "disable" || shortcut.keyBehavior === "remap") {
+      return shortcut.keyBehavior;
+    }
+    return "suppress";
+  }
   if (shortcut.keyBehavior) {
     return shortcut.keyBehavior;
   }
@@ -281,6 +318,81 @@ export function resolveShortcutBehavior(
     return "suppress";
   }
   return resolveDefaultKeyBehavior(shortcut.key, shortcut.trigger, shortcut.actions, shortcut.modifiers);
+}
+
+/** Idempotently migrate legacy Windows-key shortcuts from passThrough to suppress */
+export function migrateWindowsShortcuts(shortcuts: Shortcut[]): Shortcut[] {
+  return (shortcuts ?? []).map((s) => {
+    if (!s || !s.modifiers || s.modifiers.length === 0) return s;
+    const hasWin = s.modifiers.some((m) => /^(win|meta)$/i.test(String(m)));
+    if (hasWin) {
+      if (s.keyBehavior === "disable" || s.keyBehavior === "remap") {
+        return s;
+      }
+      if (s.keyBehavior !== "suppress" || !s.suppressKey) {
+        return {
+          ...s,
+          keyBehavior: "suppress",
+          suppressKey: true,
+        };
+      }
+    }
+    return s;
+  });
+}
+
+/**
+ * Detects whether a legacy persisted state (which lacked `onboardingDone`)
+ * represents an established Keyflow user rather than a blank/new initialization.
+ */
+export function isLegacyEstablishedUser(raw: unknown): boolean {
+  if (!raw || typeof raw !== "object") return false;
+  const state = raw as Record<string, any>;
+
+  // Established users have one or more configured shortcuts
+  if (Array.isArray(state.shortcuts) && state.shortcuts.length > 0) {
+    return true;
+  }
+
+  // Established users have custom profiles or application rules
+  if (Array.isArray(state.profiles)) {
+    if (state.profiles.length > 1) return true;
+    if (state.profiles.some((p: any) => p && Array.isArray(p.appRules) && p.appRules.length > 0)) {
+      return true;
+    }
+  }
+
+  // Established users have an execution history
+  if (Array.isArray(state.recent) && state.recent.length > 0) {
+    return true;
+  }
+
+  // Established users have custom library actions
+  if (Array.isArray(state.library) && state.library.length > 0) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Resolves the effective onboarding status for a loaded persisted state.
+ *
+ * Rules:
+ * 1. If `onboardingDone` is explicitly boolean, respect it strictly (never overwrite `false`).
+ * 2. If `onboardingDone` is missing/undefined (legacy schema), evaluate whether
+ *    the state contains established user artifacts (shortcuts, profiles, recents).
+ * 3. Genuinely blank/empty states default to false so onboarding is shown.
+ */
+export function resolveOnboardingDone(raw: unknown): boolean {
+  if (!raw || typeof raw !== "object") return false;
+  const state = raw as Record<string, any>;
+
+  if (typeof state.onboardingDone === "boolean") {
+    return state.onboardingDone;
+  }
+
+  return isLegacyEstablishedUser(raw);
 }
 
 /** Idempotently migrate legacy CASH ("Ctrl+Alt+Shift+Win") shortcuts to canonical native ["Hyper"] */

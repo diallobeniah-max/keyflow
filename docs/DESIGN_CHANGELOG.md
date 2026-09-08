@@ -1,4 +1,106 @@
-# Design Changelog
+# KeyFlow Design Changelog
+
+This document is a historical record of KeyFlow's UI and interaction design evolution over time.
+
+### Important Notice for Coding Agents
+* **Newer dated entries supersede older entries** when behavior or architecture conflicts.
+* **This file is not the current-state specification.** For the live architecture implemented in the current working tree, consult [CURRENT_UI_STATE.md](./CURRENT_UI_STATE.md).
+* **Permanent design rules and token standards** are documented in [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md).
+* **Current working code remains the final technical source of truth.**
+
+### Related Documentation
+* [Current UI State](./CURRENT_UI_STATE.md) — current implemented UI architecture and interaction behavior
+* [Design System](./DESIGN_SYSTEM.md) — permanent design rules, tokens, and layout principles
+* [Component Rules](./COMPONENT_RULES.md) — shared component specifications and constraints
+
+### Documentation Ownership Contract
+* **DESIGN_SYSTEM.md** = How KeyFlow **SHOULD** be designed.
+* **CURRENT_UI_STATE.md** = How KeyFlow **IS** currently structured and implemented.
+* **DESIGN_CHANGELOG.md** = How KeyFlow **GOT HERE**.
+
+---
+
+## 2026-09-08 — TopBar Pill Navigation, Windows History Trail, Window Size Locking, About Page Polish & Multi-Window Notepad Theme Sync
+
+* **TopBar Pill Navigation & Breadcrumbs (`src/components/TopBar.tsx`, `src/store/useStore.ts`, `src/index.css`)**:
+  - Replaced the previously suppressed top bar with a clean pill-shaped navigation system matching user specifications.
+  - Left pill cluster: Back button (`←`), Forward button (`→`), and dynamic breadcrumb capsule (`keyflow / [Page] / [Section]`) with clickable segments.
+  - Keyboard shortcuts integrated: Alt+Left (Back) and Alt+Right (Forward).
+  - Right pill cluster (in horizontal navigation mode): Quick navigation hamburger menu pill (opens dropdown with all main pages), Command Palette trigger (`Ctrl+K`), live status indicator pill, and logo pill with right-click size restoration/lock menu.
+* **Windows History Bar at the Bottom (`src/components/WindowsHistoryBar.tsx`, `src/App.tsx`, `src/index.css`)**:
+  - Added a floating Windows Explorer-style history path at the bottom (`[ 🪟 ] > [ Overview ] > [ Shortcuts ] > [ Settings / Appearance ]`).
+  - Allows users to tap any historical view pill to jump directly back to that view via `jumpToHistory`.
+  - Positioned defensively above the floating dock capsule in horizontal mode (`bottom: 84px`).
+* **About KeyFlow Working Links & UI Redesign (`src/pages/settings/AboutPage.tsx`, `src/index.css`)**:
+  - Replaced non-functional `window.open` calls with `runAction({ type: "openWebsite", payload: { url } })` to invoke Electron's `shell.openExternal`, launching Documentation, Release Notes, and GitHub repository links in the OS default browser.
+  - Redesigned Hero card; replaced generic logo with selected high-resolution app icon asset (`getAppIconAsset(appearance.appIcon)`), updating dynamically with theme and icon preference.
+  - Added a "Change Icon" shortcut button directly navigating to App Icon settings.
+* **Multi-Window Notepad Light & Dark Mode Theme Synchronization (`src/main.tsx`, `src/App.tsx`, `src/components/NotesPopupShell.tsx`, `src/store/useStore.ts`)**:
+  - Implemented `getInitialPersistedState()` in `useStore.ts` to synchronously parse `localStorage.getItem("keyflow:state")` on initialization, eliminating startup theme lag and dark-mode flash.
+  - Invoked `useStore.getState().applyAppearance()` immediately on script execution in `src/main.tsx`.
+  - Added cross-window `"storage"` event listeners in both `App.tsx` and `NotesPopupShell.tsx`, keeping floating scratchpad notes in real-time theme sync with main window settings.
+* **Logo Right-Click Size Restoration & Permanent Size Locking (`src/components/TitleBar.tsx`, `src/components/TopBar.tsx`, `src/pages/settings/AppearancePage.tsx`, `src/types/index.ts`, `src/lib/defaults.ts`, `src/index.css`)**:
+  - Added right-click context menu on the KeyFlow logo in both the titlebar and topbar with "Restore default size (1020 × 700)" and "Lock window size" toggle.
+  - Added "Window sizing & lock" section in Appearance settings with "Lock window size" toggle and "Restore 1020 × 700" button.
+  - When locked, window unmaximizes immediately if maximize is triggered, popping an interactive toast notification with an inline "Unlock Size" action button to toggle lock off directly.
+
+
+* **Horizontal Navigation TopBar Streamlining & Overview Profile Switcher (`src/components/TopBar.tsx`, `src/pages/Dashboard.tsx`, `src/index.css`)**:
+  - Completely suppressed the top `KeyFlow Deck v0.3` header bar in horizontal navigation mode (`TopBar.tsx` returns `null` when `isHorizontal` is true), maximizing vertical display area.
+  - Relocated active profile switcher (`AppSelect`) to Overview signal strip (`src/pages/Dashboard.tsx`) under `PROFILE`, styled defensively in `.signal-cell-profile` with full dropdown support.
+* **Command Palette Presentation Mode Cards Auto-Adjust (`src/index.css`)**:
+  - Updated `.window-mode-cards` to `grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; max-width: 100%;` with 1-column mobile fallback.
+  - "Compact" and "Expanded" mode cards stretch to fill 50%/50% width equally, removing empty dead space.
+* **`AppSelect` Dropdown Shape & Ellipsis Truncation (`src/components/ui/AppSelect.tsx`, `src/index.css`)**:
+  - Removed arbitrary `Math.max(rect.width, 240)` minimum width override; dropdown menu width now matches the trigger button width (`rect.width`).
+  - Added `.app-select__option-label` text overflow handling (`overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`) with tooltip `title` attributes on options to ensure long option names truncate gracefully without expanding the menu wider than its anchor.
+* **Navigation Layout Dock Settings (`src/types/index.ts`, `src/lib/defaults.ts`, `src/pages/settings/AppearancePage.tsx`, `src/components/FloatingBottomDock.tsx`, `src/index.css`)**:
+  - Added appearance settings: `dockTooltips` (boolean toggle for dock hover popups) and `dockLabelMode` ("active" | "all" | "none" for dock option labels).
+  - Wired into `AppearancePage.tsx` under "Navigation Layout", and integrated with `FloatingBottomDock.tsx` and CSS classes (`.dock-labels-none`, `.dock-labels-all`, `.dock-labels-active`).
+* **Per-Panel Auto-Hiding Scrollbars in Settings (`src/pages/settings/SettingsSidebar.tsx`, `src/pages/Settings.tsx`, `src/index.css`)**:
+  - Added scrolling detection on both `.settings-nav` and `.settings-content` (`onScroll` resets a 900ms timer).
+  - Scrollbar thumbs render as subtle 5px overlay bars that are completely invisible (`opacity: 0` / transparent) when idle and only reveal on the specific panel actively being scrolled (`.settings-nav.is-scrolling` and `.settings-content.is-scrolling`).
+
+## 2026-09-08 — Responsive layout fixes and defensive card text handling
+
+* **Modular Toolkits Fluid Grid (`src/pages/Dashboard.tsx`, `src/index.css`)**:
+  - Replaced rigid `.cols-3` 3-column container on Dashboard with responsive `.toolkits-grid`.
+  - Adapts smoothly across narrow (<760px: 1 column), compact (760px–899px: 2 columns), standard (900px–1299px: 2 columns), and large/wide (≥1300px: 3 columns).
+  - Eliminates card compression below 300px, preventing cramped card contents.
+* **Defensive Utility Card Header and Footer Layout (`src/pages/Dashboard.tsx`, `src/index.css`)**:
+  - Added structured `.utility-card-header` with `min-width: 0` on titles and subtitles with ellipsis truncation, and `flex-shrink: 0` on right-side badges and toggles. Badges like `Double-Tap N` and `Live` stay 100% visible and unclipped.
+  - Added `.utility-card-footer` with `flex-wrap: wrap`, right-aligned buttons, and `flex-shrink: 0` on action buttons. Trigger chips and action buttons like `Test Popup →`, `Open Notes →`, and `Open Clipboard →` no longer overflow card borders or get clipped.
+  - Aligned Scratchpad and Clipboard Shelf header badges to `Live` chip to avoid redundant shortcut labels inside the same card.
+* **Responsive Breakpoint Alignment (`src/index.css`, `src/pages/ActionLibrary.tsx`)**:
+  - Closed the 760px–899px media query gap by adding 2-column fallback for `.cols-3`, `.cols-4`, and `.preset-grid`, plus wrapping for `.overview-banner`.
+* **Universal Auto-Adjusting Settings Rows (`src/index.css`, `src/components/ui.tsx`)**:
+  - Upgraded `.settings-row` with `flex-wrap: wrap;` and a robust `.settings-row-info` minimum basis (`flex: 1 1 240px; min-width: min(100%, 200px)`), guaranteeing labels and descriptions never get squeezed into 1-word-per-line skinny text.
+  - Enabled `.settings-row-control` to wrap child controls naturally with `max-width: 100%`, removing the artificial `42%` constraint that previously compressed control groups and clipped buttons.
+  - Created `.settings-notice-box` for clean full-width informational and safety callout banners.
+* **Independent Settings Scrolling & Glued Sidebar Architecture (`src/App.tsx`, `src/pages/Settings.tsx`, `src/index.css`)**:
+  - Identified that the outer application shell (`.content`) owned vertical scrolling for all pages, causing long settings detail pages (such as Dim Screen) to scroll the entire layout including the sticky sidebar off-screen.
+  - Added `.content.is-settings-view` conditional class on the outer `.content` wrapper in `src/App.tsx`, locking the outer scroller to `overflow: hidden; height: 100%`.
+  - Replaced the redundant inner `.content` in `Settings.tsx` with `.settings-root-container` (`height: 100%; overflow: hidden; padding: ...; box-sizing: border-box`).
+  - Isolated scrolling entirely to `.settings-content` (`height: 100%; max-height: 100%; overflow-y: auto; scrollbar-gutter: stable`), wired to `useSmoothScroll(settingsContentRef)`.
+  - Established `.settings-nav` as an independent full-height column (`height: 100%; max-height: 100%; overflow-y: auto; scrollbar-gutter: stable`) with a sticky top header and search bar (`Ctrl+K`).
+    - The left settings sidebar is now **100% glued and static**: scrolling the right panel to the bottom (e.g. Dim Screen monitors, restoration, safety) does not move, push up, or scroll the left navigation sidebar by even 1 pixel. Navigation and search remain permanently accessible at the top.
+    - Automatically resets right-panel scroll to top on section switch (`scrollTop = 0`) unless navigating to a deep-linked anchor target.
+* **Full-Height Under Floating Dock Scrim & Scrollbar Removal (`src/index.css`)**:
+  - Removed the 96px bottom content inset for the settings view (`.app-body.is-horizontal-nav .content.is-settings-view { padding: 0 !important; }`) and removed the container's bottom padding (`.settings-root-container`).
+  - Both `.settings-nav` and `.settings-content` now extend 100% to the window's bottom edge, eliminating the horizontal cutoff line and empty dead zone.
+  - Cards, section dividers, and content flow seamlessly underneath the floating bottom dock scrim and capsule, allowing the `backdrop-filter: blur(...)` effect to blur live content underneath.
+  - Provided generous internal scroller clearance (`padding-bottom: calc(var(--space-12) * 2 + var(--space-8))` on content, `+ var(--space-6)` on nav), ensuring bottom elements (e.g. "Emergency restore" card and bottom category icons) scroll cleanly into full view above the dock capsule.
+  - Completely removed the vertical scroll lines/gutters on both the left sidebar and right detail panel (`scrollbar-width: none !important;`, `::-webkit-scrollbar { display: none !important; }`, and `.is-scrolling` thumb suppression), preserving smooth hover/wheel/trackpad scrolling without visible scroll tracks.
+* **Auto-Adjusting Controls & Mode Cards (`src/pages/settings/PrivacyPage.tsx`, `src/pages/settings/CommandPalettePage.tsx`, `src/index.css`)**:
+  - Replaced rigid `w-260` in Privacy with `.excluded-app-input-row` (`flex: 1 1 280px; max-width: 520px; min-width: min(100%, 200px)`), allowing the application exclusion input to scale comfortably across screen sizes.
+  - Replaced empty text string with token-styled `.settings-notice-box`.
+  - Converted `.window-mode-cards` to a responsive auto-fit grid (`grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); max-width: 560px`), eliminating squashed 220px cards hugging the left border.
+  - Upgraded Command Palette selects to `AppSelect` within `.settings-select-field`.
+* **Notes Window Sizes & Editor Preferences Polish (`src/pages/NotesSettingsPage.tsx`, `src/index.css`)**:
+  - Disambiguated duplicate "Editor Preferences" cards: renamed top section to **"Window Sizes & Layout"** (`desktop` icon) and kept bottom section as **"Editor Preferences"** (`edit` icon).
+  - Redesigned `.notes-window-size-toolbar` into a clean multi-element action bar: preset selector (`AppSelect`, capped at 280px), dimension inputs (`[ 700 ] × [ 640 ] px`), and action buttons (`Save Size`, `Test Notes`, `Capture`). Completely removed the giant vertical gap and horizontally stretched dropdown.
+  - Upgraded font size selection to `AppSelect` in `.notes-font-size-select-wrap`.
+  - Replaced rigid `w-160` on Autosave Delay with `.settings-slider-row`, featuring responsive slider width and a live milliseconds badge (`chip-subtle font-mono text-xs`).
 
 ## 2026-09-06 — In-app smooth scroll physics overhaul
 

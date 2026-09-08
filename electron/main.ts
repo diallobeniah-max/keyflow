@@ -6,6 +6,7 @@ import {
   Menu,
   nativeImage,
   nativeTheme,
+  shell,
   Tray,
 } from "electron";
 import { join, dirname } from "path";
@@ -16,6 +17,7 @@ import { NativeInputService } from "./input/native-input-service.js";
 import { runDesktopAction, ActionResult } from "./actions.js";
 import { PopupWindowManager } from "./popup-window.js";
 import { DragSwitcherWindowManager } from "./drag-switcher-window.js";
+import { GestureTrailWindowManager } from "./gesture-trail-window.js";
 import { HotCornersManager } from "./hot-corners.js";
 import { ScreenTintWindowManager } from "./screen-tint-window.js";
 import { DimScreenManager } from "./dim-screen-manager.js";
@@ -36,6 +38,7 @@ import { findAhkExecutable } from "./ahk-detect.js";
 import { buildNativeShortcutConfig, buildSuppressionConfig, buildNativeHyperSpec, HYPER_TAP_SYNTHETIC_ID, resolveActionForHyperTap } from "./suppression-config.js";
 import { keyToVk } from "./win-vk.js";
 import { initInputDebug, inputDebug } from "./input/input-debug.js";
+import { getWindowsConflictStatus, setWindowsClipboardHistoryDisabled, setWindowsTouchpadThreeFingerDisabled } from "./windows-conflicts.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -51,6 +54,7 @@ let quittingFromTray = false;
 let inputService: NativeInputService | null = null;
 let popupManager: PopupWindowManager | null = null;
 let dragSwitcherManager: DragSwitcherWindowManager | null = null;
+let gestureTrailManager: GestureTrailWindowManager | null = null;
 let hotCornersManager: HotCornersManager | null = null;
 let screenTintManager: ScreenTintWindowManager | null = null;
 let dimScreenManager: DimScreenManager | null = null;
@@ -606,6 +610,7 @@ function registerIPC(): void {
     if (inputService) inputService.updateShortcuts(entries);
     suppressionContext = context ?? {};
     lastShortcutEntries = entries ?? [];
+
     if (inputBackend === "native") {
       if (context?.extendedAccess !== undefined && nativeHelper) {
         await nativeHelper.setElevated(!!context.extendedAccess);
@@ -768,6 +773,43 @@ ipcMain.handle("input:get-suppression", () => {
     nativeHelper?.setSmoothScroll(config ?? {});
     return true;
   });
+
+  ipcMain.handle("input:set-hyper-gestures", (_event, config: any) => {
+    nativeHelper?.setHyperGestures(config ?? {});
+    return true;
+  });
+
+  ipcMain.handle("input:set-touchpad-drag", (_event, config: any) => {
+    nativeHelper?.setTouchpadDrag(config ?? {});
+    if (config?.enabled) {
+      void setWindowsTouchpadThreeFingerDisabled(true);
+    }
+    return true;
+  });
+
+  ipcMain.handle("input:get-touchpad-status", async () => {
+    if (inputBackend === "native" && nativeHelper) {
+      return await nativeHelper.queryTouchpadStatus();
+    }
+    return { version: 1, supported: false, deviceCount: 0 };
+  });
+
+  ipcMain.handle("input:open-windows-touchpad-settings", () => {
+    void shell.openExternal("ms-settings:devices-touchpad");
+    return true;
+  });
+
+  ipcMain.handle("system:get-windows-conflicts", async () => {
+    return await getWindowsConflictStatus();
+  });
+
+  ipcMain.handle("system:set-windows-clipboard-disabled", async (_event, disabled: boolean) => {
+    return await setWindowsClipboardHistoryDisabled(!!disabled);
+  });
+
+  ipcMain.handle("system:set-windows-touchpad-gestures-disabled", async (_event, disabled: boolean) => {
+    return await setWindowsTouchpadThreeFingerDisabled(!!disabled);
+  });
 }
 
 function sendMaximizedChange(maximized: boolean): void {
@@ -902,6 +944,12 @@ app.whenReady().then(() => {
     isDev: process.env.NODE_ENV === "development" || process.argv.includes("--dev"),
     appPath: app.getAppPath(),
   });
+  gestureTrailManager = new GestureTrailWindowManager({
+    devUrl: DEV_URL,
+    preloadPath: PRELOAD_PATH,
+    isDev: process.env.NODE_ENV === "development" || process.argv.includes("--dev"),
+    appPath: app.getAppPath(),
+  });
   hotCornersManager = new HotCornersManager({
     getMainWindow: () => mainWindow,
     executeActions: (actions) => runActionsDesktop(actions),
@@ -984,6 +1032,14 @@ app.whenReady().then(() => {
     nativeHelper.setOnWindowActivationResult((msg) => {
       mainWindow?.webContents.send("drag-switcher:activation-result", msg);
     });
+    nativeHelper.setOnGestureTrail((msg) => gestureTrailManager?.updateTrail(msg));
+    nativeHelper.setOnGestureTriggered((msg) => {
+      console.log(`[hyper-gesture] triggered gesture=${msg.gestureId} action=${msg.actionId}`);
+      mainWindow?.webContents.send("gesture:triggered", msg);
+    });
+    nativeHelper.setOnTouchpadStatus((msg) => {
+      mainWindow?.webContents.send("touchpad:status", msg);
+    });
     nativeHelper.start(process.pid);
     setNativeKeyInjector((vk, extended, down) => (nativeHelper ? nativeHelper.injectKey(vk, extended, down) : Promise.resolve(false)));
   } else {
@@ -1027,6 +1083,7 @@ app.on("will-quit", () => {
   ahkManager?.stop();
   nativeHelper?.shutdown();
   dragSwitcherManager?.destroy();
+  gestureTrailManager?.destroy();
   hotCornersManager?.stop();
   screenTintManager?.destroy();
   dimScreenManager?.destroy();

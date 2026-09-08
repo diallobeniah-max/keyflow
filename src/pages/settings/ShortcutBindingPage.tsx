@@ -1,6 +1,7 @@
-import { type FC, useState, useRef, useCallback } from "react";
+import { type FC, useState, useRef, useCallback, useEffect } from "react";
 import { useStore } from "../../store/useStore";
 import { SettingsGroup, SettingsRow } from "../../components/ui";
+import { Icon } from "../../components/Icon";
 import { SettingsPageHeader } from "./SettingsPageHeader";
 
 interface ShortcutBindingPageProps {
@@ -327,6 +328,22 @@ export const ShortcutBindingPage: FC<ShortcutBindingPageProps> = ({ onBack }) =>
   const patch = useStore((s) => s.patchSettings);
 
   const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [winClipboardDisabled, setWinClipboardDisabled] = useState<boolean | null>(null);
+
+  const checkWinConflicts = useCallback(async () => {
+    try {
+      const res = await (window as any).electronAPI?.input?.getWindowsConflicts?.();
+      if (res) {
+        setWinClipboardDisabled(res.clipboardHistoryDisabled);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    void checkWinConflicts();
+  }, [checkWinConflicts]);
 
   const allValues: Record<string, string | undefined> = {
     globalPause: shortcuts.globalPause,
@@ -374,6 +391,22 @@ export const ShortcutBindingPage: FC<ShortcutBindingPageProps> = ({ onBack }) =>
         desc=""
         accentColor="slate"
       >
+        <SettingsRow
+          id="row-sc-bind-clipboard-conflict"
+          title="Windows Built-in Clipboard (Win+V)"
+          desc="Windows includes a built-in clipboard history flyout. When Win+V is assigned to KeyFlow, Windows' native clipboard history is automatically turned off in the registry to prevent duplicate popups."
+        >
+          {winClipboardDisabled !== null && (
+            <span
+              className={`touchpad-conflict-status-badge ${
+                winClipboardDisabled ? "is-disabled" : "is-active"
+              }`}
+            >
+              <Icon name={winClipboardDisabled ? "check" : "alertTriangle"} size={12} />
+              <span>{winClipboardDisabled ? "Turned Off (Optimal)" : "Active in Windows"}</span>
+            </span>
+          )}
+        </SettingsRow>
         <SettingsRow
           id="row-sc-bind-info"
           title="How bindings work"

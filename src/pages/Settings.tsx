@@ -1,7 +1,6 @@
-import { useEffect, useState, type FC } from "react";
+import { useEffect, useRef, useState, type FC } from "react";
 import { useStore } from "../store/useStore";
-import { PageIntro } from "../components/ui";
-import { Icon } from "../components/Icon";
+import { useSmoothScroll } from "../hooks/useSmoothScroll";
 import { SettingsSidebar } from "./settings/SettingsSidebar";
 import { resolveSettingsSectionId, type SettingsSectionId } from "./settings/types";
 
@@ -23,6 +22,7 @@ import { BackupPage } from "./settings/BackupPage";
 import { AdvancedPage } from "./settings/AdvancedPage";
 import { AboutPage } from "./settings/AboutPage";
 import { ShortcutBindingPage } from "./settings/ShortcutBindingPage";
+import { GesturesTrackpadPage } from "./settings/GesturesTrackpadPage";
 import { SmoothScrollPage } from "./settings/SmoothScrollPage";
 import { MediaPlayerPage } from "./settings/MediaPlayerPage";
 
@@ -35,6 +35,38 @@ export function Settings() {
   const activeSection = (useStore((s) => s.activeSettingsSection) as SettingsSectionId) || "appBehavior";
   const setActiveSection = useStore((s) => s.setActiveSettingsSection);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
+
+  const settingsContentRef = useRef<HTMLElement>(null);
+  useSmoothScroll(settingsContentRef, settings.smoothScroll);
+
+  const [isContentScrolling, setIsContentScrolling] = useState(false);
+  const contentScrollTimerRef = useRef<number | null>(null);
+
+  const handleContentScroll = () => {
+    setIsContentScrolling(true);
+    if (contentScrollTimerRef.current !== null) {
+      window.clearTimeout(contentScrollTimerRef.current);
+    }
+    contentScrollTimerRef.current = window.setTimeout(() => {
+      setIsContentScrolling(false);
+      contentScrollTimerRef.current = null;
+    }, 900);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (contentScrollTimerRef.current !== null) {
+        window.clearTimeout(contentScrollTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Scroll right detail panel to top when switching sections (unless deep linking to an anchor)
+  useEffect(() => {
+    if (!focusTarget && settingsContentRef.current) {
+      settingsContentRef.current.scrollTop = 0;
+    }
+  }, [activeSection, focusTarget]);
 
   // Handle deep-linking from Command Palette or Settings Search
   useEffect(() => {
@@ -78,6 +110,8 @@ export function Settings() {
         return <NotificationsPage {...props} />;
       case "keyboard":
         return <KeyboardPage {...props} />;
+      case "gesturesTrackpad":
+        return <GesturesTrackpadPage {...props} />;
       case "commandPalette":
         return <CommandPalettePage {...props} />;
       case "shortcutBinding":
@@ -122,39 +156,8 @@ export function Settings() {
   };
 
   return (
-    <div className="content">
+    <div className="settings-root-container">
       <div className={`settings-view-container is-width-${settingsWidth}`}>
-        <PageIntro
-          eyebrow="PREFERENCES"
-          title="Settings"
-          description="Configure desktop behaviors, visual appearance, gesture timings, and privacy settings."
-        />
-
-        {/* Fast search entry for Settings and Command Palette */}
-        <div className="settings-search-wrapper mb-md">
-          <div className="settings-search-box">
-            <Icon name="search" size={16} className="settings-search-icon" />
-            <button
-              type="button"
-              className="settings-search-input settings-search-command-trigger"
-              aria-label="Search all commands and settings"
-              title="Search all commands and settings (Ctrl+K)"
-              onClick={openCommandPalette}
-            >
-              Search commands and settings…
-            </button>
-            <button
-              type="button"
-              className="settings-search-palette-badge"
-              title="Open full Command Palette (Ctrl+K)"
-              onClick={openCommandPalette}
-            >
-              <Icon name="command" size={12} />
-              <span>Ctrl+K</span>
-            </button>
-          </div>
-        </div>
-
         <div
           className={`settings-layout is-width-${settingsWidth} ${isColorCoded ? "is-color-coded" : ""} ${
             isNavCollapsed ? "is-nav-collapsed" : ""
@@ -168,11 +171,19 @@ export function Settings() {
             settingsWidth={settingsWidth}
             isCollapsed={isNavCollapsed}
             onToggleCollapse={toggleNavCollapse}
+            onOpenSearch={openCommandPalette}
           />
 
           {/* Right Settings Detail Content */}
-          <main key={activeSection} className="settings-content">
-            {renderActivePage()}
+          <main
+            ref={settingsContentRef}
+            className={`settings-content ${isContentScrolling ? "is-scrolling" : ""}`}
+            data-scroll-owner="settings-detail"
+            onScroll={handleContentScroll}
+          >
+            <div key={activeSection} className="settings-page-content-pane">
+              {renderActivePage()}
+            </div>
           </main>
         </div>
       </div>

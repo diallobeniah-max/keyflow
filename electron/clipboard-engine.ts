@@ -389,14 +389,29 @@ export class ClipboardEngine {
   private peekSignature(): string {
     try {
       const formats = clipboard.availableFormats();
+      if (!formats.length) return "";
       if (isProtectedClipboard(formats, (format) => clipboard.readBuffer(format))) return "sensitive";
       const paths = parseFileNameW();
       if (paths.length) return `files:${sha(paths.map((path) => normalize(path).toLowerCase()).join("\n"))}`;
-      const image = clipboard.readImage();
-      if (!image.isEmpty()) return `image:${sha(image.toPNG())}`;
+      const hasImage = formats.some((f) => f.startsWith("image/") || f.includes("DIB") || f.includes("Bitmap"));
+      if (hasImage) {
+        const image = clipboard.readImage();
+        if (!image.isEmpty()) {
+          const sz = image.getSize();
+          // Fast uncompressed sample: dimensions + raw bitmap header sample without expensive 350ms PNG re-encoding
+          const bmpSample = image.toBitmap().subarray(0, 128);
+          return `image:${sz.width}x${sz.height}:${sha(bmpSample)}`;
+        }
+      }
       const text = clipboard.readText();
       const html = clipboard.readHTML();
-      return text || html ? `text:${sha(`${text}\0${html}`)}` : formats.join("|");
+      if (text || html) {
+        // Fast peek: length + slice sample
+        const textSample = text.length > 512 ? `${text.slice(0, 256)}\0${text.slice(-256)}\0${text.length}` : text;
+        const htmlSample = html.length > 512 ? `${html.slice(0, 256)}\0${html.slice(-256)}\0${html.length}` : html;
+        return `text:${sha(`${textSample}\0${htmlSample}`)}`;
+      }
+      return formats.join("|");
     } catch { return ""; }
   }
 

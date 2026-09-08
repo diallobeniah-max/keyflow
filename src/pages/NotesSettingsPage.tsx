@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../components/Icon";
-import { Button, IconButton, Input, Toggle, Select, Slider, PageIntro } from "../components/ui";
+import { Button, IconButton, Input, Toggle, Slider, PageIntro } from "../components/ui";
+import { AppSelect } from "../components/ui/AppSelect";
 import { useStore } from "../store/useStore";
 import { SLASH_COMMANDS, SlashCommand } from "../lib/notesSlashCommands";
 import { EditShortcutModal } from "../components/EditShortcutModal";
@@ -449,47 +450,58 @@ export function NotesSettingsPage() {
         </div>
       </div>
 
-      {/* Editor Preferences Card */}
+      {/* Window Sizes & Layout Card */}
       <div className="card mb-md">
         <div className="row gap-sm items-center mb-md">
-          <Icon name="settings" size={18} />
+          <Icon name="desktop" size={18} />
           <div>
-            <div className="bold">Editor Preferences</div>
-            <div className="tiny muted">Configure how the floating editor looks and behaves</div>
+            <div className="bold">Window Sizes & Layout</div>
+            <div className="tiny muted">Configure floating notepad dimensions, active size presets, and window behaviors</div>
           </div>
         </div>
 
         {/* Top Control Bar for Notes Window Sizes */}
-        <div className="settings-row notes-size-top-toolbar">
-          <div className="settings-row-info">
-            <div className="settings-row-title">Notes Window Sizes</div>
-            <div className="settings-row-desc">
+        <div className="notes-window-size-toolbar">
+          <div className="notes-window-size-toolbar-info">
+            <div className="bold font-md">Notes Window Sizes</div>
+            <div className="small muted">
               Edit dimensions in real time, test the live floating pad, or capture from the open window.
             </div>
           </div>
-          <div className="settings-row-control notes-size-top-controls">
-            <div className="notes-size-top-action-group">
-              <div className="notes-size-dim-inputs">
-                <Input
-                  aria-label="Active preset width"
-                  type="number"
-                  min="560"
-                  max="1600"
-                  value={topWidthDraft}
-                  onChange={(e) => void handleTopSizeLiveChange(e.target.value, topHeightDraft, true)}
-                  title="Width (px) - live updates open window"
-                />
-                <span className="tiny muted">×</span>
-                <Input
-                  aria-label="Active preset height"
-                  type="number"
-                  min="520"
-                  max="1200"
-                  value={topHeightDraft}
-                  onChange={(e) => void handleTopSizeLiveChange(topWidthDraft, e.target.value, true)}
-                  title="Height (px) - live updates open window"
-                />
-              </div>
+          <div className="notes-window-size-toolbar-actions">
+            <div className="notes-size-select-wrap">
+              <AppSelect
+                value={windowPreferences.windowSizePreset}
+                onChange={(value) => void patchWindowPreferences({ windowSizePreset: value })}
+                options={allPresets.map((p) => ({
+                  value: p.id,
+                  label: `${p.name} · ${p.width} × ${p.height} px`,
+                }))}
+              />
+            </div>
+            <div className="notes-size-dim-inputs">
+              <Input
+                aria-label="Active preset width"
+                type="number"
+                min="560"
+                max="1600"
+                value={topWidthDraft}
+                onChange={(e) => void handleTopSizeLiveChange(e.target.value, topHeightDraft, true)}
+                title="Width (px) - live updates open window"
+              />
+              <span className="tiny muted">×</span>
+              <Input
+                aria-label="Active preset height"
+                type="number"
+                min="520"
+                max="1200"
+                value={topHeightDraft}
+                onChange={(e) => void handleTopSizeLiveChange(topWidthDraft, e.target.value, true)}
+                title="Height (px) - live updates open window"
+              />
+              <span className="tiny muted">px</span>
+            </div>
+            <div className="notes-size-buttons-group">
               <Button
                 variant="primary"
                 size="sm"
@@ -517,16 +529,6 @@ export function NotesSettingsPage() {
               >
                 Capture
               </Button>
-              <div className="notes-size-select-wrap">
-                <Select
-                  value={windowPreferences.windowSizePreset}
-                  onChange={(value) => void patchWindowPreferences({ windowSizePreset: value })}
-                  options={allPresets.map((p) => ({
-                    value: p.id,
-                    label: `${p.name} · ${p.width} × ${p.height} px`,
-                  }))}
-                />
-              </div>
             </div>
           </div>
         </div>
@@ -828,15 +830,17 @@ export function NotesSettingsPage() {
             <div className="settings-row-desc">Text size in the notepad editor</div>
           </div>
           <div className="settings-row-control">
-            <Select
-              value={settings.notes?.fontSize ?? "default"}
-              onChange={(v) => patchSettings("notes", { fontSize: v as any })}
-              options={[
-                { value: "small", label: "Small" },
-                { value: "default", label: "Default" },
-                { value: "large", label: "Large" },
-              ]}
-            />
+            <div className="notes-font-size-select-wrap">
+              <AppSelect
+                value={settings.notes?.fontSize ?? "default"}
+                onChange={(v) => patchSettings("notes", { fontSize: v as any })}
+                options={[
+                  { value: "small", label: "Small (13px)" },
+                  { value: "default", label: "Default (15px)" },
+                  { value: "large", label: "Large (18px)" },
+                ]}
+              />
+            </div>
           </div>
         </div>
 
@@ -888,14 +892,18 @@ export function NotesSettingsPage() {
             <div className="settings-row-desc">{settings.notes?.autoSaveIntervalMs ?? 300}ms after last keystroke</div>
           </div>
           <div className="settings-row-control">
-            <div className="w-160">
+            <div className="settings-slider-row">
               <Slider
                 min={100}
                 max={2000}
                 step={100}
                 value={settings.notes?.autoSaveIntervalMs ?? 300}
                 onChange={(v) => patchSettings("notes", { autoSaveIntervalMs: v })}
+                aria-label="Autosave interval milliseconds"
               />
+              <span className="chip chip-subtle font-mono text-xs">
+                {settings.notes?.autoSaveIntervalMs ?? 300} ms
+              </span>
             </div>
           </div>
         </div>

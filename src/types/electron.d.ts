@@ -111,6 +111,14 @@ interface InputAPI {
   setWasdFeedbackConfig?: (config: { showStateCard: boolean; accent?: string }) => Promise<boolean>;
   browseCursorFile?: () => Promise<string | null>;
   setSmoothScroll?: (config: any) => Promise<boolean>;
+  setHyperGestures?: (config: any) => Promise<boolean>;
+  setTouchpadDrag?: (config: any) => Promise<boolean>;
+  getTouchpadStatus?: () => Promise<{ version: number; supported: boolean; deviceCount: number; deviceName?: string }>;
+  openWindowsTouchpadSettings?: () => Promise<boolean>;
+  getWindowsConflicts?: () => Promise<{ clipboardHistoryDisabled: boolean; touchpadThreeFingerDisabled: boolean }>;
+  setWindowsClipboardDisabled?: (disabled: boolean) => Promise<boolean>;
+  setWindowsTouchpadGesturesDisabled?: (disabled: boolean) => Promise<boolean>;
+  onGestureTrail?: (callback: (trail: any) => void) => () => void;
   onWasdNavigationState: (callback: (active: boolean) => void) => () => void;
   onTriggered: (callback: (shortcut: any, results?: any[]) => void) => () => void;
   beginCapture?: () => Promise<boolean>;

@@ -121,6 +121,11 @@ export function CreateShortcut() {
 
   const [activeRecommendation, setActiveRecommendation] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [overrideAcknowledged, setOverrideAcknowledged] = useState(false);
+
+  useEffect(() => {
+    setOverrideAcknowledged(false);
+  }, [draft.key, draft.modifiers]);
 
   useEffect(() => {
     clearPending();
@@ -455,44 +460,129 @@ export function CreateShortcut() {
             </div>
           )}
 
-          {/* Inline Conflict / Warning Banner */}
-          {conflictReport.hasBlockingConflict && (
-            <div className="alert-banner alert-danger mt-sm">
-              <div className="alert-header">
-                <Icon name="close" size={16} />
-                <b>{conflictReport.conflicts.find((c) => c.level === "error")?.message}</b>
-              </div>
-              {conflictReport.suggestions.length > 0 && (
-                <div className="alert-actions mt-xs">
-                  <span className="muted tiny">Suggested alternatives:</span>
-                  <div className="row gap-xs wrap mt-xs">
-                    {conflictReport.suggestions.map((sug) => (
-                      <Button
-                        key={sug.label}
-                        size="sm"
-                        variant="secondary"
-                        onClick={() =>
-                          set({ key: sug.key, modifiers: sug.modifiers, trigger: sug.trigger })
-                        }
-                      >
-                        Use {sug.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          {/* Conflict Resolution & Status Feedback */}
+          {conflictReport.hasBlockingConflict && (() => {
+            const blocking = conflictReport.conflicts.find((c) => c.level === "error");
+            const isOsSecured = blocking?.canOverride === false || blocking?.type === "system_reserved";
+            const isInternal = blocking?.type === "exact_duplicate" || blocking?.type === "gesture_overlap";
 
-          {!conflictReport.hasBlockingConflict && conflictReport.hasWarning && (
-            <div className="alert-banner alert-warning mt-sm">
-              <div className="alert-header">
-                <Icon name="shield" size={16} />
-                <span>{conflictReport.conflicts.find((c) => c.level === "warning")?.message}</span>
+            if (isOsSecured) {
+              return (
+                <div className="alert-banner alert-danger mt-sm">
+                  <div className="alert-header">
+                    <Icon name="lock" size={16} />
+                    <div>
+                      <b>Unavailable: Reserved by Windows ({blocking?.windowsShortcut?.name ?? "OS Security"})</b>
+                      <div className="tiny mt-xs" style={{ color: "var(--color-text-secondary)" }}>
+                        This shortcut is hardcoded for Windows system security or session management and cannot be intercepted by any user-mode app.
+                      </div>
+                    </div>
+                  </div>
+                  {conflictReport.suggestions.length > 0 && (
+                    <div className="alert-actions mt-xs">
+                      <span className="muted tiny">Available alternative shortcuts:</span>
+                      <div className="row gap-xs wrap mt-xs">
+                        {conflictReport.suggestions.map((sug) => (
+                          <Button
+                            key={sug.label}
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              set({ key: sug.key, modifiers: sug.modifiers, trigger: sug.trigger })
+                            }
+                          >
+                            Use {sug.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            return (
+              <div className="alert-banner alert-danger mt-sm">
+                <div className="alert-header">
+                  <Icon name="close" size={16} />
+                  <b>{blocking?.message}</b>
+                </div>
+                {isInternal && blocking?.existingId && (
+                  <div className="alert-actions mt-xs row gap-xs wrap items-center">
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => {
+                        useStore.getState().deleteShortcut(blocking.existingId!);
+                      }}
+                    >
+                      Replace Existing
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => set({ key: "" })}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+                {conflictReport.suggestions.length > 0 && (
+                  <div className="alert-actions mt-xs">
+                    <span className="muted tiny">Suggested alternatives:</span>
+                    <div className="row gap-xs wrap mt-xs">
+                      {conflictReport.suggestions.map((sug) => (
+                        <Button
+                          key={sug.label}
+                          size="sm"
+                          variant="secondary"
+                          onClick={() =>
+                            set({ key: sug.key, modifiers: sug.modifiers, trigger: sug.trigger })
+                          }
+                        >
+                          Use {sug.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              {conflictReport.suggestions.length > 0 && (
-                <div className="alert-actions mt-xs">
-                  <div className="row gap-xs wrap mt-xs">
+            );
+          })()}
+
+          {!conflictReport.hasBlockingConflict && conflictReport.hasWarning && (() => {
+            const winConflict = conflictReport.conflicts.find((c) => c.type === "windows_interceptable");
+            if (winConflict) {
+              return (
+                <div className="alert-banner alert-warning mt-sm">
+                  <div className="alert-header">
+                    <Icon name="shield" size={16} />
+                    <div>
+                      <b>Used by Windows: {winConflict.windowsShortcut?.name ?? "Windows System Shortcut"}</b>
+                      {winConflict.windowsShortcut?.description && (
+                        <div className="tiny mt-xs" style={{ color: "var(--color-text-secondary)" }}>
+                          {winConflict.windowsShortcut.description}
+                        </div>
+                      )}
+                      <div className="tiny mt-xs" style={{ color: "var(--color-accent)" }}>
+                        Keyflow can override this shortcut while Keyflow is running.
+                      </div>
+                    </div>
+                  </div>
+                  <div className="alert-actions mt-xs row gap-xs wrap items-center">
+                    {!overrideAcknowledged ? (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => setOverrideAcknowledged(true)}
+                      >
+                        Use Anyway
+                      </Button>
+                    ) : (
+                      <span className="chip chip-accent tiny">
+                        <Icon name="check" size={12} /> Override Confirmed
+                      </span>
+                    )}
                     {conflictReport.suggestions.slice(0, 2).map((sug) => (
                       <Button
                         key={sug.label}
@@ -507,7 +597,41 @@ export function CreateShortcut() {
                     ))}
                   </div>
                 </div>
-              )}
+              );
+            }
+
+            return (
+              <div className="alert-banner alert-warning mt-sm">
+                <div className="alert-header">
+                  <Icon name="shield" size={16} />
+                  <span>{conflictReport.conflicts.find((c) => c.level === "warning")?.message}</span>
+                </div>
+                {conflictReport.suggestions.length > 0 && (
+                  <div className="alert-actions mt-xs">
+                    <div className="row gap-xs wrap mt-xs">
+                      {conflictReport.suggestions.slice(0, 2).map((sug) => (
+                        <Button
+                          key={sug.label}
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            set({ key: sug.key, modifiers: sug.modifiers, trigger: sug.trigger })
+                          }
+                        >
+                          Switch to {sug.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {draft.key && !conflictReport.hasBlockingConflict && !conflictReport.hasWarning && (
+            <div className="row gap-xs items-center mt-sm text-success tiny">
+              <Icon name="check" size={14} />
+              <span>Available</span>
             </div>
           )}
         </Card>

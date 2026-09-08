@@ -302,8 +302,9 @@ export const DimScreenPage: FC<DimScreenPageProps> = ({ onBack }) => {
             id="row-dim-safety-info"
             title="Emergency restore"
             desc="Disabling Dim Screen immediately removes the dark overlay and restores physical screen brightness"
+            layout="stack"
           >
-            <div className="small muted">
+            <div className="settings-notice-box">
               Create a custom shortcut in <strong>Shortcuts</strong> with action <strong>Toggle Dim Screen</strong> or <strong>Dim Screen Control</strong> for instantaneous hotkey control anywhere in Windows.
             </div>
           </SettingsRow>

@@ -129,8 +129,8 @@ export const PrivacyPage: FC<PrivacyPageProps> = ({ onBack }) => {
         accentColor="slate"
       >
         <div className="p-sm col gap-sm">
-          <div className="row gap-sm items-center">
-            <div className="w-260">
+          <div className="excluded-app-input-row">
+            <div className="excluded-app-input-wrap">
               <Input
                 placeholder="e.g. Photoshop, Game, VirtualBox"
                 value={newAppInput}
@@ -155,7 +155,9 @@ export const PrivacyPage: FC<PrivacyPageProps> = ({ onBack }) => {
 
           <div className="row gap-xs wrap mt-xs">
             {blacklistedApps.length === 0 ? (
-              <span className="tiny muted">No excluded applications configured.</span>
+              <div className="settings-notice-box">
+                No excluded applications configured. Shortcuts run across all desktop windows.
+              </div>
             ) : (
               blacklistedApps.map((app) => (
                 <span key={app} className="chip chip-subtle">

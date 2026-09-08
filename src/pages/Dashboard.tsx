@@ -8,6 +8,7 @@ import { Icon } from "../components/Icon";
 import { Simulator } from "../components/Simulator";
 import { EditShortcutModal } from "../components/EditShortcutModal";
 import { playFeedbackSound } from "../lib/sound";
+import { AppSelect } from "../components/ui/AppSelect";
 
 function timeAgo(at: number): string {
   const seconds = Math.floor((Date.now() - at) / 1000);
@@ -82,9 +83,17 @@ export function Dashboard() {
             {safeMode ? "Safe mode" : paused ? "Paused" : "Listening"}
           </span>
         </div>
-        <div className="signal-cell">
+        <div className="signal-cell signal-cell-profile">
           <span className="signal-label">PROFILE</span>
-          <span className="signal-value">{activeProfile?.name ?? "Default"}</span>
+          <div className="signal-profile-wrap">
+            <AppSelect
+              value={activeId}
+              onChange={(val) => setActive(val)}
+              options={data.profiles.map((p) => ({ value: p.id, label: p.name }))}
+              ariaLabel="Active profile selector"
+              className="signal-profile-select"
+            />
+          </div>
         </div>
         <div className="signal-cell">
           <span className="signal-label">ACTIVE RULES</span>
@@ -154,17 +163,17 @@ export function Dashboard() {
         </span>
       </div>
 
-      <div className="grid cols-3 gap-md mb-lg">
+      <div className="toolkits-grid mb-lg">
         {/* Module 1: Super Key (Hyper) */}
         <div className="card utility-card">
-          <div className="spread mb-sm">
-            <div className="row gap-sm">
+          <div className="utility-card-header mb-sm">
+            <div className="utility-card-info row gap-sm">
               <div className="utility-card-icon">
                 <Icon name="sparkles" size={18} />
               </div>
-              <div>
-                <div className="bold small">Super Key (Hyper)</div>
-                <div className="muted tiny">Modifier Chord Engine</div>
+              <div className="utility-card-titles">
+                <div className="bold small utility-card-title">Super Key (Hyper)</div>
+                <div className="muted tiny utility-card-subtitle">Modifier Chord Engine</div>
               </div>
             </div>
             <Toggle
@@ -183,10 +192,10 @@ export function Dashboard() {
               })}
             />
           </div>
-          <p className="muted tiny mb-sm">
+          <p className="utility-card-desc mb-sm">
             Turns {hyperKey} into an extra modifier key for system-wide shortcuts with zero shortcut collisions.
           </p>
-          <div className="spread pt-sm border-top-subtle">
+          <div className="utility-card-footer pt-sm border-top-subtle">
             <span className="chip chip-subtle">
               <span>Trigger: <b>{hyperKey}</b></span>
             </span>
@@ -202,14 +211,14 @@ export function Dashboard() {
 
         {/* Module 2: WASD Navigation Mode */}
         <div className="card utility-card">
-          <div className="spread mb-sm">
-            <div className="row gap-sm">
+          <div className="utility-card-header mb-sm">
+            <div className="utility-card-info row gap-sm">
               <div className="utility-card-icon">
                 <Icon name="shortcuts" size={18} />
               </div>
-              <div>
-                <div className="bold small">WASD Navigation</div>
-                <div className="muted tiny">Arrow Key Routing</div>
+              <div className="utility-card-titles">
+                <div className="bold small utility-card-title">WASD Navigation</div>
+                <div className="muted tiny utility-card-subtitle">Arrow Key Routing</div>
               </div>
             </div>
             <Toggle
@@ -218,10 +227,10 @@ export function Dashboard() {
               onChange={() => setWasdNav(!wasdNavActive)}
             />
           </div>
-          <p className="muted tiny mb-sm">
+          <p className="utility-card-desc mb-sm">
             Control cursor and text navigation using W/A/S/D with custom blue pointer visual feedback everywhere.
           </p>
-          <div className="spread pt-sm border-top-subtle">
+          <div className="utility-card-footer pt-sm border-top-subtle">
             <span className={`chip ${wasdNavActive ? "chip-accent" : "chip-subtle"}`}>
               <span>{wasdNavActive ? "Active Everywhere" : "Inactive"}</span>
             </span>
@@ -237,22 +246,22 @@ export function Dashboard() {
 
         {/* Module 3: Spotlight Popup Menu */}
         <div className="card utility-card">
-          <div className="spread mb-sm">
-            <div className="row gap-sm">
+          <div className="utility-card-header mb-sm">
+            <div className="utility-card-info row gap-sm">
               <div className="utility-card-icon">
                 <Icon name="popup" size={18} />
               </div>
-              <div>
-                <div className="bold small">Spotlight Menu</div>
-                <div className="muted tiny">Double-Tap F Command Bar</div>
+              <div className="utility-card-titles">
+                <div className="bold small utility-card-title">Spotlight Menu</div>
+                <div className="muted tiny utility-card-subtitle">Double-Tap F Command Bar</div>
               </div>
             </div>
             <span className="chip chip-accent">Live</span>
           </div>
-          <p className="muted tiny mb-sm">
+          <p className="utility-card-desc mb-sm">
             Floating spotlight launcher triggered by Double-Tap F with direct key actions (1-9) and command search.
           </p>
-          <div className="spread pt-sm border-top-subtle">
+          <div className="utility-card-footer pt-sm border-top-subtle">
             <span className="chip chip-subtle">
               <span>Trigger: <b>Double-Tap F</b></span>
             </span>
@@ -271,22 +280,22 @@ export function Dashboard() {
 
         {/* Module 4: Floating Scratchpad Notes */}
         <div className="card utility-card">
-          <div className="spread mb-sm">
-            <div className="row gap-sm">
+          <div className="utility-card-header mb-sm">
+            <div className="utility-card-info row gap-sm">
               <div className="utility-card-icon">
-                <Icon name="edit" size={18} />
+                <Icon name="notes" size={18} />
               </div>
-              <div>
-                <div className="bold small">Floating Scratchpad</div>
-                <div className="muted tiny">Instant Borderless Notes</div>
+              <div className="utility-card-titles">
+                <div className="bold small utility-card-title">Floating Scratchpad</div>
+                <div className="muted tiny utility-card-subtitle">Instant Borderless Notes</div>
               </div>
             </div>
-            <span className="chip chip-subtle">Double-Tap N</span>
+            <span className="chip chip-accent">Live</span>
           </div>
-          <p className="muted tiny mb-sm">
+          <p className="utility-card-desc mb-sm">
             Always-on-top distraction-free scratchpad with instant history, auto-saving, and quick formatting.
           </p>
-          <div className="spread pt-sm border-top-subtle">
+          <div className="utility-card-footer pt-sm border-top-subtle">
             <span className="chip chip-subtle">
               <span>Trigger: <b>Double-Tap N</b></span>
             </span>
@@ -305,22 +314,22 @@ export function Dashboard() {
 
         {/* Module 4b: Clipboard Shelf */}
         <div className="card utility-card">
-          <div className="spread mb-sm">
-            <div className="row gap-sm">
+          <div className="utility-card-header mb-sm">
+            <div className="utility-card-info row gap-sm">
               <div className="utility-card-icon">
                 <Icon name="clipboard" size={18} />
               </div>
-              <div>
-                <div className="bold small">Clipboard Shelf</div>
-                <div className="muted tiny">Paste-Style Card Ribbon</div>
+              <div className="utility-card-titles">
+                <div className="bold small utility-card-title">Clipboard Shelf</div>
+                <div className="muted tiny utility-card-subtitle">Paste-Style Card Ribbon</div>
               </div>
             </div>
-            <span className="chip chip-subtle">Win+V</span>
+            <span className="chip chip-accent">Live</span>
           </div>
-          <p className="muted tiny mb-sm">
+          <p className="utility-card-desc mb-sm">
             Always-on-top paste overlay with multi-layout display, rich links, and visual color swatches.
           </p>
-          <div className="spread pt-sm border-top-subtle">
+          <div className="utility-card-footer pt-sm border-top-subtle">
             <span className="chip chip-subtle">
               <span>Trigger: <b>Win + V</b></span>
             </span>
@@ -345,14 +354,14 @@ export function Dashboard() {
 
         {/* Module 5: Screen Drag Switcher */}
         <div className="card utility-card">
-          <div className="spread mb-sm">
-            <div className="row gap-sm">
+          <div className="utility-card-header mb-sm">
+            <div className="utility-card-info row gap-sm">
               <div className="utility-card-icon">
                 <Icon name="pinTop" size={18} />
               </div>
-              <div>
-                <div className="bold small">Screen Drag Switcher</div>
-                <div className="muted tiny">Corner & Edge Snapping</div>
+              <div className="utility-card-titles">
+                <div className="bold small utility-card-title">Screen Drag Switcher</div>
+                <div className="muted tiny utility-card-subtitle">Corner & Edge Snapping</div>
               </div>
             </div>
             <Toggle
@@ -361,10 +370,10 @@ export function Dashboard() {
               onChange={() => patch("dragSwitcher", { enabled: !dragZonesEnabled })}
             />
           </div>
-          <p className="muted tiny mb-sm">
+          <p className="utility-card-desc mb-sm">
             Switch applications effortlessly by dragging a window to configured monitor edges and corner zones.
           </p>
-          <div className="spread pt-sm border-top-subtle">
+          <div className="utility-card-footer pt-sm border-top-subtle">
             <span className={`chip ${dragZonesEnabled ? "chip-accent" : "chip-subtle"}`}>
               <span>{dragZonesEnabled ? "Zones Armed" : "Disabled"}</span>
             </span>
@@ -380,14 +389,14 @@ export function Dashboard() {
 
         {/* Module 6: Tactile Audio Chimes */}
         <div className="card utility-card">
-          <div className="spread mb-sm">
-            <div className="row gap-sm">
+          <div className="utility-card-header mb-sm">
+            <div className="utility-card-info row gap-sm">
               <div className="utility-card-icon">
                 <Icon name="volume" size={18} />
               </div>
-              <div>
-                <div className="bold small">Tactile Audio Chimes</div>
-                <div className="muted tiny">Acoustic Feedback</div>
+              <div className="utility-card-titles">
+                <div className="bold small utility-card-title">Tactile Audio Chimes</div>
+                <div className="muted tiny utility-card-subtitle">Acoustic Feedback</div>
               </div>
             </div>
             <Toggle
@@ -396,10 +405,10 @@ export function Dashboard() {
               onChange={() => patch("audio", { enabled: !soundEnabled })}
             />
           </div>
-          <p className="muted tiny mb-sm">
+          <p className="utility-card-desc mb-sm">
             Provides instant audio confirmation whenever a gesture triggers or a tool mode turns on/off.
           </p>
-          <div className="spread pt-sm border-top-subtle">
+          <div className="utility-card-footer pt-sm border-top-subtle">
             <span className="chip chip-subtle">
               <span>{data.settings.audio?.soundPack ?? "Modern"}</span>
             </span>

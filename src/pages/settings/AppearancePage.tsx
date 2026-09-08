@@ -1,7 +1,7 @@
 import type { FC, CSSProperties } from "react";
 import { useStore } from "../../store/useStore";
 import { AppSelect } from "../../components/ui/AppSelect";
-import { SettingsGroup, SettingsRow, Toggle } from "../../components/ui";
+import { Button, SettingsGroup, SettingsRow, Toggle } from "../../components/ui";
 import { Icon } from "../../components/Icon";
 import { ACCENT_PRESETS } from "../../lib/constants";
 import { createDefaultSettings } from "../../lib/defaults";
@@ -16,6 +16,7 @@ interface AppearancePageProps {
 export const AppearancePage: FC<AppearancePageProps> = ({ onBack }) => {
   const settings = useStore((s) => s.data.settings);
   const patch = useStore((s) => s.patchSettings);
+  const toast = useStore((s) => s.toast);
 
   return (
     <div className="settings-page-container anim-tab-enter">
@@ -223,6 +224,40 @@ export const AppearancePage: FC<AppearancePageProps> = ({ onBack }) => {
               </div>
             </button>
           </div>
+
+          {/* Dock Layout Options */}
+          <div className="mt-md pt-sm border-t border-subtle">
+            <SettingsRow
+              id="row-dock-tooltips"
+              title="Dock pop-up notifications"
+              desc="Show hover pop-up card explaining what each navigation icon does"
+            >
+              <Toggle
+                checked={settings.appearance.dockTooltips !== false}
+                onChange={(val) => patch("appearance", { dockTooltips: val })}
+                aria-label="Toggle dock pop-up notifications"
+              />
+            </SettingsRow>
+
+            <SettingsRow
+              id="row-dock-labels"
+              title="Dock option names"
+              desc="Choose whether button titles are displayed on the navigation dock"
+            >
+              <div className="settings-select-field">
+                <AppSelect
+                  value={settings.appearance.dockLabelMode ?? "active"}
+                  onChange={(val) => patch("appearance", { dockLabelMode: val as "active" | "all" | "none" })}
+                  options={[
+                    { value: "active", label: "Selected only (Show name when selected)" },
+                    { value: "all", label: "All options (Show name on all buttons)" },
+                    { value: "none", label: "Icons only (Hide all names)" },
+                  ]}
+                  aria-label="Dock option names display"
+                />
+              </div>
+            </SettingsRow>
+          </div>
         </div>
 
         {/* Application Layout Width: Small vs Large */}
@@ -322,6 +357,56 @@ export const AppearancePage: FC<AppearancePageProps> = ({ onBack }) => {
               </div>
             </button>
           </div>
+        </div>
+
+        {/* Window Sizing & Lock Mode */}
+        <div id="row-window-size-lock" className="nav-layout-section p-sm mt-md">
+          <div className="nav-layout-section-header mb-sm">
+            <div className="settings-row-title">Window sizing & lock</div>
+            <div className="settings-row-desc">
+              Lock the KeyFlow desktop window to its recommended size and prevent accidental maximize or snap resizing.
+            </div>
+          </div>
+
+          <SettingsRow
+            id="row-lock-window-size"
+            title="Lock window size"
+            desc="Freeze window dimensions and disable maximize or resize actions"
+          >
+            <Toggle
+              checked={!!settings.appearance.lockWindowSize}
+              onChange={(val) => {
+                patch("appearance", { lockWindowSize: val });
+                toast(val ? "Window size locked (maximization disabled)" : "Window size unlocked", "info");
+              }}
+              aria-label="Toggle lock window size"
+            />
+          </SettingsRow>
+
+          <SettingsRow
+            id="row-restore-window-size"
+            title="Default dimensions"
+            desc="Reset window dimensions to the recommended 1020 × 700 baseline"
+          >
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={async () => {
+                try {
+                  const isMax = await window.electronAPI?.windowControls.isMaximized?.();
+                  if (isMax) {
+                    await window.electronAPI?.windowControls.toggleMaximize?.();
+                  }
+                  window.resizeTo?.(1020, 700);
+                  toast("Restored default window size (1020 × 700)", "info");
+                } catch {
+                  window.resizeTo?.(1020, 700);
+                }
+              }}
+            >
+              Restore 1020 × 700
+            </Button>
+          </SettingsRow>
         </div>
 
         <SettingsRow

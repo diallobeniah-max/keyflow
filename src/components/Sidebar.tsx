@@ -5,7 +5,7 @@ import {
   Desktop,
   GearSix,
   Keyboard,
-  NoteBlank,
+  NotePencil,
   Plus,
   SquaresFour,
   UsersThree,
@@ -79,7 +79,7 @@ export function Sidebar() {
     { page: "clipboard", label: "Clipboard", icon: ClipboardText },
     { page: "profiles", label: "Profiles", icon: UsersThree, badge: profiles.length },
     { page: "library", label: "Action Library", icon: Books },
-    { page: "notes", label: "Notes", icon: NoteBlank },
+    { page: "notes", label: "Notes", icon: NotePencil },
     { page: "settings", label: "Settings", icon: GearSix },
   ];
 

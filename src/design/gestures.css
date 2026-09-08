@@ -1,0 +1,401 @@
+/*
+ * KeyFlow Gestures & Trackpad Stylesheet
+ * Fully compliant with docs/DESIGN_SYSTEM.md and check-design-system.mjs.
+ */
+
+/* ── Gesture Trail Overlay ─────────────────────────────────────── */
+.gesture-trail-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999999;
+  overflow: hidden;
+}
+
+.gesture-trail-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.gesture-preview-pill {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-accent-border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-popup);
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+  transition: transform var(--motion-fast);
+}
+
+.gesture-preview-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--color-accent-soft);
+  border-radius: var(--radius-sm);
+  color: var(--color-accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.gesture-preview-label {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.gesture-preview-hint {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+/* ── Gestures Settings Page ────────────────────────────────────── */
+.gestures-slider-wrap {
+  width: 240px;
+}
+
+.gestures-section-inner {
+  padding: var(--space-4) var(--space-5);
+}
+
+.gestures-mapping-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.gestures-header-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.gestures-header-count {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.gestures-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.gestures-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  gap: var(--space-3);
+}
+
+.gestures-item-lead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 160px;
+}
+
+.gestures-arrow-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.gestures-item-info {
+  min-width: 0;
+}
+
+.gestures-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.gestures-item-stroke {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.gestures-item-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  max-width: 320px;
+}
+
+/* ── Interactive Recognition Sandbox ──────────────────────────── */
+.gesture-sandbox-header {
+  margin-bottom: var(--space-2);
+}
+
+.gesture-sandbox-desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: var(--space-1) 0 var(--space-2);
+}
+
+.gesture-sandbox-pad {
+  height: 120px;
+  background: var(--color-bg-input);
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-lg);
+  position: relative;
+  cursor: crosshair;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.gesture-sandbox-pad.active {
+  border-style: solid;
+  border-color: var(--color-accent);
+}
+
+.gesture-sandbox-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.gesture-sandbox-status {
+  pointer-events: none;
+  text-align: center;
+  z-index: 2;
+}
+
+.gesture-sandbox-result {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.gesture-sandbox-hint {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* ── Hardware Capability Banner ────────────────────────────────── */
+.touchpad-hardware-banner {
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-bg-surface-elevated);
+  border-bottom: 1px solid var(--color-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.touchpad-hardware-banner.supported {
+  background: var(--color-success-soft);
+}
+
+.touchpad-hardware-banner.unsupported {
+  background: var(--color-warning-soft);
+}
+
+.touchpad-hardware-lead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.touchpad-hardware-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.touchpad-hardware-icon-box.supported {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.touchpad-hardware-icon-box.unsupported {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.touchpad-hardware-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.touchpad-hardware-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.touchpad-hardware-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: var(--space-0) var(--space-2);
+  border-radius: var(--radius-pill);
+}
+
+.touchpad-hardware-badge.supported {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.touchpad-hardware-badge.unsupported {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.touchpad-hardware-desc {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: var(--space-1) 0 0;
+  line-height: 1.45;
+}
+
+.touchpad-refresh-button {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.touchpad-refresh-button:hover {
+  background: var(--color-bg-hover);
+}
+
+/* ── Windows Gesture Conflict Banner ──────────────────────────── */
+.touchpad-conflict-banner {
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.touchpad-conflict-info {
+  min-width: 0;
+}
+
+.touchpad-conflict-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.touchpad-conflict-desc {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: var(--space-1) 0 0;
+  max-width: 520px;
+  line-height: 1.45;
+}
+
+.touchpad-settings-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-accent);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.touchpad-settings-button:hover {
+  background: var(--color-accent-hover);
+}
+
+.touchpad-conflict-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.touchpad-conflict-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-2);
+  font-size: var(--type-caption-size);
+  font-weight: 550;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+}
+
+.touchpad-conflict-status-badge.is-disabled {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.touchpad-conflict-status-badge.is-active {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.touchpad-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--type-button-size);
+  font-weight: 550;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.touchpad-secondary-button:hover {
+  background: var(--color-bg-hover);
+}

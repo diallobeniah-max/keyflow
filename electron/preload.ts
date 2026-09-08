@@ -119,6 +119,20 @@ contextBridge.exposeInMainWorld("electronAPI", {
         ipcRenderer.removeListener("native:capture-cancelled", handler);
       };
     },
+    setHyperGestures: (config) => ipcRenderer.invoke("input:set-hyper-gestures", config),
+    setTouchpadDrag: (config) => ipcRenderer.invoke("input:set-touchpad-drag", config),
+    getTouchpadStatus: () => ipcRenderer.invoke("input:get-touchpad-status"),
+    openWindowsTouchpadSettings: () => ipcRenderer.invoke("input:open-windows-touchpad-settings"),
+    getWindowsConflicts: () => ipcRenderer.invoke("system:get-windows-conflicts"),
+    setWindowsClipboardDisabled: (disabled) => ipcRenderer.invoke("system:set-windows-clipboard-disabled", disabled),
+    setWindowsTouchpadGesturesDisabled: (disabled) => ipcRenderer.invoke("system:set-windows-touchpad-gestures-disabled", disabled),
+    onGestureTrail: (callback) => {
+      const handler = (_event, trail) => callback(trail);
+      ipcRenderer.on("gesture:trail", handler);
+      return () => {
+        ipcRenderer.removeListener("gesture:trail", handler);
+      };
+    },
   },
   hotCorners: {
     configure: (config, shortcuts) => ipcRenderer.invoke("hot-corners:configure", config, shortcuts),

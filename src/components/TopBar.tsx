@@ -1,21 +1,19 @@
-import { useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Books,
   Desktop,
   GearSix,
   Keyboard,
-  NoteBlank,
+  NotePencil,
   Plus,
   SquaresFour,
   UsersThree,
-  Pause,
-  Play,
   type Icon as PhosphorIcon,
 } from "@phosphor-icons/react";
 import { useStore } from "../store/useStore";
 import { AppPage } from "../types";
 import { Icon } from "./Icon";
-import { AppSelect } from "./ui/AppSelect";
+import { getAppIconAsset } from "../lib/app-icon";
 
 const TITLES: Record<string, string> = {
   dashboard: "Overview",
@@ -26,125 +24,185 @@ const TITLES: Record<string, string> = {
   profiles: "Profiles",
   notes: "Notes",
   settings: "Settings",
+  clipboard: "Clipboard",
+};
+
+const SETTINGS_SECTIONS: Record<string, string> = {
+  appBehavior: "App Behavior",
+  keyboard: "Shortcuts",
+  appearance: "Appearance",
+  appIcon: "App Icon",
+  commandPalette: "Command Palette",
+  clipboard: "Clipboard Hub",
+  notes: "Notes & Scratchpad",
+  dimScreen: "Dim Screen",
+  mediaPlayer: "Media Player",
+  hotCorners: "Hot Corners",
+  wasdNavigation: "WASD Navigation",
+  touchpad: "Touchpad Gestures",
+  smoothScroll: "Smooth Scrolling",
+  privacy: "Privacy & Safe Mode",
+  about: "About KeyFlow",
 };
 
 interface NavItem {
   page: AppPage;
   label: string;
   icon: PhosphorIcon;
-  badge?: number;
 }
 
 export function TopBar() {
   const page = useStore((s) => s.currentPage);
-  const setPage = useStore((s) => s.setPage);
+  const activeSettingsSection = useStore((s) => s.activeSettingsSection);
+  const navigate = useStore((s) => s.navigate);
+  const goBack = useStore((s) => s.goBack);
+  const goForward = useStore((s) => s.goForward);
+  const navHistory = useStore((s) => s.navHistory);
+  const navHistoryIndex = useStore((s) => s.navHistoryIndex);
   const paused = useStore((s) => s.paused);
   const safeMode = useStore((s) => s.safeMode);
-  const togglePaused = useStore((s) => s.togglePaused);
-  const focusedApp = useStore((s) => s.focusedApp);
   const appearance = useStore((s) => s.data.settings.appearance);
-  const drawerOpen = useStore((s) => s.drawerOpen);
-  const setDrawerOpen = useStore((s) => s.setDrawerOpen);
-  const profiles = useStore((s) => s.data.profiles);
-  const shortcuts = useStore((s) => s.data.shortcuts);
-  const activeProfileId = useStore((s) => s.activeProfileId);
-  const setActiveProfile = useStore((s) => s.setActiveProfile);
-  const hamburgerRef = useRef<HTMLButtonElement>(null);
+  const patch = useStore((s) => s.patchSettings);
+  const toast = useStore((s) => s.toast);
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const isHorizontal = appearance?.navigationLayout === "horizontal";
+  const canGoBack = navHistoryIndex > 0;
+  const canGoForward = navHistoryIndex < navHistory.length - 1;
 
   const tint = appearance.headerAccentTint ?? "subtle";
   const fit = appearance.headerAccentFit ?? "full";
   const tintClass = tint !== "none" ? ` topbar-tint-${tint} topbar-fit-${fit}` : "";
 
-  const activeShortcutsCount = shortcuts.filter((s) => s.profileId === activeProfileId && s.enabled).length;
+  const appIconAsset = getAppIconAsset(appearance.appIcon);
+
+  // Close menus on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenuPos(null);
+      }
+    };
+    window.addEventListener("mousedown", handleClick);
+    return () => window.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // Alt+Left / Alt+Right navigation hotkeys
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && e.key === "ArrowLeft") {
+        e.preventDefault();
+        goBack();
+      } else if (e.altKey && e.key === "ArrowRight") {
+        e.preventDefault();
+        goForward();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [goBack, goForward]);
+
+  const restoreDefaultSize = async () => {
+    try {
+      const isMax = await window.electronAPI?.windowControls.isMaximized?.();
+      if (isMax) {
+        await window.electronAPI?.windowControls.toggleMaximize?.();
+      }
+      window.resizeTo?.(1020, 700);
+      toast("Restored default window size (1020 × 700)", "info");
+    } catch {
+      window.resizeTo?.(1020, 700);
+    }
+    setContextMenuPos(null);
+  };
+
+  const toggleLock = () => {
+    const next = !appearance.lockWindowSize;
+    patch("appearance", { lockWindowSize: next });
+    toast(next ? "Window size locked (maximization prevented)" : "Window size unlocked", "info");
+    setContextMenuPos(null);
+  };
 
   const NAV_ITEMS: NavItem[] = [
     { page: "dashboard", label: "Overview", icon: SquaresFour },
-    { page: "shortcuts", label: "Shortcuts", icon: Keyboard, badge: activeShortcutsCount },
+    { page: "shortcuts", label: "Shortcuts", icon: Keyboard },
     { page: "create", label: "Create", icon: Plus },
     { page: "visual", label: "Keyboard Map", icon: Desktop },
-    { page: "profiles", label: "Profiles", icon: UsersThree, badge: profiles.length },
+    { page: "profiles", label: "Profiles", icon: UsersThree },
     { page: "library", label: "Action Library", icon: Books },
-    { page: "notes", label: "Notes", icon: NoteBlank },
+    { page: "notes", label: "Notes", icon: NotePencil },
     { page: "settings", label: "Settings", icon: GearSix },
   ];
 
-  if (isHorizontal) {
-    return (
-      <header className={`topbar is-horizontal-nav${tintClass}`}>
-        {tint !== "none" && <div className="topbar-accent-glow" aria-hidden="true" />}
+  const pageTitle = TITLES[page] || page;
+  const sectionTitle = page === "settings" ? (SETTINGS_SECTIONS[activeSettingsSection] || activeSettingsSection) : null;
 
-        {/* Left: Brand + Status */}
-        <div className="topbar-left">
-          <div className="topbar-brand" onClick={() => setPage("dashboard")} title="KeyFlow Control Deck">
-            <span className={"status-dot" + (safeMode ? " is-safe-mode" : paused ? " is-paused" : " is-active")} />
-            <div className="topbar-brand-text">
-              <span className="topbar-brand-title">KeyFlow</span>
-              <span className="topbar-brand-subtitle">Deck v0.3</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right: Profile Switcher, Status Pill, and Quick Create */}
-        <div className="topbar-actions">
-          {/* Profile Switcher */}
-          {profiles.length > 0 && (
-            <div className="topbar-profile-select hide-mobile">
-              <AppSelect
-                value={activeProfileId}
-                onChange={(val) => setActiveProfile(val)}
-                options={profiles.map((p) => ({ value: p.id, label: p.name }))}
-              />
-            </div>
-          )}
-
-          {(safeMode || paused) && (
-            <span
-              className={"topbar-status-pill" + (safeMode ? " is-safe-mode" : " is-paused")}
-              title={safeMode ? "Safe Mode active" : "KeyFlow is paused"}
-            >
-              <span className="status-dot" />
-              <span>{safeMode ? "Safe Mode" : "Paused"}</span>
-            </span>
-          )}
-
-          {page !== "create" && (
-            <button
-              type="button"
-              className="btn btn-primary btn-sm hide-mobile topbar-quick-create"
-              onClick={() => {
-                useStore.getState().setEditing(null);
-                setPage("create");
-              }}
-            >
-              <Icon name="create" size={14} />
-              <span>New Shortcut</span>
-            </button>
-          )}
-        </div>
-      </header>
-    );
-  }
-
-  // Standard Vertical Sidebar TopBar
   return (
-    <header className={`topbar${tintClass}`}>
+    <header className={`topbar${tintClass}${isHorizontal ? " is-horizontal-topbar" : ""}`}>
       {tint !== "none" && <div className="topbar-accent-glow" aria-hidden="true" />}
-      <div className="topbar-left">
-        <button
-          ref={hamburgerRef}
-          type="button"
-          className="hamburger hide-desktop"
-          aria-label="Open navigation menu"
-          onClick={() => setDrawerOpen(!drawerOpen)}
-        >
-          <Icon name={drawerOpen ? "close" : "shortcuts"} size={18} />
-        </button>
 
+      {/* Left Navigation: Back, Forward, Breadcrumb (all in modern pill containers) */}
+      <div className="topbar-left">
+        <div className="topbar-history-pills">
+          <button
+            type="button"
+            className="topbar-pill-btn"
+            disabled={!canGoBack}
+            onClick={goBack}
+            title={canGoBack ? "Back (Alt+Left)" : "No previous page"}
+            aria-label="Navigate back"
+          >
+            <Icon name="chevronLeft" size={13} />
+          </button>
+          <button
+            type="button"
+            className="topbar-pill-btn"
+            disabled={!canGoForward}
+            onClick={goForward}
+            title={canGoForward ? "Forward (Alt+Right)" : "No forward page"}
+            aria-label="Navigate forward"
+          >
+            <Icon name="chevronRight" size={13} />
+          </button>
+        </div>
+
+        {/* Breadcrumb Path Pill */}
+        <div className="topbar-breadcrumb-pill">
+          <button
+            type="button"
+            className="topbar-crumb-segment is-root"
+            onClick={() => navigate("dashboard")}
+            title="Go to Overview"
+          >
+            keyflow
+          </button>
+          <span className="topbar-crumb-sep">/</span>
+          <button
+            type="button"
+            className={`topbar-crumb-segment${!sectionTitle ? " is-active" : ""}`}
+            onClick={() => navigate(page)}
+          >
+            {pageTitle}
+          </button>
+          {sectionTitle && (
+            <>
+              <span className="topbar-crumb-sep">/</span>
+              <span className="topbar-crumb-segment is-active">{sectionTitle}</span>
+            </>
+          )}
+        </div>
       </div>
 
+      {/* Right Navigation & Actions */}
       <div className="topbar-actions">
+        {/* Command Palette Trigger */}
         <button
           type="button"
           className="topbar-search-trigger hide-mobile"
@@ -158,6 +216,46 @@ export function TopBar() {
           <kbd className="topbar-search-kbd">Ctrl K</kbd>
         </button>
 
+        {/* Quick Navigation Hamburger Pill (especially handy when vertical sidebar is off) */}
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            className={`topbar-pill-btn topbar-menu-pill${menuOpen ? " is-active" : ""}`}
+            onClick={() => setMenuOpen(!menuOpen)}
+            title="Navigation Menu"
+            aria-label="Navigation Menu"
+            aria-expanded={menuOpen}
+          >
+            <Icon name={menuOpen ? "close" : "menu"} size={14} />
+          </button>
+
+          {menuOpen && (
+            <div className="topbar-nav-dropdown anim-dropdown-enter" role="menu">
+              <div className="topbar-dropdown-header">Navigation</div>
+              {NAV_ITEMS.map((item) => {
+                const isCurrent = page === item.page;
+                const IconComp = item.icon;
+                return (
+                  <button
+                    key={item.page}
+                    type="button"
+                    className={`topbar-dropdown-item${isCurrent ? " is-active" : ""}`}
+                    onClick={() => {
+                      navigate(item.page);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <IconComp size={15} />
+                    <span>{item.label}</span>
+                    {isCurrent && <Icon name="check" size={12} className="ml-auto" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Safe Mode / Paused Status Pill */}
         {(safeMode || paused) && (
           <span
             className={"topbar-status-pill" + (safeMode ? " is-safe-mode" : " is-paused")}
@@ -168,13 +266,74 @@ export function TopBar() {
           </span>
         )}
 
+        {/* Brand / Logo Pill with Right-Click Window Context Menu */}
+        <div
+          className="topbar-logo-pill no-drag-region"
+          title="Right-click for Window Size & Lock options"
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setContextMenuPos({ x: e.clientX, y: e.clientY });
+          }}
+        >
+          <img src={appIconAsset} alt="KeyFlow" className="topbar-logo-img" draggable={false} />
+          <span className="topbar-logo-text">KeyFlow</span>
+          {appearance.lockWindowSize && (
+            <span className="topbar-logo-lock" title="Window size is locked">
+              <Icon name="lock" size={10} />
+            </span>
+          )}
+        </div>
+
+        {/* Right-Click Context Menu for Logo Pill */}
+        {contextMenuPos && (
+          <div
+            ref={contextMenuRef}
+            className="window-size-context-menu anim-dropdown-enter"
+            style={{ top: contextMenuPos.y + 6, left: Math.min(contextMenuPos.x, window.innerWidth - 250) }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="context-menu-header">
+              <span className="bold">KeyFlow Window</span>
+            </div>
+            <button
+              type="button"
+              className="context-menu-item"
+              onClick={restoreDefaultSize}
+            >
+              <Icon name="arrows" size={14} />
+              <span>Restore Default Size (1020 × 700)</span>
+            </button>
+            <button
+              type="button"
+              className={"context-menu-item" + (appearance.lockWindowSize ? " is-active" : "")}
+              onClick={toggleLock}
+            >
+              <Icon name="lock" size={14} />
+              <span>{appearance.lockWindowSize ? "✓ Lock Window Size (Locked)" : "Lock Window Size"}</span>
+            </button>
+            <div className="context-menu-divider" />
+            <button
+              type="button"
+              className="context-menu-item"
+              onClick={() => {
+                navigate("settings", "appearance");
+                setContextMenuPos(null);
+              }}
+            >
+              <Icon name="gear" size={14} />
+              <span>Appearance Settings…</span>
+            </button>
+          </div>
+        )}
+
         {page !== "create" && (
           <button
             type="button"
             className="btn btn-primary btn-sm hide-mobile topbar-quick-create"
             onClick={() => {
               useStore.getState().setEditing(null);
-              setPage("create");
+              navigate("create");
             }}
           >
             <Icon name="create" size={14} />

@@ -210,6 +210,12 @@ export interface AppearanceSettings {
   settingsWidth?: "small" | "large";
   /** Whether the Settings navigation sidebar is collapsed into an icon-only rail. */
   sidebarCollapsed?: boolean;
+  /** Show pop-up preview notifications on bottom dock hover explaining what the icon does. */
+  dockTooltips?: boolean;
+  /** Label display mode for navigation dock items: 'active' (selected tab only), 'all' (show all names), or 'none' (icons only). */
+  dockLabelMode?: "active" | "all" | "none";
+  /** Lock window size to prevent maximizing or resizing. */
+  lockWindowSize?: boolean;
 }
 
 export interface HyperKeyConfig {
@@ -498,6 +504,8 @@ export interface Settings {
   smoothScroll?: SmoothScrollSettings;
   dimScreen?: DimScreenSettings;
   mediaPlayer?: MediaPlayerSettings;
+  hyperGestures?: HyperGesturesSettings;
+  touchpadDrag?: TouchpadDragSettings;
 }
 
 export type MediaPlayerPosition = "top-center" | "top-right" | "bottom-center" | "bottom-right" | "custom";
@@ -508,6 +516,45 @@ export interface MediaPlayerSettings {
   customX?: number;
   customY?: number;
   autoHide?: boolean;
+}
+
+export interface HyperGestureMapping {
+  id: string;
+  name: string;
+  stroke: string;
+  actionId: string;
+  enabled: boolean;
+}
+
+export interface HyperGesturesSettings {
+  enabled: boolean;
+  activationThreshold: number;
+  tapToEnterMode: boolean;
+  showTrail: boolean;
+  gestures: HyperGestureMapping[];
+}
+
+export interface TouchpadDragSettings {
+  enabled: boolean;
+  cursorMove?: boolean;
+  speed: number;
+  acceleration?: number;
+  startThreshold?: number;
+  stopThreshold?: number;
+  releaseDelayMs?: number;
+  allowReleaseAndRestart: boolean;
+  maxFingerDistance?: number;
+  cursorAveraging?: number;
+  // Deprecated backward-compat aliases:
+  movementThreshold?: number;
+  gracePeriodMs?: number;
+}
+
+export interface TouchpadCapabilityStatus {
+  version: number;
+  supported: boolean;
+  deviceCount: number;
+  deviceName?: string;
 }
 
 export interface RecentAction {

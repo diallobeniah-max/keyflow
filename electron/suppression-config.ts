@@ -44,7 +44,10 @@ export function behaviorOf(shortcut: any): KeyBehavior {
 export function shortcutBehavior(shortcut: any): "pass" | "suppress" | "disable" | "remap" {
   if (!shortcut?.enabled) return "pass";
   const kb = shortcut.keyBehavior;
-  if (kb === "suppress" || kb === "disable" || kb === "remap") return kb;
+  if (kb === "disable" || kb === "remap") return kb;
+  const hasWin = (shortcut.modifiers ?? []).some((m: string) => /^(win|meta)$/i.test(String(m)));
+  if (hasWin) return "suppress";
+  if (kb === "suppress") return "suppress";
   if (kb === "passThrough") return "pass";
   if (shortcut.suppressKey) return "suppress";
   return "pass";

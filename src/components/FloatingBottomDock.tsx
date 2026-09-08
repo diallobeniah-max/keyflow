@@ -7,7 +7,7 @@ import {
   UsersThree,
   Books,
   ClipboardText,
-  NoteBlank,
+  NotePencil,
   GearSix,
   MagnifyingGlass,
   ArrowRight,
@@ -57,7 +57,7 @@ export function FloatingBottomDock() {
     { page: "profiles", label: "Profiles", icon: UsersThree },
     { page: "library", label: "Library", icon: Books },
     { page: "clipboard", label: "Clipboard", icon: ClipboardText },
-    { page: "notes", label: "Notes", icon: NoteBlank },
+    { page: "notes", label: "Notes", icon: NotePencil },
     { page: "settings", label: "Settings", icon: GearSix },
   ];
 
@@ -325,7 +325,7 @@ export function FloatingBottomDock() {
           <div className="dock-preview-header">
             <div className="dock-preview-title">
               <div className="dock-preview-icon-box">
-                <NoteBlank size={15} weight="bold" />
+                <NotePencil size={15} weight="bold" />
               </div>
               <span>Floating Notes</span>
             </div>
@@ -377,19 +377,22 @@ export function FloatingBottomDock() {
 
   const isHidden = appearance?.navigationLayout !== "horizontal";
 
+  const dockTooltipsEnabled = appearance?.dockTooltips !== false;
+  const dockLabelMode = appearance?.dockLabelMode ?? "active";
+
   return (
     <>
       <div className={`floating-bottom-dock-scrim${isHidden ? " is-layout-hidden" : ""}`} aria-hidden="true" />
       <div
         ref={containerRef}
-        className={`floating-bottom-dock-container${isHidden ? " is-layout-hidden" : ""}`}
+        className={`floating-bottom-dock-container dock-labels-${dockLabelMode}${isHidden ? " is-layout-hidden" : ""}`}
         role="navigation"
         aria-label="Bottom Dock Navigation"
         aria-hidden={isHidden}
         onMouseLeave={handleMouseLeave}
       >
         {/* Hover Apple Preview Card with dynamic horizontal positioning */}
-        {hovered && previewPos !== null && (
+        {dockTooltipsEnabled && hovered && previewPos !== null && (
           <aside
             className="floating-dock-preview"
             style={{ "--preview-center": `${previewPos}px` } as React.CSSProperties}
@@ -422,6 +425,7 @@ export function FloatingBottomDock() {
             const IconComponent = item.icon;
             const isActive = page === item.page;
             const isCreate = item.page === "create";
+            const showLabel = dockLabelMode === "all" || (dockLabelMode === "active" && isActive);
             return (
               <button
                 key={item.page}
@@ -440,7 +444,7 @@ export function FloatingBottomDock() {
                 aria-label={item.label}
               >
                 <IconComponent size={17} weight={isActive ? "bold" : "regular"} />
-                <span className="floating-dock-tab-label">{item.label}</span>
+                {showLabel && <span className="floating-dock-tab-label">{item.label}</span>}
               </button>
             );
           })}

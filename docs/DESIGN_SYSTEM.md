@@ -4,6 +4,18 @@
 **Runtime source of truth:** `src/design/tokens.css`<br>
 **Scope:** KeyFlow's Windows desktop renderer and shared UI components
 
+## Related documentation
+
+* [Current UI State](./CURRENT_UI_STATE.md) — current implemented architecture and interaction behavior
+* [Design Changelog](./DESIGN_CHANGELOG.md) — historical design evolution over time
+* [Component Rules](./COMPONENT_RULES.md) — shared component specifications and constraints
+
+### Documentation ownership contract
+
+* **DESIGN_SYSTEM.md** = How KeyFlow **SHOULD** be designed (permanent rules, tokens, conventions).
+* **CURRENT_UI_STATE.md** = How KeyFlow **IS** currently structured and implemented in the working tree.
+* **DESIGN_CHANGELOG.md** = How KeyFlow **GOT HERE** (chronological record of design evolution).
+
 ## Purpose and personality
 
 KeyFlow is a local-first Windows productivity tool for precise keyboard and mouse automation. Its interface should feel:

@@ -725,7 +725,14 @@ export function ToastHost() {
   return (
     <div className="toast-wrap" aria-live="polite">
       {toasts.map((t) => (
-        <ToastMessage key={t.id} id={t.id} kind={t.kind} message={t.message} onDismiss={remove} />
+        <ToastMessage
+          key={t.id}
+          id={t.id}
+          kind={t.kind}
+          message={t.message}
+          action={t.action}
+          onDismiss={remove}
+        />
       ))}
     </div>
   );
@@ -735,11 +742,13 @@ function ToastMessage({
   id,
   kind,
   message,
+  action,
   onDismiss,
 }: {
   id: string;
   kind: string;
   message: string;
+  action?: { label: string; onClick: () => void };
   onDismiss: (id: string) => void;
 }) {
   const [dismissed, setDismissed] = React.useState(false);
@@ -751,9 +760,33 @@ function ToastMessage({
 
   if (!motion.rendered) return null;
   return (
-    <div className={`toast ${kind} ${motion.className}`} onClick={() => setDismissed(true)}>
+    <div className={`toast ${kind} ${motion.className}`} onClick={() => !action && setDismissed(true)}>
       <span className="toast-indicator" />
-      <span>{message}</span>
+      <span className="toast-message-text">{message}</span>
+      {action && (
+        <button
+          type="button"
+          className="btn btn-xs btn-subtle toast-action-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            action.onClick();
+            setDismissed(true);
+          }}
+        >
+          {action.label}
+        </button>
+      )}
+      <button
+        type="button"
+        className="toast-dismiss-btn"
+        aria-label="Dismiss notification"
+        onClick={(e) => {
+          e.stopPropagation();
+          setDismissed(true);
+        }}
+      >
+        ×
+      </button>
     </div>
   );
 }

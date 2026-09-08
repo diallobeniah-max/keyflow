@@ -1,7 +1,7 @@
 import type { FC } from "react";
 import { useStore } from "../../store/useStore";
 import { AppSelect } from "../../components/ui/AppSelect";
-import { SettingsGroup, SettingsRow, Toggle } from "../../components/ui";
+import { Button, SettingsGroup, SettingsRow, Toggle } from "../../components/ui";
 import { SettingsPageHeader } from "./SettingsPageHeader";
 import type { MediaPlayerPosition, MediaPlayerSettings } from "../../types";
 
@@ -123,50 +123,51 @@ export const MediaPlayerPage: FC<MediaPlayerPageProps> = ({ onBack }) => {
             id="row-media-player-test"
             title="Test media commands"
             desc="Verify system playback commands for Spotify, YouTube, Apple Music, and media players"
+            layout="stack"
           >
-            <div className="row gap-xs wrap">
-              <button
-                type="button"
-                className="btn btn-secondary btn-xs"
+            <div className="media-controls-test-row">
+              <Button
+                size="sm"
+                variant="secondary"
                 onClick={() => (window as any).electronAPI?.executeAction?.({ type: "mediaControl", payload: { media: "prev" } })}
               >
                 Previous
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary btn-xs"
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
                 onClick={() => (window as any).electronAPI?.executeAction?.({ type: "mediaControl", payload: { media: "playpause" } })}
               >
                 Play / Pause
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-xs"
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
                 onClick={() => (window as any).electronAPI?.executeAction?.({ type: "mediaControl", payload: { media: "next" } })}
               >
                 Next
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-xs"
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
                 onClick={() => (window as any).electronAPI?.executeAction?.({ type: "volumeControl", payload: { volume: "down" } })}
               >
                 Vol -
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-xs"
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
                 onClick={() => (window as any).electronAPI?.executeAction?.({ type: "volumeControl", payload: { volume: "up" } })}
               >
                 Vol +
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-xs"
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
                 onClick={() => (window as any).electronAPI?.executeAction?.({ type: "toggleMute", payload: {} })}
               >
                 Mute
-              </button>
+              </Button>
             </div>
           </SettingsRow>
         </SettingsGroup>

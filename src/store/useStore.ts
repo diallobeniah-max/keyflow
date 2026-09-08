@@ -8,6 +8,7 @@ export interface Toast {
   id: string;
   message: string;
   kind: "info" | "success" | "warning" | "danger";
+  action?: { label: string; onClick: () => void };
 }
 
 export interface SettingsFocusTarget {
@@ -35,6 +36,12 @@ interface StoreState {
   activeSettingsSection: string;
   suppression: { available: boolean; status: string; backend: string } | null;
   wasdNavigationActive: boolean;
+  navHistory: Array<{ page: AppPage; section?: string; label: string }>;
+  navHistoryIndex: number;
+  navigate: (page: AppPage, section?: string, label?: string) => void;
+  goBack: () => void;
+  goForward: () => void;
+  jumpToHistory: (index: number) => void;
 
   load: () => Promise<void>;
   persist: () => void;
@@ -83,7 +90,7 @@ interface StoreState {
   closePopup: () => void;
   setSuppression: (s: { available: boolean; status: string; backend: string } | null) => void;
   setWasdNavigationActive: (b: boolean) => void;
-  toast: (message: string, kind?: Toast["kind"]) => void;
+  toast: (message: string, kind?: Toast["kind"], action?: Toast["action"]) => void;
   removeToast: (id: string) => void;
   finishOnboarding: () => void;
 }
@@ -177,8 +184,26 @@ function mergeSettings(s: Partial<Settings> | undefined): Settings {
   };
 }
 
+function getInitialPersistedState(): PersistedState {
+  const sample = createSampleState();
+  if (typeof localStorage !== "undefined") {
+    try {
+      const raw = localStorage.getItem("keyflow:state");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          ...sample,
+          ...parsed,
+          settings: mergeSettings(parsed.settings),
+        };
+      }
+    } catch {}
+  }
+  return sample;
+}
+
 export const useStore = create<StoreState>((set, get) => ({
-  data: createSampleState(),
+  data: getInitialPersistedState(),
   loaded: false,
   currentPage: "dashboard",
   editingId: null,
@@ -199,6 +224,8 @@ export const useStore = create<StoreState>((set, get) => ({
   activeSettingsSection: "appBehavior",
   suppression: null,
   wasdNavigationActive: false,
+  navHistory: [{ page: "dashboard", label: "Overview" }],
+  navHistoryIndex: 0,
 
   load: async () => {
     const raw = await tauriLoad();
@@ -249,7 +276,73 @@ export const useStore = create<StoreState>((set, get) => ({
     get().persist();
   },
 
-  setPage: (p) => set({ currentPage: p }),
+  navigate: (page, section, customLabel) => {
+    const state = get();
+    const pageTitles: Record<string, string> = {
+      dashboard: "Overview",
+      shortcuts: "Shortcuts",
+      create: "Create",
+      visual: "Keyboard Map",
+      library: "Action Library",
+      profiles: "Profiles",
+      settings: "Settings",
+      clipboard: "Clipboard",
+    };
+    const label = customLabel || (section && page === "settings" ? `Settings / ${section}` : pageTitles[page] || page);
+    const currentItem = state.navHistory[state.navHistoryIndex];
+    if (currentItem && currentItem.page === page && currentItem.section === section) {
+      return;
+    }
+    const nextHistory = state.navHistory.slice(0, state.navHistoryIndex + 1);
+    nextHistory.push({ page, section, label });
+    if (nextHistory.length > 30) nextHistory.shift();
+    set({
+      navHistory: nextHistory,
+      navHistoryIndex: nextHistory.length - 1,
+      currentPage: page,
+      ...(section ? { activeSettingsSection: section } : {}),
+    });
+  },
+
+  goBack: () => {
+    const { navHistory, navHistoryIndex } = get();
+    if (navHistoryIndex > 0) {
+      const prevIndex = navHistoryIndex - 1;
+      const item = navHistory[prevIndex];
+      set({
+        navHistoryIndex: prevIndex,
+        currentPage: item.page,
+        ...(item.section ? { activeSettingsSection: item.section } : {}),
+      });
+    }
+  },
+
+  goForward: () => {
+    const { navHistory, navHistoryIndex } = get();
+    if (navHistoryIndex < navHistory.length - 1) {
+      const nextIndex = navHistoryIndex + 1;
+      const item = navHistory[nextIndex];
+      set({
+        navHistoryIndex: nextIndex,
+        currentPage: item.page,
+        ...(item.section ? { activeSettingsSection: item.section } : {}),
+      });
+    }
+  },
+
+  jumpToHistory: (index: number) => {
+    const { navHistory } = get();
+    if (index >= 0 && index < navHistory.length) {
+      const item = navHistory[index];
+      set({
+        navHistoryIndex: index,
+        currentPage: item.page,
+        ...(item.section ? { activeSettingsSection: item.section } : {}),
+      });
+    }
+  },
+
+  setPage: (p) => get().navigate(p),
   setGlobalSearch: (q) => set({ globalSearch: q }),
   setSettingsFocusTarget: (target) => set({ settingsFocusTarget: target }),
   setActiveSettingsSection: (section) => set({ activeSettingsSection: section }),
@@ -321,10 +414,10 @@ export const useStore = create<StoreState>((set, get) => ({
   closePopup: () => set({ popup: null }),
   setSuppression: (s) => set({ suppression: s }),
   setWasdNavigationActive: (b) => set({ wasdNavigationActive: b }),
-  toast: (message, kind = "info") => {
+  toast: (message, kind = "info", action) => {
     const id = uid("toast");
-    set((s) => ({ toasts: [...s.toasts, { id, message, kind }] }));
-    window.setTimeout(() => get().removeToast(id), 3200);
+    set((s) => ({ toasts: [...s.toasts, { id, message, kind, action }] }));
+    window.setTimeout(() => get().removeToast(id), action ? 6000 : 3200);
   },
   removeToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   finishOnboarding: () => { set((s) => ({ data: { ...s.data, onboardingDone: true } })); get().persist(); },

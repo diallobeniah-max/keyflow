@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
+import { createDefaultSettings } from "../src/lib/defaults.ts";
 
 const contract = await import(pathToFileURL(resolve("dist-electron/clipboard-contract.js")).href);
 
@@ -79,6 +80,12 @@ assert.equal(customNorm.scrollDirection, "vertical", "scrollDirection should nor
 assert.equal(customNorm.useAppAccentColor, false, "useAppAccentColor should normalize to false");
 
 console.log("clipboard contract & Win+V override tests passed");
+
+assert.equal(
+  createDefaultSettings().shortcuts.clipboardShortcut,
+  "Win+V",
+  "Win+V must be the real default, not only a label in the UI",
+);
 
 assert.equal(contract.isPinboardColor("var(--cat-color-purple)"), true);
 assert.equal(contract.isPinboardColor("var(--unknown-color)"), false);

@@ -3,6 +3,8 @@ import { Icon } from "./Icon";
 import { SlashCommandPalette } from "./notes/SlashCommandPalette";
 import { SLASH_COMMANDS, SlashCommand } from "../lib/notesSlashCommands";
 import { runAction } from "../lib/actions";
+import { useStore } from "../store/useStore";
+import { useResolvedTheme } from "../lib/useResolvedTheme";
 
 export interface Note {
   id: string;
@@ -83,6 +85,27 @@ const APP_SHORTCUTS = [
 ];
 
 export function NotesPopupShell() {
+  const appearance = useStore((s) => s.data.settings.appearance);
+  const resolvedTheme = useResolvedTheme(appearance?.theme);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute("data-theme", resolvedTheme);
+    root.style.colorScheme = resolvedTheme;
+  }, [resolvedTheme]);
+
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "keyflow:state" || e.key === "keyflow_state") {
+        void useStore.getState().load().then(() => {
+          useStore.getState().applyAppearance();
+        });
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   const [notes, setNotes] = useState<Note[]>([DEFAULT_WELCOME_NOTE]);
   const [activeNoteId, setActiveNoteId] = useState<string | null>("welcome-note");
   const [searchQuery, setSearchQuery] = useState("");
@@ -1267,7 +1290,10 @@ export function NotesPopupShell() {
   }, [plainText]);
 
   return (
-    <div className={"notes-popup-root" + (testModeInfo?.active ? " is-test-mode" : "")}>
+    <div
+      className={"notes-popup-root" + (testModeInfo?.active ? " is-test-mode" : "")}
+      data-theme={resolvedTheme}
+    >
       {/* Test Mode Floating HUD Pill */}
       {testModeInfo?.active && (
         <div className="notes-test-mode-hud no-drag-region anim-slide-up">

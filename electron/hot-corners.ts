@@ -38,8 +38,10 @@ export class HotCornersManager {
 
   start(): void {
     if (this.timer) return;
-    this.timer = setInterval(() => this.sample(), 60);
-    console.log("[hot-corners] polling started");
+    if (this.config.enabled) {
+      this.timer = setInterval(() => this.sample(), 60);
+      console.log("[hot-corners] polling started");
+    }
   }
 
   update(config: HotCornerConfig | undefined, shortcuts: any[] | undefined): void {
@@ -49,7 +51,19 @@ export class HotCornersManager {
       .map(([corner, action]) => `${corner}:${action?.type === "shortcut" ? `shortcut/${action.shortcutId ?? ""}` : action?.action ?? "none"}`)
       .join(",");
     console.log(`[hot-corners] update enabled=${!!this.config.enabled} activationMs=${this.config.activationMs ?? 400} cornerSize=${this.config.cornerSize ?? 24} actions=${actions || "none"}`);
-    if (!this.config.enabled) this.resetCandidate();
+    if (this.config.enabled) {
+      if (!this.timer) {
+        this.timer = setInterval(() => this.sample(), 60);
+        console.log("[hot-corners] polling started");
+      }
+    } else {
+      if (this.timer) {
+        clearInterval(this.timer);
+        this.timer = null;
+        console.log("[hot-corners] polling stopped");
+      }
+      this.resetCandidate();
+    }
   }
 
   stop(): void {

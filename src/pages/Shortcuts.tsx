@@ -45,7 +45,13 @@ export function Shortcuts() {
       );
     }
     if (profile !== "all") list = list.filter((s) => s.profileId === profile);
-    if (trigger !== "all") list = list.filter((s) => s.trigger === trigger);
+    if (trigger !== "all") {
+      if (trigger === "combo") {
+        list = list.filter((s) => s.trigger === "combo" || (s.modifiers && s.modifiers.length > 0));
+      } else {
+        list = list.filter((s) => s.trigger === trigger);
+      }
+    }
     if (actionType !== "all") list = list.filter((s) => s.actions.some((a) => a.type === actionType));
 
     list.sort((a, b) => {
@@ -137,6 +143,14 @@ export function Shortcuts() {
             onClick={() => { setTrigger("all"); setQ(""); }}
           >
             <span>All ({data.shortcuts.length})</span>
+          </button>
+          <button
+            type="button"
+            className={`chip ${trigger === "single" ? "chip-accent" : "chip-subtle"}`}
+            onClick={() => setTrigger(trigger === "single" ? "all" : "single")}
+          >
+            <Icon name="key" size={11} />
+            <span>Single Tap</span>
           </button>
           <button
             type="button"
