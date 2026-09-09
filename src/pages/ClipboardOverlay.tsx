@@ -36,6 +36,7 @@ import {
 } from "@phosphor-icons/react";
 import { useStore } from "../store/useStore";
 import { Button, Modal } from "../components/ui";
+import { MOTION_DURATION, motionClassName } from "../lib/motion";
 
 const FOLDER_ICONS: Record<string, React.ComponentType<any>> = {
   Folder,
@@ -178,6 +179,10 @@ export function ClipboardOverlay() {
   const bottomSearchInputRef = useRef<HTMLInputElement>(null);
   const actionSearchInputRef = useRef<HTMLInputElement>(null);
   const shelfScrollRef = useRef<HTMLDivElement>(null);
+  const edgeScrollFrameRef = useRef<number | null>(null);
+  const edgeScrollDirectionRef = useRef<-1 | 0 | 1>(0);
+  const edgeScrollLastTimeRef = useRef(0);
+  const skipNextSelectionScrollRef = useRef(false);
 
   // Each Electron window has its own React store; localStorage is shared.
   useEffect(() => {
@@ -195,19 +200,19 @@ export function ClipboardOverlay() {
       clearTimeout(timer);
       setPhase("entering");
       setFeedback("");
-      timer = setTimeout(() => setPhase("idle"), 220);
+      timer = setTimeout(() => setPhase("idle"), MOTION_DURATION.clipboard);
     };
     const onRequestClose = () => {
       clearTimeout(timer);
       setPhase("closing");
     };
     onShow();
-    window.addEventListener("clipboard-popup:show" as any, onShow);
-    window.addEventListener("clipboard-popup:request-close" as any, onRequestClose);
+    const offShow = window.electronAPI?.clipboard?.onPopupShow?.(onShow);
+    const offClose = window.electronAPI?.clipboard?.onPopupRequestClose?.(onRequestClose);
     return () => {
       clearTimeout(timer);
-      window.removeEventListener("clipboard-popup:show" as any, onShow);
-      window.removeEventListener("clipboard-popup:request-close" as any, onRequestClose);
+      offShow?.();
+      offClose?.();
     };
   }, []);
 
@@ -245,16 +250,15 @@ export function ClipboardOverlay() {
   }, [snapshot?.settings.layout, snapshot?.settings.horizontalPosition, snapshot?.settings.scrollDirection, snapshot?.settings.gridRows]);
 
   useEffect(() => {
-    const onLayoutChanged = (e: any) => {
-      const data = e.detail || e;
+    const onLayoutChanged = (data: any) => {
       if (data?.layout) setLayout(data.layout);
       if (data?.position) setPosition(data.position);
       if (data?.scrollDirection) setScrollDirection(data.scrollDirection);
       if (data?.gridRows) setGridRows(data.gridRows);
     };
-    window.addEventListener("clipboard-popup:layout-changed" as any, onLayoutChanged);
+    const offLayout = window.electronAPI?.clipboard?.onPopupLayoutChanged?.(onLayoutChanged);
     return () => {
-      window.removeEventListener("clipboard-popup:layout-changed" as any, onLayoutChanged);
+      offLayout?.();
     };
   }, []);
 
@@ -290,12 +294,12 @@ export function ClipboardOverlay() {
         bottomSearchInputRef.current?.select();
       }, 50);
     };
-    window.addEventListener("clipboard-popup:focus-search" as any, onFocusSearch);
+    const offFocus = window.electronAPI?.clipboard?.onPopupFocusSearch?.(onFocusSearch);
     setTimeout(() => {
       shelfScrollRef.current?.focus();
     }, 50);
     return () => {
-      window.removeEventListener("clipboard-popup:focus-search" as any, onFocusSearch);
+      offFocus?.();
     };
   }, []);
 
@@ -366,6 +370,45 @@ export function ClipboardOverlay() {
     }
   };
 
+  const stopEdgeHoverScroll = () => {
+    edgeScrollDirectionRef.current = 0;
+    edgeScrollLastTimeRef.current = 0;
+    if (edgeScrollFrameRef.current !== null) {
+      cancelAnimationFrame(edgeScrollFrameRef.current);
+      edgeScrollFrameRef.current = null;
+    }
+  };
+
+  const handleShelfPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const enabled = snapshot?.settings.edgeHoverScrollEnabled !== false;
+    if (!enabled || layout !== "horizontal" || scrollDirection !== "horizontal" || !shelfScrollRef.current) {
+      stopEdgeHoverScroll();
+      return;
+    }
+    const rect = shelfScrollRef.current.getBoundingClientRect();
+    const edgeSize = Math.min(72, rect.width * 0.12);
+    const direction: -1 | 0 | 1 = event.clientX <= rect.left + edgeSize ? -1 : event.clientX >= rect.right - edgeSize ? 1 : 0;
+    edgeScrollDirectionRef.current = direction;
+    if (direction === 0 || edgeScrollFrameRef.current !== null) return;
+
+    const speed = snapshot?.settings.edgeHoverScrollSpeed ?? "normal";
+    const pixelsPerSecond = speed === "slow" ? 220 : speed === "fast" ? 720 : 420;
+    const tick = (now: number) => {
+      const el = shelfScrollRef.current;
+      if (!el || edgeScrollDirectionRef.current === 0) {
+        stopEdgeHoverScroll();
+        return;
+      }
+      const elapsed = edgeScrollLastTimeRef.current === 0 ? 0 : Math.min(32, now - edgeScrollLastTimeRef.current);
+      edgeScrollLastTimeRef.current = now;
+      el.scrollLeft += edgeScrollDirectionRef.current * pixelsPerSecond * (elapsed / 1000);
+      edgeScrollFrameRef.current = requestAnimationFrame(tick);
+    };
+    edgeScrollFrameRef.current = requestAnimationFrame(tick);
+  };
+
+  useEffect(() => stopEdgeHoverScroll, []);
+
   const dismiss = () => {
     void window.electronAPI?.clipboard?.hidePopup?.();
   };
@@ -385,6 +428,11 @@ export function ClipboardOverlay() {
     void window.electronAPI?.clipboard?.copy(id, plainText)
       .then(() => setFeedback("Copied to clipboard"))
       .catch(() => setFeedback("Could not copy this clip. It may no longer be available."));
+  };
+
+  const activateItem = (id: string, plainText = false) => {
+    if ((snapshot?.settings.activationMode ?? "paste") === "copy") copyItem(id, plainText);
+    else pasteItem(id, plainText);
   };
 
   // Folder (Pinboard) modal handlers
@@ -546,7 +594,7 @@ export function ClipboardOverlay() {
       if (lightboxItem) {
         if (e.key === "Enter") {
           e.preventDefault();
-          pasteItem(lightboxItem.id, e.shiftKey);
+          activateItem(lightboxItem.id, e.shiftKey);
           setLightboxItem(null);
         }
         return;
@@ -584,7 +632,7 @@ export function ClipboardOverlay() {
         const slot = parseInt(e.key, 10) - 1;
         if (slot < filtered.length && filtered[slot]) {
           e.preventDefault();
-          pasteItem(filtered[slot].id, e.shiftKey);
+          activateItem(filtered[slot].id, e.shiftKey);
           return;
         }
       }
@@ -625,7 +673,7 @@ export function ClipboardOverlay() {
         e.preventDefault();
         if (selectedItem) {
           if (e.ctrlKey || e.metaKey) copyItem(selectedItem.id, e.shiftKey);
-          else pasteItem(selectedItem.id, e.shiftKey);
+          else activateItem(selectedItem.id, e.shiftKey);
         }
       }
     };
@@ -637,6 +685,10 @@ export function ClipboardOverlay() {
   // Scroll selected card into view
   useEffect(() => {
     if (!selectedId || !shelfScrollRef.current) return;
+    if (skipNextSelectionScrollRef.current) {
+      skipNextSelectionScrollRef.current = false;
+      return;
+    }
     const cardEl = shelfScrollRef.current.querySelector(`[data-id="${selectedId}"]`) as HTMLElement | null;
     if (cardEl) {
       if (scrollDirection === "vertical") {
@@ -723,9 +775,13 @@ export function ClipboardOverlay() {
     return allActions.filter((a) => a.label.toLowerCase().includes(q) || a.shortcut.toLowerCase().includes(q));
   }, [allActions, actionSearch]);
 
+  const popupMotionClass = phase === "idle"
+    ? ""
+    : motionClassName("clipboard", phase === "closing" ? "exit" : "enter");
+
   return (
     <div
-      className={`clip-paste-shell layout-${layout} pos-${position} scroll-${scrollDirection} phase-${phase}`}
+      className={`clip-paste-shell layout-${layout} pos-${position} scroll-${scrollDirection} phase-${phase} ${popupMotionClass}`}
       role="dialog"
       aria-label="KeyFlow Clipboard Shelf"
     >
@@ -836,6 +892,8 @@ export function ClipboardOverlay() {
         ref={shelfScrollRef}
         onScroll={handleShelfScroll}
         onWheel={handleShelfWheel}
+        onPointerMove={handleShelfPointerMove}
+        onPointerLeave={stopEdgeHoverScroll}
         tabIndex={-1}
       >
         {filtered.length === 0 ? (
@@ -865,17 +923,20 @@ export function ClipboardOverlay() {
                 onDragEnd={handleCardDragEnd}
                 onClick={() => {
                   setSelectedId(item.id);
-                  pasteItem(item.id);
+                  activateItem(item.id);
                 }}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setSelectedId(item.id);
                   setIsActionMenuOpen(true);
                 }}
-                onMouseEnter={() => setSelectedId(item.id)}
+                onMouseEnter={() => {
+                  skipNextSelectionScrollRef.current = true;
+                  setSelectedId(item.id);
+                }}
                 onFocus={() => setSelectedId(item.id)}
                 onKeyDown={(event) => {
-                  if (event.target === event.currentTarget && event.key === " ") { event.preventDefault(); pasteItem(item.id); }
+                  if (event.target === event.currentTarget && event.key === " ") { event.preventDefault(); activateItem(item.id); }
                 }}
                 role="button"
                 tabIndex={0}

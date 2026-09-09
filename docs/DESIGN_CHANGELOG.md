@@ -20,6 +20,30 @@ This document is a historical record of KeyFlow's UI and interaction design evol
 
 ---
 
+## 2026-09-09 — Mouse Chord, Notes Corrections & Clipboard Interaction Polish
+
+* **WASD mouse chord (`native/keyflow-input/src/mouse_chord.rs`, `raw_mouse.rs`)**:
+  - Added a dedicated, latched Left + Right mouse-button chord that requests one WASD Navigation toggle per complete press cycle.
+  - The chord has its own persisted settings switch and survives native-helper reconnects without coupling mouse handling to renderer state.
+* **Notes spelling corrections (`NotesPopupShell.tsx`, `electron/notes-window.ts`)**:
+  - Connected the existing Spellcheck preference to the contenteditable editor and enabled Electron's built-in spellchecker.
+  - Added a native right-click correction menu with dictionary suggestions, add-to-dictionary, and standard edit actions.
+* **Clipboard selection and edge behavior (`clipboard-engine.ts`, `Clipboard.tsx`, `ClipboardOverlay.tsx`)**:
+  - Added a persisted Click/Enter action choice: copy back to the clipboard or paste directly into the previously focused field.
+  - Added controls for edge-hover scrolling, including Off and Slow/Balanced/Fast speeds.
+* **Clipboard feedback and close motion (`clipboard-copy-feedback-window.ts`, `ClipboardCopyFeedback.tsx`, `motion.css`)**:
+  - Added a non-focus-stealing, accent-aware copy confirmation positioned at the active clipboard edge.
+  - Clipboard exit now follows the inverse spatial path over the approved slow motion token, with reduced-motion support.
+
+## 2026-09-09 — Owned Win Chord Release & Clipboard Spatial Motion
+
+* **Windows Start-menu release masking (`native/keyflow-input/src/clipboard_shortcut.rs`, `native/keyflow-input/src/hook.rs`)**:
+  - Added a one-shot, KeyFlow-marked Ctrl mask tap when an explicitly owned Win clipboard chord is consumed, preventing Windows from treating the remaining Win release as a standalone Start-menu press.
+  - The mask is scoped to the exact configured chord, never affects Win pressed alone, does not globally suppress the letter key, and resets across key-up, engine reload, and pause.
+* **Clipboard motion preset (`src/lib/motion.ts`, `src/design/motion.css`, `src/pages/ClipboardOverlay.tsx`)**:
+  - Added an approved `clipboard` preset based on Apple-style immediate feedback, restrained travel, spatial consistency, and inverse open/close paths.
+  - Bottom, top, and right-docked layouts emerge from their physical edge; centered layout uses the same subtle bottom-origin treatment. Motion uses compositor-only opacity and transform and inherits KeyFlow and Windows reduced-motion behavior.
+
 ## 2026-09-08 — TopBar Pill Navigation, Windows History Trail, Window Size Locking, About Page Polish & Multi-Window Notepad Theme Sync
 
 * **TopBar Pill Navigation & Breadcrumbs (`src/components/TopBar.tsx`, `src/store/useStore.ts`, `src/index.css`)**:

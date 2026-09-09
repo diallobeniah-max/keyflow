@@ -51,6 +51,36 @@
   to { opacity: 0; transform: translateX(var(--space-3)); }
 }
 
+@keyframes kf-motion-clipboard-bottom-enter {
+  from { opacity: 0; transform: translate3d(0, var(--space-3), 0) scale(0.99); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes kf-motion-clipboard-bottom-exit {
+  from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  to { opacity: 0; transform: translate3d(0, var(--space-3), 0) scale(0.99); }
+}
+
+@keyframes kf-motion-clipboard-top-enter {
+  from { opacity: 0; transform: translate3d(0, calc(var(--space-3) * -1), 0) scale(0.99); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes kf-motion-clipboard-top-exit {
+  from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  to { opacity: 0; transform: translate3d(0, calc(var(--space-3) * -1), 0) scale(0.99); }
+}
+
+@keyframes kf-motion-clipboard-right-enter {
+  from { opacity: 0; transform: translate3d(var(--space-3), 0, 0) scale(0.99); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes kf-motion-clipboard-right-exit {
+  from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  to { opacity: 0; transform: translate3d(var(--space-3), 0, 0) scale(0.99); }
+}
+
 .kf-motion--page.is-enter {
   animation: kf-motion-page-enter var(--motion-normal) both;
 }
@@ -94,6 +124,51 @@
 .kf-motion--toast.is-exit {
   animation: kf-motion-toast-exit var(--motion-fast) both;
   pointer-events: none;
+}
+
+/* Clipboard is a keyboard-launched productivity surface, so it responds
+   immediately and uses restrained, critically damped travel. Each layout
+   exits along the exact inverse of its entrance path. */
+.kf-motion--clipboard {
+  will-change: transform, opacity;
+  transform-origin: bottom center;
+}
+
+.kf-motion--clipboard.is-enter {
+  animation: kf-motion-clipboard-bottom-enter var(--motion-default) both;
+}
+
+.kf-motion--clipboard.is-exit {
+  animation: kf-motion-clipboard-bottom-exit var(--motion-slow) both;
+  pointer-events: none;
+}
+
+.kf-motion--clipboard.pos-top {
+  transform-origin: top center;
+}
+
+.kf-motion--clipboard.pos-top.is-enter {
+  animation-name: kf-motion-clipboard-top-enter;
+}
+
+.kf-motion--clipboard.pos-top.is-exit {
+  animation-name: kf-motion-clipboard-top-exit;
+}
+
+.kf-motion--clipboard.layout-center {
+  transform-origin: center;
+}
+
+.kf-motion--clipboard.layout-right {
+  transform-origin: right center;
+}
+
+.kf-motion--clipboard.layout-right.is-enter {
+  animation-name: kf-motion-clipboard-right-enter;
+}
+
+.kf-motion--clipboard.layout-right.is-exit {
+  animation-name: kf-motion-clipboard-right-exit;
 }
 
 /* Tooltip placement owns the outer transform; animate its contents instead. */

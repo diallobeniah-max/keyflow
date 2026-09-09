@@ -80,6 +80,10 @@ export interface ClipboardSettings extends ClipboardCaptureSettings {
   gridRows?: ClipboardGridRows;
   useAppAccentColor?: boolean;
   closeOnBlur?: boolean;
+  activationMode?: "copy" | "paste";
+  copyFeedbackEnabled?: boolean;
+  edgeHoverScrollEnabled?: boolean;
+  edgeHoverScrollSpeed?: "slow" | "normal" | "fast";
 }
 
 export interface ClipboardSnapshot {
@@ -109,6 +113,10 @@ const DEFAULT_SETTINGS: ClipboardSettings = {
   gridRows: 1,
   useAppAccentColor: true,
   closeOnBlur: true,
+  activationMode: "paste",
+  copyFeedbackEnabled: true,
+  edgeHoverScrollEnabled: true,
+  edgeHoverScrollSpeed: "normal",
 };
 
 const POLL_MS = 350;
@@ -164,6 +172,7 @@ export class ClipboardEngine {
   private captureGeneration = 0;
   private restoring = false;
   private listeners = new Set<(snapshot: ClipboardSnapshot) => void>();
+  private captureListeners = new Set<(item: ClipboardItemSummary, settings: ClipboardSettings) => void>();
   private sourceAppProvider: (() => Promise<ClipboardSourceApp | null>) | null = null;
 
   private get root(): string { return join(app.getPath("userData"), "clipboard"); }
@@ -193,6 +202,11 @@ export class ClipboardEngine {
     return () => this.listeners.delete(listener);
   }
 
+  subscribeCaptures(listener: (item: ClipboardItemSummary, settings: ClipboardSettings) => void): () => void {
+    this.captureListeners.add(listener);
+    return () => this.captureListeners.delete(listener);
+  }
+
   /** The input helper owns foreground-app lookup; this keeps the engine reusable. */
   setSourceAppProvider(provider: (() => Promise<ClipboardSourceApp | null>) | null): void {
     this.sourceAppProvider = provider;
@@ -214,7 +228,7 @@ export class ClipboardEngine {
 
   setSettings(patch: Partial<ClipboardSettings>): ClipboardSnapshot {
     // Reject invalid IPC data rather than persisting settings the runtime cannot use.
-    for (const key of ["paused", "captureText", "captureImages", "captureFiles", "captureLinks", "ignorePasswordManagers", "useAppAccentColor", "closeOnBlur"] as const) {
+    for (const key of ["paused", "captureText", "captureImages", "captureFiles", "captureLinks", "ignorePasswordManagers", "useAppAccentColor", "closeOnBlur", "copyFeedbackEnabled", "edgeHoverScrollEnabled"] as const) {
       if (patch[key] !== undefined && typeof patch[key] !== "boolean") throw new Error(`Invalid ${key} setting.`);
     }
     if (patch.maxItems !== undefined && (!Number.isInteger(patch.maxItems) || patch.maxItems < 1 || patch.maxItems > 10000)) throw new Error("Invalid clipboard capacity.");
@@ -223,6 +237,8 @@ export class ClipboardEngine {
     if (patch.gridRows !== undefined && ![1, 2, 3].includes(patch.gridRows)) throw new Error("Invalid clipboard rows.");
     if (patch.horizontalPosition !== undefined && !["top", "bottom"].includes(patch.horizontalPosition)) throw new Error("Invalid clipboard position.");
     if (patch.scrollDirection !== undefined && !["horizontal", "vertical"].includes(patch.scrollDirection)) throw new Error("Invalid clipboard scroll direction.");
+    if (patch.activationMode !== undefined && !["copy", "paste"].includes(patch.activationMode)) throw new Error("Invalid clipboard activation mode.");
+    if (patch.edgeHoverScrollSpeed !== undefined && !["slow", "normal", "fast"].includes(patch.edgeHoverScrollSpeed)) throw new Error("Invalid clipboard edge-scroll speed.");
     if (patch.excludedApps !== undefined && (!Array.isArray(patch.excludedApps) || patch.excludedApps.some((value) => typeof value !== "string"))) throw new Error("Invalid excluded applications.");
     this.captureGeneration += 1;
     if (this.settleTimer) clearTimeout(this.settleTimer);
@@ -457,7 +473,7 @@ export class ClipboardEngine {
       if (signature === this.lastCapturedSignature && now - this.lastCapturedAt < COALESCE_MS) return;
       existing.copyCount += 1; existing.capturedAt = now;
       this.items = [existing, ...this.items.filter((item) => item.id !== existing.id)];
-      this.lastCapturedSignature = signature; this.lastCapturedAt = now; this.persist(); this.emit(); return;
+      this.lastCapturedSignature = signature; this.lastCapturedAt = now; this.persist(); this.emit(); this.emitCapture(existing); return;
     }
     const id = randomUUID();
     let imagePath: string | undefined;
@@ -482,7 +498,7 @@ export class ClipboardEngine {
       formats: input.formats.slice(0, 60), nativeFormats: input.nativeFormats.slice(0, 60),
       urlMeta,
     };
-    this.items.unshift(item); this.lastCapturedSignature = signature; this.lastCapturedAt = now; this.enforceRetention(); this.persist(); this.emit();
+    this.items.unshift(item); this.lastCapturedSignature = signature; this.lastCapturedAt = now; this.enforceRetention(); this.persist(); this.emit(); this.emitCapture(item);
     // For YouTube URLs, thumbnailUrl is already set without a network request.
     // For other URLs, fetch Open Graph metadata (including og:image) in the background.
     if (input.kind === "url" && text.startsWith("http") && !urlMeta?.isYouTube) {
@@ -575,6 +591,11 @@ export class ClipboardEngine {
     });
   }
   private emit(): void { const snapshot = this.snapshot(); this.listeners.forEach((listener) => listener(snapshot)); }
+  private emitCapture(item: StoredItem): void {
+    const summary = this.summary(item);
+    const settings = { ...this.settings, excludedApps: [...this.settings.excludedApps] };
+    this.captureListeners.forEach((listener) => listener(summary, settings));
+  }
 
   private load(): void {
     if (!existsSync(this.indexPath)) return;

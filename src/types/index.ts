@@ -479,6 +479,7 @@ export interface SmoothScrollSettings {
 
 export interface WasdNavigationSettings {
   showStateCard?: boolean;
+  toggleWithMouseChord?: boolean;
   cursorSize: number;        // 16–64, default 32
   customCursorPath?: string; // user-uploaded cursor image path (absolute)
   activeCursorId?: string;   // 'default' or custom cursor id

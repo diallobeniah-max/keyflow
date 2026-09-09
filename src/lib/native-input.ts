@@ -3,6 +3,7 @@ import { resolveTiming } from "./timing";
 import { createDefaultPopupItems } from "./defaults";
 import { playFeedbackSound } from "./sound";
 import { SCREEN_TINT_DEFAULT_COLOR } from "./constants.ts";
+import { installClipboardShortcutBinding } from "./clipboard-shortcut";
 
 let cleanupFns: (() => void)[] = [];
 
@@ -35,7 +36,7 @@ export function initNativeInput(): void {
   const syncShortcuts = () => {
     const state = useStore.getState();
     const activeId = state.activeProfileId;
-    const list = state.data.shortcuts
+    let list = state.data.shortcuts
       .filter((s) => s.enabled && s.profileId === activeId)
       .map((s) => ({
         id: s.id,
@@ -87,45 +88,7 @@ export function initNativeInput(): void {
         });
       }
     }
-    const rawClip = settings.clipboardShortcut?.trim() || "Win+V";
-    if (rawClip && settings.clipboardShortcutEnabled !== false) {
-      const parts = rawClip.split("+").map((p) => p.trim());
-      const key = parts[parts.length - 1];
-      const modifiers = parts.slice(0, -1) as any;
-      const normalizedModifiers = modifiers.map((m: string) => m.toLowerCase()).sort().join("+");
-      const matchesClipboardBinding = (s: typeof list[number]) =>
-        s.key.toLowerCase() === key.toLowerCase()
-        && (s.modifiers ?? []).map((m: string) => m.toLowerCase()).sort().join("+") === normalizedModifiers;
-      const exactClipboardRule = list.some((s) =>
-        matchesClipboardBinding(s) && s.actions?.some((a) => a.type === "clipboardHistory"));
-
-      // The dedicated clipboard binding owns its accelerator. A stale shortcut
-      // using the same combo must not fire beside it (or win due to list order).
-      for (let index = list.length - 1; index >= 0; index -= 1) {
-        const item = list[index];
-        if (matchesClipboardBinding(item) && !item.actions?.some((a) => a.type === "clipboardHistory")) {
-          list.splice(index, 1);
-        }
-      }
-
-      if (!exactClipboardRule) {
-        list.push({
-          id: "__system_clipboard_history",
-          profileId: activeId,
-          key,
-          mouse: false,
-          modifiers,
-          trigger: "combo",
-          timing: resolveTiming(undefined),
-          actions: [{ type: "clipboardHistory" } as any],
-          enabled: true,
-          suppressKey: true,
-          keyBehavior: "suppress",
-          remapTo: undefined,
-          appScope: undefined,
-        });
-      }
-    }
+    list = installClipboardShortcutBinding(list, settings, activeId);
     const advanced = state.data.settings.advanced;
     const hkCfg = settings.hyperKeyConfig;
     const ds = state.data.settings.dragSwitcher;

@@ -71,6 +71,36 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.on("clipboard:open-surface", handler);
       return () => ipcRenderer.removeListener("clipboard:open-surface", handler);
     },
+    onPopupShow: (callback) => {
+      const handler = () => callback();
+      ipcRenderer.on("clipboard-popup:show", handler);
+      return () => ipcRenderer.removeListener("clipboard-popup:show", handler);
+    },
+    onPopupRequestClose: (callback) => {
+      const handler = () => callback();
+      ipcRenderer.on("clipboard-popup:request-close", handler);
+      return () => ipcRenderer.removeListener("clipboard-popup:request-close", handler);
+    },
+    onPopupLayoutChanged: (callback) => {
+      const handler = (_event, value) => callback(value);
+      ipcRenderer.on("clipboard-popup:layout-changed", handler);
+      return () => ipcRenderer.removeListener("clipboard-popup:layout-changed", handler);
+    },
+    onPopupFocusSearch: (callback) => {
+      const handler = () => callback();
+      ipcRenderer.on("clipboard-popup:focus-search", handler);
+      return () => ipcRenderer.removeListener("clipboard-popup:focus-search", handler);
+    },
+    onCopyFeedbackShow: (callback) => {
+      const handler = (_event, value) => callback(value);
+      ipcRenderer.on("clipboard-copy-feedback:show", handler);
+      return () => ipcRenderer.removeListener("clipboard-copy-feedback:show", handler);
+    },
+    onCopyFeedbackHide: (callback) => {
+      const handler = () => callback();
+      ipcRenderer.on("clipboard-copy-feedback:hide", handler);
+      return () => ipcRenderer.removeListener("clipboard-copy-feedback:hide", handler);
+    },
   },
   executeAction: (action) => ipcRenderer.invoke("action:run", action),
   input: {
@@ -87,6 +117,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getWasdNavigationState: () => ipcRenderer.invoke("navigation:get-state"),
     setWasdCursorConfig: (config) => ipcRenderer.invoke("navigation:set-cursor-config", config),
     setWasdFeedbackConfig: (config) => ipcRenderer.invoke("navigation:set-feedback-config", config),
+    setWasdMouseChord: (enabled) => ipcRenderer.invoke("navigation:set-mouse-chord", enabled),
     browseCursorFile: () => ipcRenderer.invoke("dialog:open-cursor-file"),
     onWasdNavigationState: (callback) => {
       const handler = (_event, active) => callback(active);

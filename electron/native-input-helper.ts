@@ -252,6 +252,7 @@ export class NativeInputHelper {
   private onKey: (e: NativeKeyEventMessage) => void;
   private onStatus: (s: NativeHelperStatus) => void;
   private onTriggered: ((msg: NativeTriggeredMessage) => void) | null = null;
+  private onWasdToggleRequested: (() => void) | null = null;
   private onCapturedKey: ((msg: NativeCapturedKeyMessage) => void) | null = null;
   private onDragSwitcherShow: ((msg: DragSwitcherShowMessage) => void) | null = null;
   private onDragSwitcherMove: ((msg: DragSwitcherMoveMessage) => void) | null = null;
@@ -259,6 +260,7 @@ export class NativeInputHelper {
   private onWindowActivationResult: ((msg: WindowActivationResultMessage) => void) | null = null;
   private pendingDragSwitcher: DragSwitcherConfig | null = null;
   private pendingSmoothScroll: SmoothScrollNativeConfig | null = null;
+  private pendingWasdMouseChord = false;
   private pendingHyperGestures: HyperGesturesConfig | null = null;
   private pendingTouchpadDrag: TouchpadDragConfig | null = null;
   private onGestureTrail: ((msg: GestureTrailMessage) => void) | null = null;
@@ -300,6 +302,10 @@ export class NativeInputHelper {
   /** Hook for completed native gestures (the only thing Electron routes on). */
   setOnTrigger(fn: (msg: NativeTriggeredMessage) => void): void {
     this.onTriggered = fn;
+  }
+
+  setOnWasdToggleRequested(fn: () => void): void {
+    this.onWasdToggleRequested = fn;
   }
 
   /** Hook for the one-shot key capture used by the shortcut-creation UI. */
@@ -553,6 +559,13 @@ export class NativeInputHelper {
     });
   }
 
+  setWasdMouseChord(enabled: boolean): void {
+    this.pendingWasdMouseChord = enabled;
+    if (this.status === "ready") {
+      this.send({ type: "setWasdMouseChord", version: NATIVE_PROTOCOL_VERSION, enabled });
+    }
+  }
+
   /** Configure native System-Wide Smooth Scrolling. */
   setSmoothScroll(config: SmoothScrollNativeConfig): void {
     this.pendingSmoothScroll = config;
@@ -798,6 +811,7 @@ export class NativeInputHelper {
     this.sendConfigure();
     this.sendDragSwitcher();
     this.sendSmoothScroll();
+    this.send({ type: "setWasdMouseChord", version: NATIVE_PROTOCOL_VERSION, enabled: this.pendingWasdMouseChord });
     this.sendHyperGestures();
     this.sendTouchpadDrag();
     // Send beginCapture AFTER config so engine reload (which resets gesture
@@ -899,6 +913,10 @@ export class NativeInputHelper {
           shortcutId: msg.shortcutId,
           generation: msg.generation,
         });
+        break;
+      case "wasdToggleRequested":
+        console.log("[mouse-chord] WASD toggle requested by native helper");
+        this.onWasdToggleRequested?.();
         break;
       case "capturedKey":
         console.log(`[native-input] captured key ${msg.name} vk=${msg.vk}`);

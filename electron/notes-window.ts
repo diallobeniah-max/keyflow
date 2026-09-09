@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, screen, type MenuItemConstructorOptions } from "electron";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -360,7 +360,39 @@ class NotesWindowService {
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: false,
+        spellcheck: true,
       },
+    });
+
+    this.window.webContents.on("context-menu", (_event, params) => {
+      if (!this.window || this.window.isDestroyed() || !params.isEditable) return;
+      const template: MenuItemConstructorOptions[] = [];
+      for (const suggestion of params.dictionarySuggestions.slice(0, 6)) {
+        template.push({
+          label: suggestion,
+          click: () => this.window?.webContents.replaceMisspelling(suggestion),
+        });
+      }
+      if (params.misspelledWord) {
+        if (params.dictionarySuggestions.length === 0) {
+          template.push({ label: "No spelling suggestions", enabled: false });
+        }
+        template.push({
+          label: "Add to dictionary",
+          click: () => this.window?.webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord),
+        });
+        template.push({ type: "separator" });
+      }
+      template.push(
+        { role: "undo", enabled: params.editFlags.canUndo },
+        { role: "redo", enabled: params.editFlags.canRedo },
+        { type: "separator" },
+        { role: "cut", enabled: params.editFlags.canCut },
+        { role: "copy", enabled: params.editFlags.canCopy },
+        { role: "paste", enabled: params.editFlags.canPaste },
+        { role: "selectAll", enabled: params.editFlags.canSelectAll },
+      );
+      Menu.buildFromTemplate(template).popup({ window: this.window });
     });
 
     this.loadNotesRenderer(this.window);

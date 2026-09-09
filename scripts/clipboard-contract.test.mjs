@@ -50,6 +50,7 @@ assert.equal(contract.extractYouTubeId("https://notyoutube.com/watch?v=123"), nu
 
 // Win+V shortcut override verification
 const suppressionMod = await import(pathToFileURL(resolve("dist-electron/suppression-config.js")).href);
+const clipboardBinding = await import(pathToFileURL(resolve("src/lib/clipboard-shortcut.ts")).href);
 const sampleShortcut = {
   id: "sc-clipboard-history",
   name: "Clipboard history popup",
@@ -63,11 +64,24 @@ const sampleShortcut = {
   keyBehavior: "suppress",
 };
 
-const specs = suppressionMod.buildNativeShortcutConfig([sampleShortcut], {});
+const runtimeEntries = clipboardBinding.installClipboardShortcutBinding(
+  [
+    sampleShortcut,
+    { ...sampleShortcut, id: "sc-conflict", actions: [{ id: "act-conflict", type: "showPopup" }] },
+  ],
+  { clipboardShortcut: "Win+V", clipboardShortcutEnabled: true },
+  "prof-default",
+);
+assert.equal(runtimeEntries.length, 1, "clipboard must own its configured binding without a second action");
+assert.equal(runtimeEntries[0].id, "__system_clipboard_history", "runtime clipboard binding uses native ownership id");
+assert.equal(runtimeEntries[0].keyBehavior, "suppress", "clipboard binding must always consume its system chord");
+
+const specs = suppressionMod.buildNativeShortcutConfig(runtimeEntries, {});
 assert.equal(specs.length, 1, "Win+V shortcut should produce exactly 1 native spec");
 assert.equal(specs[0].key.vk, 0x56, "V key should map to VK 0x56");
 assert.equal(specs[0].behavior, "suppress", "Win+V shortcut must be marked as suppress to override Windows clipboard");
 assert.deepEqual(specs[0].modifiers, ["win"], "Win modifier must be compiled to lowercase 'win'");
+assert.equal(specs[0].id, "__system_clipboard_history", "native engine must receive the protected clipboard id");
 
 // Settings contract and normalizer defaults
 const defaultNorm = contract.normalizeClipboardSettings();

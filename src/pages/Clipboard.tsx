@@ -30,7 +30,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { AppSelect } from "../components/ui/AppSelect";
-import { Button } from "../components/ui";
+import { Button, Toggle } from "../components/ui";
 import { PageHeader } from "../components/ui/PageHeader";
 import { useStore } from "../store/useStore";
 
@@ -504,6 +504,69 @@ export function Clipboard() {
         <h3 className="clipboard-section-heading">Clipboard Rules & Storage</h3>
 
         <div className="clipboard-settings-grid">
+          <div className="clipboard-settings-card">
+            <div className="clipboard-card-head">
+              <div className="clipboard-card-icon">
+                <Lightning size={18} weight="bold" />
+              </div>
+              <div>
+                <h4>Selection & Feedback</h4>
+                <p>Choose what a click or Enter does and how the floating shelf responds.</p>
+              </div>
+            </div>
+
+            <div className="clipboard-form-group">
+              <label>Click or Enter action</label>
+              <AppSelect
+                value={snapshot?.settings.activationMode ?? "paste"}
+                options={[
+                  { value: "paste", label: "Paste into the active field" },
+                  { value: "copy", label: "Copy back to the clipboard" },
+                ]}
+                onChange={(value) => apply(window.electronAPI!.clipboard.setSettings({ activationMode: value as "copy" | "paste" }))}
+              />
+            </div>
+
+            <div className="clipboard-toggle-list">
+              <div className="clipboard-toggle-row">
+                <div>
+                  <strong>Copy confirmation</strong>
+                  <small>Show a compact accent-colored confirmation when a new clip is captured</small>
+                </div>
+                <Toggle
+                  label="Show copy confirmation"
+                  checked={snapshot?.settings.copyFeedbackEnabled !== false}
+                  onChange={(copyFeedbackEnabled) => apply(window.electronAPI!.clipboard.setSettings({ copyFeedbackEnabled }))}
+                />
+              </div>
+              <div className="clipboard-toggle-row">
+                <div>
+                  <strong>Edge hover scrolling</strong>
+                  <small>Move the horizontal shelf while the pointer rests near its left or right edge</small>
+                </div>
+                <Toggle
+                  label="Enable edge hover scrolling"
+                  checked={snapshot?.settings.edgeHoverScrollEnabled !== false}
+                  onChange={(edgeHoverScrollEnabled) => apply(window.electronAPI!.clipboard.setSettings({ edgeHoverScrollEnabled }))}
+                />
+              </div>
+            </div>
+
+            <div className="clipboard-form-group">
+              <label>Edge hover speed</label>
+              <AppSelect
+                value={snapshot?.settings.edgeHoverScrollSpeed ?? "normal"}
+                options={[
+                  { value: "slow", label: "Slow" },
+                  { value: "normal", label: "Balanced" },
+                  { value: "fast", label: "Fast" },
+                ]}
+                disabled={snapshot?.settings.edgeHoverScrollEnabled === false}
+                onChange={(value) => apply(window.electronAPI!.clipboard.setSettings({ edgeHoverScrollSpeed: value as "slow" | "normal" | "fast" }))}
+              />
+            </div>
+          </div>
+
           {/* Card 1: Capture Rules */}
           <div className="clipboard-settings-card">
             <div className="clipboard-card-head">

@@ -36,13 +36,26 @@ use windows_sys::Win32::UI::Input::{
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, CreateWindowExW, DefWindowProcW, GetCursorPos, PostMessageW, RegisterClassW,
-    RI_MOUSE_LEFT_BUTTON_DOWN, RI_MOUSE_LEFT_BUTTON_UP, SetWindowsHookExW,
-    WH_MOUSE_LL, WM_INPUT, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WS_POPUP,
+    RI_MOUSE_LEFT_BUTTON_DOWN, RI_MOUSE_LEFT_BUTTON_UP, RI_MOUSE_RIGHT_BUTTON_DOWN,
+    RI_MOUSE_RIGHT_BUTTON_UP, SetWindowsHookExW, WH_MOUSE_LL, WM_INPUT, WM_LBUTTONDOWN,
+    WM_LBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_RBUTTONDOWN, WM_RBUTTONUP, WS_POPUP,
     WNDCLASSW,
 };
 
 use crate::drag_switcher;
 use crate::hook::now_at;
+use crate::mouse_chord;
+use crate::protocol::{OutMessage, PROTOCOL_VERSION};
+
+fn observe_button(left: bool, down: bool, at: std::time::Duration) {
+    if left {
+        drag_switcher::on_raw_mouse_down(down, at);
+    }
+    if mouse_chord::on_button(left, down, at) {
+        eprintln!("[mouse-chord] left+right toggle requested");
+        crate::hook::queue(OutMessage::WasdToggleRequested { version: PROTOCOL_VERSION }.to_json());
+    }
+}
 
 /// Whether raw input registration succeeded (forensic log line).
 static REGISTERED: AtomicBool = AtomicBool::new(false);
@@ -215,8 +228,10 @@ unsafe extern "system" fn mouse_ll_proc(code: i32, wparam: WPARAM, lparam: LPARA
     // Observation only: never block or synthesize input. Always chain.
     if code >= 0 {
         match wparam as u32 {
-            WM_LBUTTONDOWN => drag_switcher::on_raw_mouse_down(true, now_at()),
-            WM_LBUTTONUP => drag_switcher::on_raw_mouse_down(false, now_at()),
+            WM_LBUTTONDOWN => observe_button(true, true, now_at()),
+            WM_LBUTTONUP => observe_button(true, false, now_at()),
+            WM_RBUTTONDOWN => observe_button(false, true, now_at()),
+            WM_RBUTTONUP => observe_button(false, false, now_at()),
             WM_MOUSEMOVE => {
                 let mut pt = POINT { x: 0, y: 0 };
                 if GetCursorPos(&mut pt) != 0 {
@@ -292,14 +307,8 @@ unsafe fn handle_raw_input(lparam: LPARAM) {
         // Exotic HID-reporting mice: button state in the HID report bytes.
         let bytes = &raw[size_of::<RAWINPUTHEADER>()..];
         let buttons = raw_mouse_buttons(bytes);
-        if buttons.left_edge_up {
-            drag_switcher::on_raw_mouse_down(false, now_at());
-            return;
-        }
-        if buttons.left_edge_down {
-            drag_switcher::on_raw_mouse_down(true, now_at());
-            return;
-        }
+        observe_button(true, buttons.left_down, now_at());
+        observe_button(false, buttons.right_down, now_at());
     }
     // Movement (either report shape): position always from GetCursorPos.
     let mut pt = POINT { x: 0, y: 0 };
@@ -315,13 +324,17 @@ unsafe fn handle_raw_mouse_report(mouse: &windows_sys::Win32::UI::Input::RAWMOUS
     let flags = mouse.Anonymous.Anonymous.usButtonFlags;
     if flags & RI_MOUSE_LEFT_BUTTON_UP as u16 != 0 {
         eprintln!("[raw-mouse] leftUp flags=0x{flags:x}");
-        drag_switcher::on_raw_mouse_down(false, at);
-        return;
+        observe_button(true, false, at);
     }
     if flags & RI_MOUSE_LEFT_BUTTON_DOWN as u16 != 0 {
         eprintln!("[raw-mouse] leftDown flags=0x{flags:x}");
-        drag_switcher::on_raw_mouse_down(true, at);
-        return;
+        observe_button(true, true, at);
+    }
+    if flags & RI_MOUSE_RIGHT_BUTTON_UP as u16 != 0 {
+        observe_button(false, false, at);
+    }
+    if flags & RI_MOUSE_RIGHT_BUTTON_DOWN as u16 != 0 {
+        observe_button(false, true, at);
     }
     // Movement only — position is always taken from GetCursorPos (never
     // integrated from relative deltas), so report the current position.
@@ -332,22 +345,22 @@ unsafe fn handle_raw_mouse_report(mouse: &windows_sys::Win32::UI::Input::RAWMOUS
 }
 
 struct RawMouseButtons {
-    left_edge_down: bool,
-    left_edge_up: bool,
+    left_down: bool,
+    right_down: bool,
 }
 
 /// Minimal HID parser: the generic-mouse usage page reports button bits in the
 /// first report byte (bit 0 = left). Deliberately conservative — a parse
 /// failure reports no button change and the caller keeps the last known state.
 fn raw_mouse_buttons(data: &[u8]) -> RawMouseButtons {
-    let mut out = RawMouseButtons { left_edge_down: false, left_edge_up: false };
+    let mut out = RawMouseButtons { left_down: false, right_down: false };
     if data.is_empty() {
         return out;
     }
     let b0 = data[0];
     // HID generic mouse: bit 0 of byte 0 = left button state.
-    out.left_edge_down = b0 & 0x01 != 0;
-    out.left_edge_up = !out.left_edge_down;
+    out.left_down = b0 & 0x01 != 0;
+    out.right_down = b0 & 0x02 != 0;
     out
 }
 
@@ -362,18 +375,18 @@ mod tests {
     #[test]
     fn hid_left_button_bit_detected() {
         let b = raw_mouse_buttons(&[0x01]);
-        assert!(b.left_edge_down);
-        assert!(!b.left_edge_up);
+        assert!(b.left_down);
+        assert!(!b.right_down);
         let b = raw_mouse_buttons(&[0x00]);
-        assert!(!b.left_edge_down);
-        assert!(b.left_edge_up);
+        assert!(!b.left_down);
+        assert!(!b.right_down);
     }
 
     #[test]
     fn empty_hid_report_is_safe() {
         let b = raw_mouse_buttons(&[]);
-        assert!(!b.left_edge_down);
-        assert!(!b.left_edge_up);
+        assert!(!b.left_down);
+        assert!(!b.right_down);
     }
 
     #[test]

@@ -10,6 +10,7 @@ use std::sync::{LazyLock, Mutex};
 use std::time::Duration;
 
 use crate::app_scope::{self, ActiveApp};
+use crate::clipboard_shortcut::ClipboardShortcut;
 use crate::protocol::{AppScope, BehaviorKind, KeySpec, ShortcutSpec, TriggerKind};
 
 /// Milliseconds, the single canonical native timing default location.
@@ -97,6 +98,8 @@ pub struct Config {
     scoped: Vec<ScopedBehavior>,
     /// Legacy fallback (single-key policy mode). Prefer rules.
     keys: HashMap<u32, KeyBehavior>,
+    /// OS-reserved accelerators which must be consumed as complete chords.
+    clipboard_shortcuts: Vec<ClipboardShortcut>,
     typing_idle_threshold: Duration,
     paused: bool,
     bypass: bool,
@@ -109,6 +112,7 @@ impl Default for Config {
             behavior: HashMap::new(),
             scoped: Vec::new(),
             keys: HashMap::new(),
+            clipboard_shortcuts: Vec::new(),
             typing_idle_threshold: Duration::from_millis(DEFAULT_TYPING_IDLE_MS as u64),
             paused: false,
             bypass: false,
@@ -143,6 +147,7 @@ impl Config {
             self.behavior.clear();
             self.scoped.clear();
             self.keys.clear();
+            self.clipboard_shortcuts.clear();
             return;
         }
 
@@ -150,6 +155,7 @@ impl Config {
         let mut new_rules: Vec<Rule> = Vec::with_capacity(specs.len());
         let mut new_behavior: HashMap<u32, KeyBehavior> = HashMap::new();
         let mut new_scoped: Vec<ScopedBehavior> = Vec::new();
+        let mut new_clipboard_shortcuts: Vec<ClipboardShortcut> = Vec::new();
 
         for spec in specs.iter().filter(|s| s.enabled) {
             let vk = spec.key.vk;
@@ -180,6 +186,14 @@ impl Config {
                 .app_scope
                 .clone()
                 .filter(|s| !s.is_global());
+
+            if spec.id == "__system_clipboard_history" && vk != 0 {
+                new_clipboard_shortcuts.push(ClipboardShortcut {
+                    vk,
+                    required_mods: mods,
+                    app_scope: app_scope.clone(),
+                });
+            }
 
             // Direct remaps are per-key DOWN/UP behaviors, NOT gesture rules.
             let resolved = spec.resolved_behavior();
@@ -250,6 +264,7 @@ impl Config {
         self.rules = new_rules;
         self.behavior = new_behavior;
         self.scoped = new_scoped;
+        self.clipboard_shortcuts = new_clipboard_shortcuts;
         self.keys.clear();
     }
 
@@ -271,6 +286,7 @@ impl Config {
         self.rules.clear();
         self.behavior.clear();
         self.scoped.clear();
+        self.clipboard_shortcuts.clear();
         for s in specs {
             let b = match s.mode.as_str() {
                 "suppress" => KeyBehavior::Suppress,
@@ -356,6 +372,15 @@ impl Config {
     /// Global-only lookup (legacy convenience / tests).
     pub fn behavior_for(&self, vk: u32) -> KeyBehavior {
         self.behavior_of(vk, None)
+    }
+
+    /// True only for a configured KeyFlow clipboard chord. This is deliberately
+    /// separate from per-key behavior so `V` never becomes globally suppressed.
+    pub fn owns_clipboard_shortcut(&self, vk: u32, modifiers: u32, active: Option<&ActiveApp>) -> bool {
+        if self.paused || self.bypass {
+            return false;
+        }
+        self.clipboard_shortcuts.iter().any(|shortcut| shortcut.matches(vk, modifiers, active))
     }
 
     /// Whether any rule for `vk` is app-scoped. Used to reset scoped gesture
@@ -899,5 +924,28 @@ mod tests {
             let matched: Vec<_> = rules.iter().filter(|r| r.vk == 0x54 && r.required_mods == (MOD_BIT_CTRL | MOD_BIT_SHIFT)).collect();
             assert_eq!(matched.len(), 1, "Ctrl+Shift+T still matches after update (attempt {})", i + 1);
         }
+    }
+
+    #[test]
+    fn clipboard_override_owns_only_the_configured_win_chord() {
+        let mut c = Config::new();
+        let clipboard = ShortcutSpec {
+            id: "__system_clipboard_history".to_string(),
+            name: Some("Clipboard history".to_string()),
+            key: KeyIdentity { vk: 0x56, scan_code: 0, extended: false },
+            modifiers: vec!["win".to_string()],
+            trigger: TriggerSpec { kind_raw: "combo".to_string(), ..Default::default() },
+            behavior: "suppress".to_string(),
+            remap_to: 0,
+            enabled: true,
+            suppress_key: None,
+            key_behavior: None,
+            app_scope: None,
+        };
+        c.apply_shortcuts(&[clipboard]);
+        assert!(c.owns_clipboard_shortcut(0x56, MOD_BIT_WIN, None), "Win+V is owned");
+        assert!(!c.owns_clipboard_shortcut(0x56, 0, None), "V alone passes through");
+        assert!(!c.owns_clipboard_shortcut(0x56, MOD_BIT_WIN | MOD_BIT_SHIFT, None), "Win+Shift+V passes through");
+        assert!(!c.owns_clipboard_shortcut(0x43, MOD_BIT_WIN, None), "other Win chords pass through");
     }
 }

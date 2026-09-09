@@ -13225,50 +13225,6 @@ mark.notes-find-match.is-active {
 }
 
 /* ─── Bottom-Docked & Top-Docked Paste-Style Overlay ─────────────── */
-@keyframes clipOverlayEnterBottom {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 18px, 0);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes clipOverlayExitBottom {
-  from {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    opacity: 0;
-    transform: translate3d(0, 14px, 0);
-  }
-}
-
-@keyframes clipOverlayEnterTop {
-  from {
-    opacity: 0;
-    transform: translate3d(0, -18px, 0);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes clipOverlayExitTop {
-  from {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    opacity: 0;
-    transform: translate3d(0, -14px, 0);
-  }
-}
-
 .clip-paste-shell {
   display: flex;
   flex-direction: column;
@@ -13283,23 +13239,6 @@ mark.notes-find-match.is-active {
   overflow: hidden;
   position: relative;
   user-select: none;
-  will-change: transform, opacity;
-}
-
-.clip-paste-shell.phase-entering {
-  animation: clipOverlayEnterBottom 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.clip-paste-shell.phase-closing {
-  animation: clipOverlayExitBottom 140ms cubic-bezier(0.4, 0, 1, 1) forwards;
-}
-
-.clip-paste-shell.pos-top.phase-entering {
-  animation-name: clipOverlayEnterTop;
-}
-
-.clip-paste-shell.pos-top.phase-closing {
-  animation-name: clipOverlayExitTop;
 }
 
 /* Top Bar (Images 1 & 2) */
@@ -14720,7 +14659,7 @@ mark.notes-find-match.is-active {
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
-  animation: clipOverlayEnter 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: kf-motion-scrim-enter var(--motion-default) both;
 }
 
 .clip-lightbox-dialog {
@@ -15609,7 +15548,7 @@ mark.notes-find-match.is-active {
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
-  animation: clipOverlayEnterBottom 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: kf-motion-dialog-enter var(--motion-default) both;
 }
 
 .clip-folder-modal-dialog {

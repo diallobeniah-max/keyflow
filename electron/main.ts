@@ -31,6 +31,7 @@ import { playKeyFlowSound } from "./sound.js";
 import { setNavigationModeController, setClipboardHistoryHandler, setDimScreenManager } from "./actions.js";
 import { clipboardEngine, type ClipboardSurface } from "./clipboard-engine.js";
 import { ClipboardWindowManager } from "./clipboard-window.js";
+import { ClipboardCopyFeedbackWindowManager } from "./clipboard-copy-feedback-window.js";
 import { setNativeKeyInjector } from "./actions.js";
 import { nativeKeyName } from "./vk-catalog.js";
 import { AhkSuppressionManager } from "./ahk-suppression-manager.js";
@@ -59,6 +60,7 @@ let hotCornersManager: HotCornersManager | null = null;
 let screenTintManager: ScreenTintWindowManager | null = null;
 let dimScreenManager: DimScreenManager | null = null;
 let clipboardWindowManager: ClipboardWindowManager | null = null;
+let clipboardCopyFeedbackManager: ClipboardCopyFeedbackWindowManager | null = null;
 let ahkManager: AhkSuppressionManager | null = null;
 let nativeHelper: NativeInputHelper | null = null;
 let navigationModeController: NavigationModeController | null = null;
@@ -349,6 +351,7 @@ function createWindow(): void {
     popupManager?.destroy();
     dragSwitcherManager?.destroy();
     clipboardWindowManager?.destroy();
+    clipboardCopyFeedbackManager?.destroy();
   });
 
   mainWindow.on("close", (event) => {
@@ -764,6 +767,11 @@ ipcMain.handle("input:get-suppression", () => {
     navigationModeController?.setFeedbackConfig(config ?? {});
     return true;
   });
+  ipcMain.handle("navigation:set-mouse-chord", (_event, enabled: unknown) => {
+    if (typeof enabled !== "boolean") throw new Error("Invalid WASD mouse chord setting.");
+    nativeHelper?.setWasdMouseChord(enabled);
+    return true;
+  });
 
   ipcMain.handle("input:get-status", () => {
     return inputService?.getStatus() ?? "stopped";
@@ -980,6 +988,15 @@ app.whenReady().then(() => {
     isDev: process.env.NODE_ENV === "development" || process.argv.includes("--dev"),
     appPath: app.getAppPath(),
   });
+  clipboardCopyFeedbackManager = new ClipboardCopyFeedbackWindowManager({
+    devUrl: DEV_URL,
+    preloadPath: PRELOAD_PATH,
+    isDev: process.env.NODE_ENV === "development" || process.argv.includes("--dev"),
+    appPath: app.getAppPath(),
+  });
+  clipboardEngine.subscribeCaptures((item, settings) => {
+    clipboardCopyFeedbackManager?.show(item, settings);
+  });
   setClipboardHistoryHandler(() => {
     clipboardWindowManager?.toggle();
   });
@@ -1018,6 +1035,9 @@ app.whenReady().then(() => {
       },
     );
     nativeHelper.setOnTrigger((msg) => routeNativeTriggered(msg));
+    nativeHelper.setOnWasdToggleRequested(() => {
+      navigationModeController?.toggle();
+    });
     nativeHelper.setOnCapturedKey((msg: import("./native-input-helper.js").NativeCapturedKeyMessage) => {
       console.log(`[key-capture-electron] received vk=${msg.vk} key=${msg.name}`);
       mainWindow?.webContents.send("native:captured-key", msg);
@@ -1087,4 +1107,6 @@ app.on("will-quit", () => {
   hotCornersManager?.stop();
   screenTintManager?.destroy();
   dimScreenManager?.destroy();
+  clipboardWindowManager?.destroy();
+  clipboardCopyFeedbackManager?.destroy();
 });

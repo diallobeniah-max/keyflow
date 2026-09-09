@@ -144,6 +144,7 @@ pub fn reload_engine_with_hyper(hyper_key: Option<crate::protocol::HyperKeySpec>
     // Reconfiguring invalidates remap ownership: release any injected target
     // keys so none stay stuck, and hide an open drag switcher overlay.
     release_remaps();
+    crate::clipboard_shortcut::reset_start_menu_mask();
     drag_switcher::hide_all(crate::drag_switcher::HideReason::Reload);
 
     let mut engine = ENGINE.lock().unwrap_or_else(|p| p.into_inner());
@@ -157,6 +158,9 @@ pub fn reload_engine_with_hyper(hyper_key: Option<crate::protocol::HyperKeySpec>
 }
 
 pub fn set_engine_paused(paused: bool) {
+    if paused {
+        crate::clipboard_shortcut::reset_start_menu_mask();
+    }
     if let Ok(mut engine) = ENGINE.lock() {
         if let Some(e) = engine.as_mut() {
             e.set_paused(paused);
@@ -496,9 +500,14 @@ unsafe fn hook_proc_inner(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT 
         return 1;
     }
 
-    let (behavior, bypass) = {
+    let (behavior, bypass, owns_clipboard_shortcut) = {
         let cfg = CONFIG.lock().unwrap_or_else(|p| p.into_inner());
-        (cfg.behavior_of(kbd.vkCode, app_scope::current().as_ref()), cfg.is_bypass())
+        let active = app_scope::current();
+        (
+            cfg.behavior_of(kbd.vkCode, active.as_ref()),
+            cfg.is_bypass(),
+            cfg.owns_clipboard_shortcut(kbd.vkCode, PRESSED.load(Ordering::SeqCst), active.as_ref()),
+        )
     };
 
     // Step 6 — Hyper suppression & active chord check: quick ENGINE lock.
@@ -510,6 +519,23 @@ unsafe fn hook_proc_inner(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT 
             (false, false)
         }
     };
+
+    // Consuming the final key in a Win chord leaves Windows seeing an
+    // otherwise standalone Win press. Mark the chord as used before the
+    // physical Win-up arrives, so Start remains available only for Win alone.
+    // The injected Ctrl tap carries KeyFlow's marker and cannot re-trigger a
+    // shortcut or affect our physical modifier state after its matching up.
+    if !own && !bypass {
+        if let Some(mask_vk) = crate::clipboard_shortcut::start_menu_mask_key(
+            kbd.vkCode,
+            down,
+            owns_clipboard_shortcut,
+            PRESSED.load(Ordering::SeqCst),
+        ) {
+            send_vk(mask_vk, 0, false, true);
+            send_vk(mask_vk, 0, false, false);
+        }
+    }
 
     // Step 7 — WASD Navigation Mode: while active, W/A/S/D
     // are consumed and replaced by arrow injections. When Hyper is held
@@ -574,7 +600,12 @@ unsafe fn hook_proc_inner(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT 
         reschedule_deadline_with(deadline);
     }
 
-    let decision = if !own && !bypass && is_hyper_suppressed {
+    let decision = if !own && !bypass && owns_clipboard_shortcut {
+        // A Windows-reserved chord (for example Win+V) is owned as the exact
+        // configured combination. Consume both its DOWN and UP events so the
+        // shell cannot also invoke the legacy Windows clipboard panel.
+        Decision::Consume
+    } else if !own && !bypass && is_hyper_suppressed {
         Decision::Consume
     } else {
         decide(down, own, bypass, behavior)

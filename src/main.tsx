@@ -17,19 +17,20 @@ const isScreenTint = window.location.search.includes("window=screen-tint");
 const isDimScreen = window.location.search.includes("window=dim-screen");
 const isMediaPlayer = window.location.search.includes("window=media-player");
 const isClipboardPopup = window.location.search.includes("window=clipboard-popup");
+const isClipboardCopyFeedback = window.location.search.includes("window=clipboard-copy-feedback");
 const isGestureTrail = window.location.search.includes("window=gesture-trail");
 
 // Immediately apply appearance tokens from initial state so theme matches before render
 useStore.getState().applyAppearance();
 
-if (isPopup || isNotes || isDragSwitcher || isScreenTint || isDimScreen || isMediaPlayer || isClipboardPopup || isGestureTrail) {
+if (isPopup || isNotes || isDragSwitcher || isScreenTint || isDimScreen || isMediaPlayer || isClipboardPopup || isClipboardCopyFeedback || isGestureTrail) {
   document.documentElement.classList.add("window-popup-mode");
   document.body.classList.add("window-popup-mode");
 }
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 
-if (isPopup || isNotes || isDragSwitcher || isScreenTint || isDimScreen || isMediaPlayer || isClipboardPopup || isGestureTrail) {
+if (isPopup || isNotes || isDragSwitcher || isScreenTint || isDimScreen || isMediaPlayer || isClipboardPopup || isClipboardCopyFeedback || isGestureTrail) {
   void useStore.getState().load().then(() => {
     useStore.getState().applyAppearance();
   });

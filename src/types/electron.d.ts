@@ -55,7 +55,7 @@ interface ClipboardUrlMeta {
 interface ClipboardItemSummary { id: string; kind: ClipboardKind; title: string; preview: string; capturedAt: number; lastUsedAt?: number; copyCount: number; useCount: number; pinned: boolean; pinboardIds: string[]; sourceApp?: string; bytes?: number; fileCount?: number; color?: string; dimensions?: { width: number; height: number }; thumbnailDataUrl?: string; urlMeta?: ClipboardUrlMeta; }
 interface ClipboardItemDetail extends ClipboardItemSummary { text?: string; html?: string; url?: string; paths?: string[]; imageDataUrl?: string; formats: string[]; nativeFormats: string[]; }
 interface ClipboardPinboard { id: string; name: string; color: string; order: number; icon?: string; }
-interface ClipboardSettings { paused: boolean; maxItems: number; defaultSurface: ClipboardSurface; excludedApps: string[]; layout?: ClipboardOverlayLayout; horizontalPosition?: ClipboardHorizontalPosition; scrollDirection?: ClipboardScrollDirection; gridRows?: ClipboardGridRows; useAppAccentColor?: boolean; closeOnBlur?: boolean; captureText: boolean; captureImages: boolean; captureFiles: boolean; captureLinks: boolean; ignorePasswordManagers: boolean; retentionDays: 0 | 7 | 30; }
+interface ClipboardSettings { paused: boolean; maxItems: number; defaultSurface: ClipboardSurface; excludedApps: string[]; layout?: ClipboardOverlayLayout; horizontalPosition?: ClipboardHorizontalPosition; scrollDirection?: ClipboardScrollDirection; gridRows?: ClipboardGridRows; useAppAccentColor?: boolean; closeOnBlur?: boolean; activationMode?: "copy" | "paste"; copyFeedbackEnabled?: boolean; edgeHoverScrollEnabled?: boolean; edgeHoverScrollSpeed?: "slow" | "normal" | "fast"; captureText: boolean; captureImages: boolean; captureFiles: boolean; captureLinks: boolean; ignorePasswordManagers: boolean; retentionDays: 0 | 7 | 30; }
 interface ClipboardSnapshot { items: ClipboardItemSummary[]; pinboards: ClipboardPinboard[]; settings: ClipboardSettings; }
 interface ClipboardAPI {
   getSnapshot: () => Promise<ClipboardSnapshot>; getItem: (id: string) => Promise<ClipboardItemDetail | null>; setSettings: (patch: Partial<ClipboardSettings>) => Promise<ClipboardSnapshot>;
@@ -66,6 +66,8 @@ interface ClipboardAPI {
   toggle?: () => Promise<boolean>; show?: () => Promise<boolean>; setKeepOpen?: (keepOpen: boolean) => Promise<boolean>;
   probeFormats?: () => Promise<Array<{ format: string; size?: number }>>; hidePopup?: () => Promise<void>;
   onChanged: (callback: (snapshot: ClipboardSnapshot) => void) => () => void; onOpenSurface: (callback: (surface: ClipboardSurface) => void) => () => void;
+  onPopupShow?: (callback: () => void) => () => void; onPopupRequestClose?: (callback: () => void) => () => void; onPopupLayoutChanged?: (callback: (value: { layout?: ClipboardOverlayLayout; position?: ClipboardHorizontalPosition; scrollDirection?: ClipboardScrollDirection; gridRows?: ClipboardGridRows }) => void) => () => void; onPopupFocusSearch?: (callback: () => void) => () => void;
+  onCopyFeedbackShow?: (callback: (value: { kind: string; title: string; anchor: "top" | "bottom" | "right" }) => void) => () => void; onCopyFeedbackHide?: (callback: () => void) => () => void;
 }
 
 interface NativeStatus {
@@ -109,6 +111,7 @@ interface InputAPI {
   getWasdNavigationState: () => Promise<boolean>;
   setWasdCursorConfig?: (config: { size: number; customPath?: string }) => Promise<boolean>;
   setWasdFeedbackConfig?: (config: { showStateCard: boolean; accent?: string }) => Promise<boolean>;
+  setWasdMouseChord?: (enabled: boolean) => Promise<boolean>;
   browseCursorFile?: () => Promise<string | null>;
   setSmoothScroll?: (config: any) => Promise<boolean>;
   setHyperGestures?: (config: any) => Promise<boolean>;

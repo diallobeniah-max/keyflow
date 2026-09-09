@@ -64,6 +64,10 @@ pub enum OutMessage {
         shortcut_id: String,
         generation: u64,
     },
+    /// Left + Right mouse chord requested a WASD Navigation toggle.
+    WasdToggleRequested {
+        version: u32,
+    },
     /// One-off response to BeginCapture.
     CapturedKey {
         version: u32,
@@ -489,6 +493,13 @@ pub enum InMessage {
         #[serde(default)]
         cursor_path: Option<String>,
     },
+    /// Enable the dedicated Left + Right mouse chord used to toggle WASD mode.
+    SetWasdMouseChord {
+        #[serde(default)]
+        version: u32,
+        #[serde(default)]
+        enabled: bool,
+    },
     /// Configure native System-Wide Smooth Scrolling.
     SetSmoothScroll {
         #[serde(default)]
@@ -622,6 +633,7 @@ mod tests {
         assert!(matches!(parse_line(r#"{"type":"setKeyStream","enabled":true}"#), Some(InMessage::SetKeyStream { enabled: true, .. })));
         assert!(matches!(parse_line(r#"{"type":"setWasdNavigation","enabled":true}"#), Some(InMessage::SetWasdNavigation { enabled: true, .. })));
         assert!(matches!(parse_line(r#"{"type":"setWasdNavigation","enabled":false}"#), Some(InMessage::SetWasdNavigation { enabled: false, .. })));
+        assert!(matches!(parse_line(r#"{"type":"setWasdMouseChord","enabled":true}"#), Some(InMessage::SetWasdMouseChord { enabled: true, .. })));
     }
 
     #[test]
@@ -929,6 +941,12 @@ mod tests {
         assert!(json.contains(r#""type":"injected""#));
         assert!(json.contains(r#""seq":7"#));
         assert!(json.contains(r#""ok":true"#));
+    }
+
+    #[test]
+    fn wasd_toggle_request_json_shape() {
+        let json = OutMessage::WasdToggleRequested { version: 1 }.to_json();
+        assert!(json.contains(r#""type":"wasdToggleRequested""#));
     }
 
     #[test]

@@ -26,6 +26,7 @@ import { ScreenTintOverlay } from "./pages/ScreenTintOverlay";
 import { DimScreenOverlay } from "./pages/DimScreenOverlay";
 import { MediaPlayerOverlay } from "./pages/MediaPlayerOverlay";
 import { ClipboardOverlay } from "./pages/ClipboardOverlay";
+import { ClipboardCopyFeedback } from "./components/ClipboardCopyFeedback";
 import { GestureTrailOverlay } from "./pages/GestureTrailOverlay";
 import { Clipboard } from "./pages/Clipboard";
 import { useStore } from "./store/useStore";
@@ -60,6 +61,10 @@ function isMediaPlayerWindow(): boolean {
 
 function isClipboardPopupWindow(): boolean {
   return window.location.search.includes("window=clipboard-popup");
+}
+
+function isClipboardCopyFeedbackWindow(): boolean {
+  return window.location.search.includes("window=clipboard-copy-feedback");
 }
 
 function isGestureTrailWindow(): boolean {
@@ -125,6 +130,7 @@ export default function App() {
   if (isDimScreenWindow()) return <><GlobalTooltip /><DimScreenOverlay /></>;
   if (isMediaPlayerWindow()) return <><GlobalTooltip /><MediaPlayerOverlay /></>;
   if (isClipboardPopupWindow()) return <><GlobalTooltip /><ClipboardOverlay /></>;
+  if (isClipboardCopyFeedbackWindow()) return <ClipboardCopyFeedback />;
   if (isGestureTrailWindow()) return <><GlobalTooltip /><GestureTrailOverlay /></>;
 
   const onboardingDone = useStore((s) => s.data.onboardingDone);
@@ -198,6 +204,10 @@ export default function App() {
       accent: appearance?.accent,
     });
   }, [appearance?.accent, wasdSettings?.showStateCard]);
+
+  useEffect(() => {
+    void window.electronAPI?.input.setWasdMouseChord?.(wasdSettings?.toggleWithMouseChord !== false);
+  }, [wasdSettings?.toggleWithMouseChord]);
 
   useEffect(() => {
     if (wasdNavigationActive) {

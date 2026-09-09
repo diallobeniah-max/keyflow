@@ -86,6 +86,7 @@ const APP_SHORTCUTS = [
 
 export function NotesPopupShell() {
   const appearance = useStore((s) => s.data.settings.appearance);
+  const spellCheckEnabled = useStore((s) => s.data.settings.notes?.spellCheck ?? true);
   const resolvedTheme = useResolvedTheme(appearance?.theme);
 
   useEffect(() => {
@@ -2379,6 +2380,7 @@ export function NotesPopupShell() {
               <div
                 ref={editorRef}
                 contentEditable
+                spellCheck={spellCheckEnabled}
                 className="notes-editor-content"
                 data-placeholder="Start typing your note here… (Drag & drop images/files or type / for commands)"
                 onKeyDown={(e) => {

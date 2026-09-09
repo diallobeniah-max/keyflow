@@ -58,7 +58,7 @@ export class ClipboardWindowManager {
     this.cancelClose();
     if (!this.window || this.window.isDestroyed()) return;
     this.window.webContents.send("clipboard-popup:request-close");
-    this.closeTimer = setTimeout(() => this.hide(), 160);
+    this.closeTimer = setTimeout(() => this.hide(), 240);
   }
 
   restoreAfterPaste(forceKeepOpen = false): void {

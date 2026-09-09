@@ -168,6 +168,7 @@ export function createDefaultSettings(): Settings {
     wasdNavigation: {
       cursorSize: 32,
       showStateCard: false,
+      toggleWithMouseChord: true,
     },
     notes: {
       saveLocation: "",

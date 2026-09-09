@@ -14,6 +14,7 @@ export const MOTION_DURATION = {
   sheet: 220,
   toast: 160,
   tooltip: 100,
+  clipboard: 160,
 } as const;
 
 export type MotionPreset = keyof typeof MOTION_DURATION;

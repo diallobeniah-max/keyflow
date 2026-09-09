@@ -390,6 +390,16 @@ export const SETTINGS_INDEX: SettingSearchItem[] = [
 
   // WASD Navigation
   {
+    id: "wasd-mouse-chord",
+    title: "Left + Right click shortcut",
+    category: "wasd",
+    categoryLabel: "WASD Navigation",
+    description: "Toggle WASD Navigation by pressing the left and right mouse buttons together",
+    keywords: ["wasd", "mouse chord", "left click", "right click", "toggle", "shortcut"],
+    synonyms: ["both mouse buttons", "mouse shortcut"],
+    anchorId: "row-wasd-mouse-chord",
+  },
+  {
     id: "wasd-cursor-size",
     title: "Cursor size",
     category: "wasd",

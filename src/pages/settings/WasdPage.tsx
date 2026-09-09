@@ -48,6 +48,19 @@ export const WasdPage: FC<WasdPageProps> = ({ onBack }) => {
             onChange={(v) => setWasdNavigationActive(v)}
           />
         </SettingsRow>
+        <SettingsRow
+          id="row-wasd-mouse-chord"
+          title="Left + Right click shortcut"
+          desc="Press both mouse buttons within a moment of each other to toggle WASD Navigation"
+        >
+          <Toggle
+            label="Toggle WASD with Left and Right click"
+            checked={wasd?.toggleWithMouseChord !== false}
+            onChange={(toggleWithMouseChord) =>
+              patch("wasdNavigation" as any, { ...wasd, toggleWithMouseChord } as any)
+            }
+          />
+        </SettingsRow>
       </SettingsGroup>
 
       <div className={isEnabled ? "" : "settings-progressive-disabled"}>

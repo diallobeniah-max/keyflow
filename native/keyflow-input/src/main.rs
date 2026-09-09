@@ -7,11 +7,13 @@
 //!   keyflow-input --self-test           protocol smoke test, NO hook
 
 mod app_scope;
+mod clipboard_shortcut;
 mod config;
 mod drag_switcher;
 mod hook;
 mod inject;
 mod keymap;
+mod mouse_chord;
 mod navigation_mode;
 mod parent_watch;
 mod protocol;
@@ -251,6 +253,10 @@ fn main() -> ExitCode {
                             eprintln!("[keyflow-input] setWasdNavigation enabled={enabled} cursor_size={sz} cursor_path={cursor_path:?}");
                             hook::set_wasd_navigation(enabled);
                             system_cursor::set_system_cursor_blue(enabled, sz, cursor_path.as_deref());
+                        }
+                        Some(InMessage::SetWasdMouseChord { enabled, .. }) => {
+                            eprintln!("[mouse-chord] set enabled={enabled}");
+                            mouse_chord::configure(enabled);
                         }
                         Some(InMessage::SetSmoothScroll { enabled, preset, step_size, animation_time, acceleration_enabled, acceleration_delta, acceleration_max, trackpad_pass_through, horizontal_scrolling, .. }) => {
                             smooth_scroll::configure(smooth_scroll::SmoothScrollConfig {
