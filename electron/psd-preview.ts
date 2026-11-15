@@ -2,6 +2,40 @@ import { open } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { createInflate } from "node:zlib";
 import sharp from "sharp";
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/** Convert a bounded Lab composite outside the keyboard helper process. */
+function convertLab(pixels: Buffer, profile: Buffer | null, signal?: AbortSignal): Promise<Buffer | null> {
+  if (signal?.aborted || pixels.length > 2048 * 2048 * 3 || pixels.length % 3) return Promise.resolve(null);
+  const packaged = process.resourcesPath && join(process.resourcesPath, 'keyflow-color', 'keyflow-color.exe');
+  const development = join(dirname(fileURLToPath(import.meta.url)), '..', 'native', 'keyflow-color', 'target', 'release', 'keyflow-color.exe');
+  const executable = packaged && existsSync(packaged) ? packaged : development;
+  if (!existsSync(executable)) return Promise.resolve(null);
+  return new Promise(resolve => {
+    const child = spawn(executable, [], { windowsHide: true, stdio: 'pipe' });
+    const chunks: Buffer[] = [];
+    let count = 0, done = false;
+    const finish = (value: Buffer | null) => {
+      if (done) return;
+      done = true; clearTimeout(timer); signal?.removeEventListener('abort', abort);
+      if (!child.killed && child.exitCode === null) child.kill();
+      resolve(value);
+    };
+    const abort = () => finish(null);
+    const timer = setTimeout(abort, 15000);
+    signal?.addEventListener('abort', abort, { once: true });
+    child.on('error', abort); child.stdin.on('error', abort); child.stdout.on('error', abort);
+    child.stderr.resume();
+    child.stdout.on('data', (chunk: Buffer) => { count += chunk.length; if (count > pixels.length) abort(); else chunks.push(chunk); });
+    child.on('close', code => finish(code === 0 && count === pixels.length ? Buffer.concat(chunks, count) : null));
+    const size = Buffer.alloc(4); size.writeUInt32LE(profile?.length ?? 0);
+    child.stdin.write(size); if (profile) child.stdin.write(profile); child.stdin.end(pixels);
+  });
+}
+
 
 // Photoshop image resources contain an optional JPEG thumbnail. Read only the
 // header and bounded resource records, never the potentially multi-GB layers.
@@ -44,7 +78,7 @@ function cmykToRgb(pixels: Buffer): Buffer {
 // profiles before passing them on, so they cannot masquerade as color-managed.
 function isPlausibleProfile(profile: Buffer, mode: number): boolean {
   if (profile.length < 132 || profile.readUInt32BE(0) !== profile.length ||
-      profile.toString('ascii', 36, 40) !== 'acsp' || profile.toString('ascii', 16, 20) !== (mode === 4 ? 'CMYK' : mode === 3 || mode === 2 ? 'RGB ' : 'GRAY')) return false;
+      profile.toString('ascii', 36, 40) !== 'acsp' || profile.toString('ascii', 16, 20) !== (mode === 4 ? 'CMYK' : mode === 3 || mode === 2 ? 'RGB ' : mode === 9 ? 'Lab ' : 'GRAY')) return false;
   const count = profile.readUInt32BE(128);
   if (count > Math.floor((profile.length - 132) / 12)) return false;
   const tags = new Set<string>();
@@ -55,7 +89,7 @@ function isPlausibleProfile(profile: Buffer, mode: number): boolean {
     const tag = profile.toString('ascii', entry, entry + 4);
     tags.add(tag);
   }
-  return tags.has('A2B0') || tags.has('D2B0') || ((mode === 3 || mode === 2) && ['rXYZ', 'gXYZ', 'bXYZ', 'rTRC', 'gTRC', 'bTRC'].every(tag => tags.has(tag))) || (mode === 1 && tags.has('kTRC'));
+  return tags.has('A2B0') || tags.has('D2B0') || (mode === 9 && tags.size > 0) || ((mode === 3 || mode === 2) && ['rXYZ', 'gXYZ', 'bXYZ', 'rTRC', 'gTRC', 'bTRC'].every(tag => tags.has(tag))) || (mode === 1 && tags.has('kTRC'));
 }
 
 // Wrap sampled channels as TIFF so libvips can apply the embedded ICC profile.
@@ -84,8 +118,19 @@ function profiledTiff(pixels: Buffer, width: number, height: number, profile: Bu
   return output;
 }
 
-async function encodeComposite(pixels: Buffer, width: number, height: number, channels: number, mode: number, profile: Buffer | null, hasAlpha: boolean): Promise<Buffer | null> {
+async function encodeComposite(pixels: Buffer, width: number, height: number, channels: number, mode: number, profile: Buffer | null, hasAlpha: boolean, signal?: AbortSignal): Promise<Buffer | null> {
   try {
+    if (mode === 9) {
+      const lab = hasAlpha ? Buffer.alloc(width * height * 3) : pixels;
+      if (hasAlpha) for (let i = 0; i < width * height; i++) pixels.copy(lab, i * 3, i * 4, i * 4 + 3);
+      const rgb = await convertLab(lab, profile, signal);
+      if (!rgb) return null;
+      if (!hasAlpha) return await sharp(rgb, { raw: { width, height, channels: 3 } }).resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
+      const rgba = Buffer.alloc(width * height * 4);
+      for (let i = 0; i < width * height; i++) { rgba[i * 4] = rgb[i * 3]; rgba[i * 4 + 1] = rgb[i * 3 + 1]; rgba[i * 4 + 2] = rgb[i * 3 + 2]; rgba[i * 4 + 3] = pixels[i * 4 + 3]; }
+      removeWhiteMatte(rgba, 3);
+      return await sharp(rgba, { raw: { width, height, channels: 4 } }).resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
+    }
     if (hasAlpha && (mode === 4 || profile)) {
       const colors = mode === 4 ? 4 : mode === 3 ? 3 : 1;
       const inks = Buffer.alloc(width * height * colors);
@@ -185,7 +230,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
     const version = header.readUInt16BE(4), channels = header.readUInt16BE(12);
     const height = header.readUInt32BE(14), width = header.readUInt32BE(18);
     const depth = header.readUInt16BE(22), mode = header.readUInt16BE(24);
-    const colorChannels = mode === 3 ? 3 : mode === 0 || mode === 1 || mode === 2 ? 1 : mode === 4 ? 4 : 0;
+    const colorChannels = mode === 3 || mode === 9 ? 3 : mode === 0 || mode === 1 || mode === 2 ? 1 : mode === 4 ? 4 : 0;
     if (![1, 2].includes(version) || ![1, 8, 16, 32].includes(depth) || (depth === 1) !== (mode === 0) || !colorChannels || channels < colorChannels || channels > 56 || !width || !height || width > 300000 || height > 300000 || signal?.aborted) return null;
     const palette = mode === 2 && depth === 8 && header.readUInt32BE(26) === 768 ? await read(30, 768) : null;
     if (mode === 2 && !palette) return null;
@@ -251,7 +296,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
     pos += tableSize;
     // Large PSBs can have hundreds of millions of pixels. Sample rows and
     // columns directly instead of allocating a full-sized flattened image.
-    const scale = width * height > (profile || mode === 2 || (mode === 4 && hasAlpha) ? 4_000_000 : 60_000_000) ? Math.min(1, 2048 / width, 2048 / height) : 1;
+    const scale = width * height > (profile || mode === 2 || mode === 9 || (mode === 4 && hasAlpha) ? 4_000_000 : 60_000_000) ? Math.min(1, 2048 / width, 2048 / height) : 1;
     const outWidth = Math.max(1, Math.floor(width * scale));
     const outHeight = Math.max(1, Math.floor(height * scale));
     const sourceColumns = new Int32Array(outWidth);
@@ -346,8 +391,8 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
       }
       if (index !== required) return null;
       if (palette) return await encodeIndexed(pixels, outWidth, outHeight, palette, profile, transparentIndex);
-      if (hasAlpha && mode !== 4 && !profile) removeWhiteMatte(pixels, colorChannels);
-      return await encodeComposite(pixels, outWidth, outHeight, usedChannels, mode, profile, hasAlpha);
+      if (hasAlpha && mode !== 4 && mode !== 9 && !profile) removeWhiteMatte(pixels, colorChannels);
+      return await encodeComposite(pixels, outWidth, outHeight, usedChannels, mode, profile, hasAlpha, signal);
     }
     const rowBytes = Math.ceil(width * depth / 8);
     for (let channel = 0; channel < usedChannels; channel++) {
@@ -383,7 +428,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
       }
     }
     if (palette) return await encodeIndexed(pixels, outWidth, outHeight, palette, profile, transparentIndex);
-    if (hasAlpha && mode !== 4 && !profile) removeWhiteMatte(pixels, colorChannels);
-    return await encodeComposite(pixels, outWidth, outHeight, usedChannels, mode, profile, hasAlpha);
+    if (hasAlpha && mode !== 4 && mode !== 9 && !profile) removeWhiteMatte(pixels, colorChannels);
+    return await encodeComposite(pixels, outWidth, outHeight, usedChannels, mode, profile, hasAlpha, signal);
   } finally { await file.close(); }
 }

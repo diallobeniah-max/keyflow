@@ -55,3 +55,13 @@ if (!existsSync(bin)) {
   process.exit(1);
 }
 console.log(`[native:build] OK ${bin}`);
+
+// The color helper is a separate short-lived process; it never installs hooks.
+const colorCrate = join(root, 'native', 'keyflow-color');
+const colorResult = spawnSync(cargo, ['build', '--release', '--manifest-path', join(colorCrate, 'Cargo.toml')], {
+  stdio: 'inherit', env: { ...process.env, CARGO_TARGET_DIR: join(colorCrate, 'target') },
+});
+if (colorResult.status !== 0) {
+  console.error(`[native:build] color helper failed (status ${colorResult.status})`);
+  process.exit(colorResult.status ?? 1);
+}

@@ -20,6 +20,8 @@ npmRebuild: false
 extraResources:
   - from: native/keyflow-input/target/release/keyflow-input.exe
     to: keyflow-input/keyflow-input.exe
+  - from: native/keyflow-color/target/release/keyflow-color.exe
+    to: keyflow-color/keyflow-color.exe
 asar: true
 win:
   target:

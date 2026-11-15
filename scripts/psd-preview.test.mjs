@@ -7,6 +7,9 @@ import { readPsdThumbnail, readPsdComposite } from '../electron/psd-preview.ts';
 import sharp from 'sharp';
 import { deflateSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 test('extracts only the embedded JPEG from a PSD or PSB resource', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'keyflow-psd-test-'));
@@ -133,6 +136,30 @@ test('decodes padded 1-bit bitmap rows in raw, RLE and ZIP PSDs', async () => {
       const image = await readPsdComposite(path); assert.ok(image);
       const raw = await sharp(image).greyscale().raw().toBuffer();
       assert.deepEqual([...raw],[0,255,0,255,0,255,0,255,0,255]);
+    }
+  } finally { await rm(dir,{recursive:true,force:true}); }
+});
+
+test('color-manages Lab PSD composites with a bounded native helper', async t => {
+  const helper = new URL('../native/keyflow-color/target/release/keyflow-color.exe', import.meta.url);
+  if (!existsSync(helper)) return t.skip('Build the native color helper first');
+  const dir = await mkdtemp(join(tmpdir(), 'keyflow-lab-psd-'));
+  try {
+    const header = Buffer.alloc(30); header.write('8BPS'); header.writeUInt16BE(1,4); header.writeUInt16BE(3,12);
+    header.writeUInt32BE(1,14); header.writeUInt32BE(1,18); header.writeUInt16BE(8,22); header.writeUInt16BE(9,24);
+    const path = join(dir,'lab.psd');
+    for (const compression of [0,2]) {
+      const planes = Buffer.from([48,179,43]);
+      await writeFile(path,Buffer.concat([header,Buffer.alloc(8),Buffer.from([0,compression]),compression ? deflateSync(planes) : planes]));
+      const result = await readPsdComposite(path); assert.ok(result);
+      assert.deepEqual([...(await sharp(result).raw().toBuffer())],[18,8,177]);
+    }
+    const controller = new AbortController(); controller.abort();
+    assert.equal(await readPsdComposite(path, controller.signal),null);
+    const invalidProfileLength = Buffer.alloc(4); invalidProfileLength.writeUInt32LE(4 * 1024 * 1024 + 1);
+    for (const input of [invalidProfileLength,Buffer.from([0,0,0,0,1])]) {
+      const child = spawnSync(fileURLToPath(helper), {input}); assert.ifError(child.error);
+      assert.notEqual(child.status,0, 'invalid helper input must be rejected');
     }
   } finally { await rm(dir,{recursive:true,force:true}); }
 });
