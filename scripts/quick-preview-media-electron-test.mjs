@@ -105,6 +105,10 @@ try {
     assert.equal(await manager.openPreview(process.env.KEYFLOW_TEST_PSB), true);
     const expectedWidth = Number(process.env.KEYFLOW_TEST_PSD_WIDTH || 2048);
     await until(`document.querySelector('.qpo-image')?.naturalWidth === ${expectedWidth}`);
+    if (process.env.KEYFLOW_TEST_PSD_KEEP_EMBEDDED === '1') {
+      await new Promise(r => setTimeout(r, 3000));
+      assert.equal(await win.webContents.executeJavaScript(`document.querySelector('.qpo-image')?.naturalWidth`), expectedWidth, 'an embedded preview must not be replaced by a larger badge');
+    }
     console.log(`PASS: large PSB composite rendered in ${Date.now() - started} ms`);
   }
   if (process.env.KEYFLOW_TEST_SHELL_DOCUMENT) {

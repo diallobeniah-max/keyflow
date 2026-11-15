@@ -425,24 +425,6 @@ export class QuickPreviewWindowManager {
     }
     win.webContents.send("quick-preview:load", info);
 
-    // Unsupported Photoshop composites often contain only a very small JPEG.
-    // Keep it visible while asking an installed provider for a larger preview.
-    if (info.thumbnailSource === "embedded" && info.dataUrl) {
-      void (async () => {
-        try {
-          const embedded = Buffer.from(info.dataUrl!.slice(info.dataUrl!.indexOf(",") + 1), "base64");
-          const original = await sharp(embedded).metadata();
-          const candidate = await readShellThumbnail(filePath, signal);
-          if (!candidate || generation !== this.generation || win.isDestroyed()) return;
-          const next = await sharp(candidate).metadata();
-          const originalArea = (original.width ?? 0) * (original.height ?? 0);
-          const nextArea = (next.width ?? 0) * (next.height ?? 0);
-          if (generation !== this.generation || win.isDestroyed() || nextArea <= originalArea) return;
-          win.webContents.send("quick-preview:load", { ...info, dataUrl: `data:image/png;base64,${candidate.toString("base64")}`, thumbnailSource: "windows" });
-        } catch { /* Keep the embedded image if the provider fails. */ }
-      })();
-    }
-
     return true;
   }
 
