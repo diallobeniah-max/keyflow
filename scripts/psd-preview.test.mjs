@@ -170,7 +170,8 @@ test('unprofiled CMYK composites decode primary colors across compression types'
     const alphaHeader = Buffer.from(header); alphaHeader.writeUInt16BE(5,12);
     const layer = Buffer.alloc(10); layer.writeUInt32BE(6); layer.writeUInt32BE(2,4); layer.writeInt16BE(-1,8);
     await writeFile(path,Buffer.concat([alphaHeader,Buffer.alloc(4),layer,Buffer.from([0,0]),...planes,Buffer.alloc(4,128)]));
-    assert.equal(await readPsdComposite(path),null, 'transparent CMYK must not receive an opaque conversion');
+    const transparent = await readPsdComposite(path); assert.ok(transparent);
+    assert.deepEqual([...(await sharp(transparent).raw().toBuffer())], [0,255,255,128,255,0,255,128,255,255,0,128,0,0,0,128]);
     const predicted = Buffer.concat(planes.map(p => Buffer.from([p[0],...p.subarray(1).map((v,i)=>(v-p[i]+256)%256)])));
     await writeFile(path,Buffer.concat([header,Buffer.alloc(8),Buffer.from([0,3]),deflateSync(predicted)]));
     assert.deepEqual([...(await sharp(await readPsdComposite(path)).raw().toBuffer())],[0,255,255,255,0,255,255,255,0,0,0,0]);
@@ -214,6 +215,16 @@ test('applies a CMYK ICC profile to a flattened composite', async t => {
       await writeFile(path, Buffer.concat([header,length,record,profile,Buffer.alloc(profile.length % 2),Buffer.alloc(4),Buffer.from([0,compression]),compression ? deflateSync(planes) : planes]));
       const result = await readPsdComposite(path); assert.ok(result);
       assert.deepEqual([...(await sharp(result).raw().toBuffer())], [229,51,44,109,122,136,154,155,155]);
+    }
+    const alphaHeader = Buffer.from(header); alphaHeader.writeUInt16BE(5,12);
+    const layer = Buffer.alloc(10); layer.writeUInt32BE(6); layer.writeUInt32BE(2,4); layer.writeInt16BE(-1,8);
+    const alpha = Buffer.from([128,255,0]);
+    for (const compression of [0,2]) {
+      const data = Buffer.concat([planes,alpha]);
+      await writeFile(path, Buffer.concat([alphaHeader,length,record,profile,Buffer.alloc(profile.length % 2),layer,Buffer.from([0,compression]),compression ? deflateSync(data) : data]));
+      const result = await readPsdComposite(path); assert.ok(result);
+      // Reference: ImageCms conversion followed by the PSD white-matte removal.
+      assert.deepEqual([...(await sharp(result).raw().toBuffer())], [203,0,0,128,109,122,136,255,0,0,0,0]);
     }
     const broken = Buffer.from(profile); broken.writeUInt32BE(broken.length + 1, 0);
     await writeFile(path, Buffer.concat([header,length,record,broken,Buffer.alloc(profile.length % 2),Buffer.alloc(4),Buffer.from([0,0]),planes]));

@@ -57,7 +57,7 @@ const LIMITATION_LIST = [
   "The shortcut is active only for a single selected file in the focused File Explorer view. Text entry remains available.",
   "Only the focused File Explorer view is supported. The desktop and virtual shell items are not supported in this version.",
   "Only single-file selection is previewed. Multiple files, folders, and no-selection cases leave Space behavior untouched.",
-  "PSD/PSB previews support common RGB, grayscale and CMYK composites. Unprofiled CMYK is approximate; transparent CMYK may show a thumbnail instead.",
+  "PSD/PSB previews support common RGB, grayscale and CMYK composites, including transparency. Unprofiled CMYK colors are approximate.",
   "Other Office documents, RAW images, and unsupported formats may show a Windows thumbnail when a compatible provider is installed; otherwise they show a fallback.",
   "Audio and video codec support depends on the bundled Electron runtime version. If a file does not play, use 'Open with default app'.",
   "Some file types have size limits. PSD/PSB composites have dimension and format limits even when the file itself is large.",

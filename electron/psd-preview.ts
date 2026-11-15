@@ -77,8 +77,22 @@ function profiledCmykTiff(pixels: Buffer, width: number, height: number, profile
   return output;
 }
 
-async function encodeComposite(pixels: Buffer, width: number, height: number, channels: number, mode: number, profile: Buffer | null): Promise<Buffer | null> {
+async function encodeComposite(pixels: Buffer, width: number, height: number, channels: number, mode: number, profile: Buffer | null, hasAlpha: boolean): Promise<Buffer | null> {
   try {
+    if (mode === 4 && hasAlpha) {
+      const inks = Buffer.alloc(width * height * 4);
+      for (let i = 0, j = 0; i < pixels.length; i += 5, j += 4) pixels.copy(inks, j, i, i + 4);
+      const rgb = profile
+        ? await sharp(profiledCmykTiff(inks, width, height, profile), { failOn: 'warning' }).toColourspace('srgb').removeAlpha().raw().toBuffer()
+        : cmykToRgb(inks);
+      if (rgb.length !== width * height * 3) return null;
+      const rgba = Buffer.alloc(width * height * 4);
+      for (let i = 0; i < width * height; i++) {
+        rgba[i * 4] = rgb[i * 3]; rgba[i * 4 + 1] = rgb[i * 3 + 1]; rgba[i * 4 + 2] = rgb[i * 3 + 2]; rgba[i * 4 + 3] = pixels[i * 5 + 4];
+      }
+      removeWhiteMatte(rgba, 3);
+      return await sharp(rgba, { raw: { width, height, channels: 4 } }).resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
+    }
     const image = mode === 4 && profile
       ? sharp(profiledCmykTiff(pixels, width, height, profile), { failOn: 'warning' }).toColourspace('srgb')
       : sharp(mode === 4 ? cmykToRgb(pixels) : pixels, { raw: { width, height, channels: (mode === 4 ? 3 : channels) as 1 | 2 | 3 | 4 } });
@@ -188,7 +202,6 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
       hasAlpha = infoLength >= 2 && layerInfo.readInt16BE(layerSizeBytes) < 0;
     }
     if (hasAlpha && channels <= colorChannels) return null;
-    if (mode === 4 && hasAlpha) return null;
     const usedChannels = colorChannels + (hasAlpha ? 1 : 0);
     pos += layerSizeBytes + layerLength;
     const compression = await read(pos, 2); if (!compression) return null;
@@ -202,7 +215,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
     pos += tableSize;
     // Large PSBs can have hundreds of millions of pixels. Sample rows and
     // columns directly instead of allocating a full-sized flattened image.
-    const scale = width * height > (profile ? 4_000_000 : 60_000_000) ? Math.min(1, 2048 / width, 2048 / height) : 1;
+    const scale = width * height > (profile || (mode === 4 && hasAlpha) ? 4_000_000 : 60_000_000) ? Math.min(1, 2048 / width, 2048 / height) : 1;
     const outWidth = Math.max(1, Math.floor(width * scale));
     const outHeight = Math.max(1, Math.floor(height * scale));
     const sourceColumns = new Int32Array(outWidth);
@@ -264,8 +277,8 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
         signal?.removeEventListener("abort", abort);
       }
       if (index !== required) return null;
-      if (hasAlpha) removeWhiteMatte(pixels, colorChannels);
-      return await encodeComposite(pixels, outWidth, outHeight, usedChannels, mode, profile);
+      if (hasAlpha && mode !== 4) removeWhiteMatte(pixels, colorChannels);
+      return await encodeComposite(pixels, outWidth, outHeight, usedChannels, mode, profile, hasAlpha);
     }
     const rowBytes = width * (depth / 8);
     for (let channel = 0; channel < usedChannels; channel++) {
@@ -300,7 +313,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
         for (let x = 0; x < outWidth; x++) pixels[((outRow * outWidth + x) * usedChannels) + channel] = unpacked[sourceColumns[x] * (depth / 8)];
       }
     }
-    if (hasAlpha) removeWhiteMatte(pixels, colorChannels);
-    return await encodeComposite(pixels, outWidth, outHeight, usedChannels, mode, profile);
+    if (hasAlpha && mode !== 4) removeWhiteMatte(pixels, colorChannels);
+    return await encodeComposite(pixels, outWidth, outHeight, usedChannels, mode, profile, hasAlpha);
   } finally { await file.close(); }
 }
