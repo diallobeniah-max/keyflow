@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { readPsdThumbnail, readPsdComposite } from '../electron/psd-preview.ts';
 import sharp from 'sharp';
 import { deflateSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
 
 test('extracts only the embedded JPEG from a PSD or PSB resource', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'keyflow-psd-test-'));
@@ -230,4 +231,16 @@ test('applies a CMYK ICC profile to a flattened composite', async t => {
     await writeFile(path, Buffer.concat([header,length,record,broken,Buffer.alloc(profile.length % 2),Buffer.alloc(4),Buffer.from([0,0]),planes]));
     assert.equal(await readPsdComposite(path), null, 'invalid profile must not silently use an unprofiled conversion');
   } finally { await rm(dir,{recursive:true,force:true}); }
+});
+
+test('real CMYK merged transparency matches the reference decoder', async t => {
+  const path = process.env.KEYFLOW_CMYK_ALPHA_FIXTURE;
+  if (!path) return t.skip('Set KEYFLOW_CMYK_ALPHA_FIXTURE to the psd-tools cmyk-blend-modes.psd fixture');
+  // Reference: Pillow CMYK conversion and psd-tools white-matte removal;
+  // transparent RGB values are normalized because they are invisible.
+  const result = await readPsdComposite(path); assert.ok(result);
+  const { data, info } = await sharp(result).raw().toBuffer({resolveWithObject:true});
+  assert.equal(info.width, 530); assert.equal(info.height, 512); assert.equal(info.channels, 4);
+  for (let i = 0; i < data.length; i += 4) if (data[i + 3] === 0) data.fill(0, i, i + 3);
+  assert.equal(createHash('sha256').update(data).digest('hex'), '2adbceabe5781be6d6c6b3640aa565e913b46a8f637ed2f60b198e8e7e9b4ec1');
 });
