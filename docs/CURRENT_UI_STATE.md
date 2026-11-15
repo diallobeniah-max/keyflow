@@ -8,7 +8,7 @@
 
 ## Quick Preview
 
-Quick Preview is a workspace page with a configurable Explorer-only shortcut, a status indicator, and an Escape-to-close option. The floating window supports common images, TIFF, supported PSD/PSB composites, PDF pages, bounded text and extracted DOCX text, ZIP/CBZ listings, and runtime-supported audio and video. DOCX layout and images are not rendered. Other formats may show a labeled Windows thumbnail if a compatible provider is installed. Some Photoshop variants and media codecs still require an external application.
+Quick Preview is a workspace page with a configurable Explorer-only shortcut, a status indicator, and an Escape-to-close option. The floating window supports common images, TIFF, supported PSD/PSB composites, PDF pages, bounded text and extracted DOCX text, ZIP/CBZ listings, and runtime-supported audio and video. Unprofiled CMYK composites use an approximate conversion; profiled or transparent CMYK may fall back to a thumbnail. DOCX layout and images are not rendered. Other formats may show a labeled Windows thumbnail if a compatible provider is installed. Some Photoshop variants and media codecs still require an external application.
 
 ## Purpose
 

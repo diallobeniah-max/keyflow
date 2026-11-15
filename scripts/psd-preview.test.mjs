@@ -144,3 +144,35 @@ test('samples a composite above 60 million pixels without a full-sized pixel buf
     assert.equal(await readPsdComposite(path, controller.signal), null);
   } finally { await rm(dir, {recursive:true,force:true}); }
 });
+
+test('unprofiled CMYK composites decode primary colors across compression types', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'keyflow-cmyk-'));
+  try {
+    const header = Buffer.alloc(30);
+    header.write('8BPS'); header.writeUInt16BE(1,4); header.writeUInt16BE(4,12);
+    header.writeUInt32BE(1,14); header.writeUInt32BE(4,18); header.writeUInt16BE(8,22); header.writeUInt16BE(4,24);
+    const planes = [Buffer.from([0,255,255,255]),Buffer.from([255,0,255,255]),Buffer.from([255,255,0,255]),Buffer.from([255,255,255,0])];
+    for (const compression of [0,1,2]) {
+      const path = join(dir, `${compression}.psd`);
+      const data = compression === 0 ? Buffer.concat(planes) : compression === 2 ? deflateSync(Buffer.concat(planes)) : Buffer.concat([Buffer.from([0,5,0,5,0,5,0,5]),...planes.map(p=>Buffer.concat([Buffer.from([3]),p]))]);
+      await writeFile(path,Buffer.concat([header,Buffer.alloc(8),Buffer.from([0,compression]),data]));
+      const result = await readPsdComposite(path); assert.ok(result);
+      assert.deepEqual([...(await sharp(result).raw().toBuffer())],[0,255,255,255,0,255,255,255,0,0,0,0]);
+    }
+    const record = Buffer.alloc(12); record.write('8BIM'); record.writeUInt16BE(1000,4);
+    const length = Buffer.alloc(4); length.writeUInt32BE(record.length);
+    const path = join(dir,'resources.psd');
+    await writeFile(path,Buffer.concat([header,length,record,Buffer.alloc(4),Buffer.from([0,0]),...planes]));
+    assert.ok(await readPsdComposite(path), 'non-profile metadata must not prevent preview');
+    record.writeUInt16BE(1039,4);
+    await writeFile(path,Buffer.concat([header,length,record,Buffer.alloc(4),Buffer.from([0,0]),...planes]));
+    assert.equal(await readPsdComposite(path),null, 'profiled files must not receive an unprofiled conversion');
+    const predicted = Buffer.concat(planes.map(p => Buffer.from([p[0],...p.subarray(1).map((v,i)=>(v-p[i]+256)%256)])));
+    await writeFile(path,Buffer.concat([header,Buffer.alloc(8),Buffer.from([0,3]),deflateSync(predicted)]));
+    assert.deepEqual([...(await sharp(await readPsdComposite(path)).raw().toBuffer())],[0,255,255,255,0,255,255,255,0,0,0,0]);
+    const header16 = Buffer.from(header); header16.writeUInt16BE(16,22);
+    const words = Buffer.concat(planes.map(p => Buffer.from([...p].flatMap(v=>[v,v]))));
+    await writeFile(path,Buffer.concat([header16,Buffer.alloc(8),Buffer.from([0,2]),deflateSync(words)]));
+    assert.deepEqual([...(await sharp(await readPsdComposite(path)).raw().toBuffer())],[0,255,255,255,0,255,255,255,0,0,0,0]);
+  } finally { await rm(dir,{recursive:true,force:true}); }
+});

@@ -21,6 +21,18 @@ function removeWhiteMatte(pixels: Buffer, colorChannels: number): void {
   }
 }
 
+// PSD CMYK samples are inverted. This conversion assumes an unprofiled
+// document; profiled and transparent CMYK require a color-managed renderer.
+function cmykToRgb(pixels: Buffer): Buffer {
+  const result = Buffer.alloc(pixels.length / 4 * 3);
+  for (let i = 0, j = 0; i < pixels.length; i += 4, j += 3) {
+    result[j] = Math.round(pixels[i] * pixels[i + 3] / 255);
+    result[j + 1] = Math.round(pixels[i + 1] * pixels[i + 3] / 255);
+    result[j + 2] = Math.round(pixels[i + 2] * pixels[i + 3] / 255);
+  }
+  return result;
+}
+
 export async function readPsdThumbnail(path: string): Promise<Buffer | null> {
   const file = await open(path, "r");
   try {
@@ -81,10 +93,30 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
     const version = header.readUInt16BE(4), channels = header.readUInt16BE(12);
     const height = header.readUInt32BE(14), width = header.readUInt32BE(18);
     const depth = header.readUInt16BE(22), mode = header.readUInt16BE(24);
-    const colorChannels = mode === 3 ? 3 : mode === 1 ? 1 : 0;
+    const colorChannels = mode === 3 ? 3 : mode === 1 ? 1 : mode === 4 ? 4 : 0;
     if (![1, 2].includes(version) || ![8, 16].includes(depth) || !colorChannels || channels < colorChannels || channels > 56 || !width || !height || width > 300000 || height > 300000 || signal?.aborted) return null;
     let pos = 30 + header.readUInt32BE(26);
     const resources = await read(pos, 4); if (!resources) return null;
+    // Parse resource headers without loading their contents. Refuse embedded
+    // ICC profiles until color-managed conversion is available.
+    if (mode === 4) {
+      let cursor = pos + 4;
+      const end = cursor + resources.readUInt32BE(0);
+      if (end > size) return null;
+      for (let records = 0; cursor < end; records++) {
+        if (records >= MAX_RECORDS || cursor + 12 > end) return null;
+        const record = await read(cursor, 7);
+        if (!record || record.toString("ascii", 0, 4) !== "8BIM") return null;
+        if (record.readUInt16BE(4) === 1039) return null;
+        const nameLength = 1 + record[6];
+        const lengthOffset = cursor + 6 + nameLength + (nameLength % 2);
+        const recordLength = await read(lengthOffset, 4);
+        if (!recordLength) return null;
+        const length = recordLength.readUInt32BE(0);
+        cursor = lengthOffset + 4 + length + (length % 2);
+        if (cursor > end) return null;
+      }
+    }
     pos += 4 + resources.readUInt32BE(0);
     const layerSizeBytes = version === 2 ? 8 : 4;
     const layers = await read(pos, layerSizeBytes); if (!layers) return null;
@@ -99,6 +131,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
       hasAlpha = infoLength >= 2 && layerInfo.readInt16BE(layerSizeBytes) < 0;
     }
     if (hasAlpha && channels <= colorChannels) return null;
+    if (mode === 4 && hasAlpha) return null;
     const usedChannels = colorChannels + (hasAlpha ? 1 : 0);
     pos += layerSizeBytes + layerLength;
     const compression = await read(pos, 2); if (!compression) return null;
@@ -175,7 +208,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
       }
       if (index !== required) return null;
       if (hasAlpha) removeWhiteMatte(pixels, colorChannels);
-      return await sharp(pixels, { raw: { width: outWidth, height: outHeight, channels: usedChannels as 1 | 2 | 3 | 4 } })
+      return await sharp(mode === 4 ? cmykToRgb(pixels) : pixels, { raw: { width: outWidth, height: outHeight, channels: (mode === 4 ? 3 : usedChannels) as 1 | 2 | 3 | 4 } })
         .resize({ width: 2048, height: 2048, fit: "inside", withoutEnlargement: true }).png().toBuffer();
     }
     const rowBytes = width * (depth / 8);
@@ -212,7 +245,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
       }
     }
     if (hasAlpha) removeWhiteMatte(pixels, colorChannels);
-    return await sharp(pixels, { raw: { width: outWidth, height: outHeight, channels: usedChannels as 1 | 2 | 3 | 4 } })
+    return await sharp(mode === 4 ? cmykToRgb(pixels) : pixels, { raw: { width: outWidth, height: outHeight, channels: (mode === 4 ? 3 : usedChannels) as 1 | 2 | 3 | 4 } })
       .resize({ width: 2048, height: 2048, fit: "inside", withoutEnlargement: true }).png().toBuffer();
   } finally { await file.close(); }
 }
