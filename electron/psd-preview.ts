@@ -35,33 +35,33 @@ function cmykToRgb(pixels: Buffer): Buffer {
 
 // libvips can silently ignore malformed ICC data. Reject structurally invalid
 // profiles before passing them on, so they cannot masquerade as color-managed.
-function isPlausibleCmykProfile(profile: Buffer): boolean {
+function isPlausibleProfile(profile: Buffer, mode: number): boolean {
   if (profile.length < 132 || profile.readUInt32BE(0) !== profile.length ||
-      profile.toString('ascii', 36, 40) !== 'acsp' || profile.toString('ascii', 16, 20) !== 'CMYK') return false;
+      profile.toString('ascii', 36, 40) !== 'acsp' || profile.toString('ascii', 16, 20) !== (mode === 4 ? 'CMYK' : mode === 3 ? 'RGB ' : 'GRAY')) return false;
   const count = profile.readUInt32BE(128);
   if (count > Math.floor((profile.length - 132) / 12)) return false;
-  let hasTransform = false;
+  const tags = new Set<string>();
   for (let i = 0; i < count; i++) {
     const entry = 132 + i * 12;
     const offset = profile.readUInt32BE(entry + 4), length = profile.readUInt32BE(entry + 8);
     if (length < 8 || offset < 132 + count * 12 || offset + length > profile.length) return false;
     const tag = profile.toString('ascii', entry, entry + 4);
-    if (tag === 'A2B0' || tag === 'D2B0') hasTransform = true;
+    tags.add(tag);
   }
-  return hasTransform;
+  return tags.has('A2B0') || tags.has('D2B0') || (mode === 3 && ['rXYZ', 'gXYZ', 'bXYZ', 'rTRC', 'gTRC', 'bTRC'].every(tag => tags.has(tag))) || (mode === 1 && tags.has('kTRC'));
 }
 
-// Wrap the sampled composite as a CMYK TIFF so libvips can apply its ICC
-// profile. PSD stores inverted CMYK samples, while TIFF uses ordinary ink values.
-function profiledCmykTiff(pixels: Buffer, width: number, height: number, profile: Buffer): Buffer {
+// Wrap sampled channels as TIFF so libvips can apply the embedded ICC profile.
+// PSD stores inverted CMYK samples, while TIFF uses ordinary ink values.
+function profiledTiff(pixels: Buffer, width: number, height: number, profile: Buffer, colorChannels: number): Buffer {
   const entries: Array<[number, number, number, number]> = [];
   const directorySize = 2 + 12 * 11 + 4;
   const bitsOffset = 8 + directorySize;
   const profileOffset = bitsOffset + 8;
   const imageOffset = profileOffset + profile.length + (profile.length % 2);
-  entries.push([256, 4, 1, width], [257, 4, 1, height], [258, 3, 4, bitsOffset],
-    [259, 3, 1, 1], [262, 3, 1, 5], [273, 4, 1, imageOffset],
-    [277, 3, 1, 4], [278, 4, 1, height], [279, 4, 1, pixels.length],
+  entries.push([256, 4, 1, width], [257, 4, 1, height], [258, 3, colorChannels, colorChannels === 1 ? 8 : bitsOffset],
+    [259, 3, 1, 1], [262, 3, 1, colorChannels === 4 ? 5 : colorChannels === 3 ? 2 : 1], [273, 4, 1, imageOffset],
+    [277, 3, 1, colorChannels], [278, 4, 1, height], [279, 4, 1, pixels.length],
     [284, 3, 1, 1], [34675, 7, profile.length, profileOffset]);
   const output = Buffer.alloc(imageOffset + pixels.length);
   output.write('II'); output.writeUInt16LE(42, 2); output.writeUInt32LE(8, 4);
@@ -73,28 +73,29 @@ function profiledCmykTiff(pixels: Buffer, width: number, height: number, profile
   });
   for (let i = 0; i < 4; i++) output.writeUInt16LE(8, bitsOffset + i * 2);
   profile.copy(output, profileOffset);
-  for (let i = 0; i < pixels.length; i++) output[imageOffset + i] = 255 - pixels[i];
+  for (let i = 0; i < pixels.length; i++) output[imageOffset + i] = colorChannels === 4 ? 255 - pixels[i] : pixels[i];
   return output;
 }
 
 async function encodeComposite(pixels: Buffer, width: number, height: number, channels: number, mode: number, profile: Buffer | null, hasAlpha: boolean): Promise<Buffer | null> {
   try {
-    if (mode === 4 && hasAlpha) {
-      const inks = Buffer.alloc(width * height * 4);
-      for (let i = 0, j = 0; i < pixels.length; i += 5, j += 4) pixels.copy(inks, j, i, i + 4);
+    if (hasAlpha && (mode === 4 || profile)) {
+      const colors = mode === 4 ? 4 : mode === 3 ? 3 : 1;
+      const inks = Buffer.alloc(width * height * colors);
+      for (let i = 0, j = 0; i < pixels.length; i += channels, j += colors) pixels.copy(inks, j, i, i + colors);
       const rgb = profile
-        ? await sharp(profiledCmykTiff(inks, width, height, profile), { failOn: 'warning' }).toColourspace('srgb').removeAlpha().raw().toBuffer()
+        ? await sharp(profiledTiff(inks, width, height, profile, colors), { failOn: 'warning' }).toColourspace('srgb').removeAlpha().raw().toBuffer()
         : cmykToRgb(inks);
       if (rgb.length !== width * height * 3) return null;
       const rgba = Buffer.alloc(width * height * 4);
       for (let i = 0; i < width * height; i++) {
-        rgba[i * 4] = rgb[i * 3]; rgba[i * 4 + 1] = rgb[i * 3 + 1]; rgba[i * 4 + 2] = rgb[i * 3 + 2]; rgba[i * 4 + 3] = pixels[i * 5 + 4];
+        rgba[i * 4] = rgb[i * 3]; rgba[i * 4 + 1] = rgb[i * 3 + 1]; rgba[i * 4 + 2] = rgb[i * 3 + 2]; rgba[i * 4 + 3] = pixels[i * channels + colors];
       }
       removeWhiteMatte(rgba, 3);
       return await sharp(rgba, { raw: { width, height, channels: 4 } }).resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
     }
-    const image = mode === 4 && profile
-      ? sharp(profiledCmykTiff(pixels, width, height, profile), { failOn: 'warning' }).toColourspace('srgb')
+    const image = profile
+      ? sharp(profiledTiff(pixels, width, height, profile, mode === 4 ? 4 : mode === 3 ? 3 : 1), { failOn: 'warning' }).toColourspace('srgb')
       : sharp(mode === 4 ? cmykToRgb(pixels) : pixels, { raw: { width, height, channels: (mode === 4 ? 3 : channels) as 1 | 2 | 3 | 4 } });
     return await image.resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
   } catch { return null; }
@@ -165,7 +166,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
     let pos = 30 + header.readUInt32BE(26);
     const resources = await read(pos, 4); if (!resources) return null;
     let profile: Buffer | null = null;
-    if (mode === 4) {
+    {
       let cursor = pos + 4;
       const end = cursor + resources.readUInt32BE(0);
       if (end > size) return null;
@@ -182,7 +183,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
         if (id === 1039) {
           if (profile || length < 128 || length > 4 * 1024 * 1024 || lengthOffset + 4 + length > end) return null;
           profile = await read(lengthOffset + 4, length);
-          if (!profile || !isPlausibleCmykProfile(profile)) return null;
+          if (!profile || !isPlausibleProfile(profile, mode)) return null;
         }
         cursor = lengthOffset + 4 + length + (length % 2);
         if (cursor > end) return null;
@@ -277,7 +278,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
         signal?.removeEventListener("abort", abort);
       }
       if (index !== required) return null;
-      if (hasAlpha && mode !== 4) removeWhiteMatte(pixels, colorChannels);
+      if (hasAlpha && mode !== 4 && !profile) removeWhiteMatte(pixels, colorChannels);
       return await encodeComposite(pixels, outWidth, outHeight, usedChannels, mode, profile, hasAlpha);
     }
     const rowBytes = width * (depth / 8);
@@ -313,7 +314,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
         for (let x = 0; x < outWidth; x++) pixels[((outRow * outWidth + x) * usedChannels) + channel] = unpacked[sourceColumns[x] * (depth / 8)];
       }
     }
-    if (hasAlpha && mode !== 4) removeWhiteMatte(pixels, colorChannels);
+    if (hasAlpha && mode !== 4 && !profile) removeWhiteMatte(pixels, colorChannels);
     return await encodeComposite(pixels, outWidth, outHeight, usedChannels, mode, profile, hasAlpha);
   } finally { await file.close(); }
 }

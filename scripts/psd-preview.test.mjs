@@ -244,3 +244,21 @@ test('real CMYK merged transparency matches the reference decoder', async t => {
   for (let i = 0; i < data.length; i += 4) if (data[i + 3] === 0) data.fill(0, i, i + 3);
   assert.equal(createHash('sha256').update(data).digest('hex'), '2adbceabe5781be6d6c6b3640aa565e913b46a8f637ed2f60b198e8e7e9b4ec1');
 });
+
+test('applies an RGB ICC profile before restoring transparency', async t => {
+  let profile;
+  try { profile = await readFile('C:/Windows/System32/spool/drivers/color/GU603VV_8086_E5090B33_CMDEF.icm'); }
+  catch { return t.skip('Reference monitor profile unavailable'); }
+  const dir = await mkdtemp(join(tmpdir(), 'keyflow-rgb-profile-'));
+  try {
+    const header = Buffer.alloc(30); header.write('8BPS'); header.writeUInt16BE(1,4); header.writeUInt16BE(4,12);
+    header.writeUInt32BE(1,14); header.writeUInt32BE(1,18); header.writeUInt16BE(8,22); header.writeUInt16BE(3,24);
+    const record = Buffer.alloc(12); record.write('8BIM'); record.writeUInt16BE(1039,4); record.writeUInt32BE(profile.length,8);
+    const length = Buffer.alloc(4); length.writeUInt32BE(record.length + profile.length + profile.length % 2);
+    const layer = Buffer.alloc(10); layer.writeUInt32BE(6); layer.writeUInt32BE(2,4); layer.writeInt16BE(-1,8);
+    const path = join(dir,'rgb-profile.psd');
+    await writeFile(path,Buffer.concat([header,length,record,profile,Buffer.alloc(profile.length % 2),layer,Buffer.from([0,0,80,120,180,128])]));
+    const result = await readPsdComposite(path); assert.ok(result);
+    assert.deepEqual([...(await sharp(result).raw().toBuffer())],[0,0,118,128]);
+  } finally { await rm(dir,{recursive:true,force:true}); }
+});
