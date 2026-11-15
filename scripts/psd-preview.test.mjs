@@ -95,8 +95,11 @@ test('reads 32-bit floating point RGB composite rows in raw, RLE and ZIP files',
       const result = await readPsdComposite(path); assert.ok(result);
       assert.deepEqual([...(await sharp(result).raw().toBuffer())], [0,64,255,128,255,0]);
     }
-    await writeFile(path,Buffer.concat([header,Buffer.alloc(8),Buffer.from([0,3]),deflateSync(Buffer.concat(planes))]));
-    assert.equal(await readPsdComposite(path),null,'32-bit ZIP prediction must use the fallback until decoded');
+    // Independently encoded by psd-tools encode_prediction(width=2,height=3,depth=32).
+    const predicted = Buffer.from('003fc100000000003e014100800000003f80014000000000','hex');
+    await writeFile(path,Buffer.concat([header,Buffer.alloc(8),Buffer.from([0,3]),deflateSync(predicted)]));
+    const decoded = await readPsdComposite(path); assert.ok(decoded);
+    assert.deepEqual([...(await sharp(decoded).raw().toBuffer())], [0,64,255,128,255,0]);
   } finally { await rm(dir,{recursive:true,force:true}); }
 });
 

@@ -214,9 +214,6 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
     const compression = await read(pos, 2); if (!compression) return null;
     const compressionType = compression.readUInt16BE();
     if (compressionType > 3) return null;
-    // 32-bit ZIP prediction requires byte-plane reordering; fall back until
-    // that format is decoded rather than interpreting floating-point bytes as pixels.
-    if (depth === 32 && compressionType === 3) return null;
     pos += 2;
     const entrySize = version === 2 ? 4 : 2;
     const tableSize = compressionType === 1 ? channels * height * entrySize : 0;
@@ -246,6 +243,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
       input.pipe(inflater);
       let index = 0, previous = 0, highByte = 0;
       const floatSample = Buffer.alloc(4);
+      const predictedFloatRow = depth === 32 && compressionType === 3 ? Buffer.alloc(width * 4) : null;
       try {
         for await (const data of inflater) {
           const chunk = data as Buffer;
@@ -253,6 +251,21 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
             const inPlane = index % bytesPerPlane;
             const channel = Math.floor(index / bytesPerPlane);
             if (channel >= usedChannels) break;
+            if (predictedFloatRow) {
+              const rowOffset = inPlane % (width * 4);
+              previous = rowOffset === 0 ? byte : (previous + byte) & 0xff;
+              predictedFloatRow[rowOffset] = previous;
+              if (rowOffset === width * 4 - 1) {
+                const y = outputRows[Math.floor(inPlane / (width * 4))];
+                if (y >= 0) for (let x = 0; x < outWidth; x++) {
+                  const sourceX = sourceColumns[x];
+                  for (let k = 0; k < 4; k++) floatSample[k] = predictedFloatRow[k * width + sourceX];
+                  pixels[(y * outWidth + x) * usedChannels + channel] = readSample(floatSample, 0, 32);
+                }
+              }
+              index++;
+              continue;
+            }
             let sampleByte = byte;
             let sampleReady = inPlane % bytesPerSample === 0;
             if (depth === 32) {
