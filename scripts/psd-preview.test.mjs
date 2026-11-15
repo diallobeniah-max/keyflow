@@ -178,5 +178,13 @@ test('unprofiled CMYK composites decode primary colors across compression types'
     const words = Buffer.concat(planes.map(p => Buffer.from([...p].flatMap(v=>[v,v]))));
     await writeFile(path,Buffer.concat([header16,Buffer.alloc(8),Buffer.from([0,2]),deflateSync(words)]));
     assert.deepEqual([...(await sharp(await readPsdComposite(path)).raw().toBuffer())],[0,255,255,255,0,255,255,255,0,0,0,0]);
+    const predicted16 = Buffer.concat(planes.map(p => {
+      const values = [...p].map(v => v * 257);
+      const result = Buffer.alloc(values.length * 2);
+      values.forEach((v,i) => result.writeUInt16BE(i ? (v - values[i-1] + 65536) % 65536 : v, i*2));
+      return result;
+    }));
+    await writeFile(path,Buffer.concat([header16,Buffer.alloc(8),Buffer.from([0,3]),deflateSync(predicted16)]));
+    assert.deepEqual([...(await sharp(await readPsdComposite(path)).raw().toBuffer())],[0,255,255,255,0,255,255,255,0,0,0,0]);
   } finally { await rm(dir,{recursive:true,force:true}); }
 });
