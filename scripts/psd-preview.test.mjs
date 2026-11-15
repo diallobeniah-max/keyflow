@@ -174,6 +174,12 @@ test('unprofiled CMYK composites decode primary colors across compression types'
     const predicted = Buffer.concat(planes.map(p => Buffer.from([p[0],...p.subarray(1).map((v,i)=>(v-p[i]+256)%256)])));
     await writeFile(path,Buffer.concat([header,Buffer.alloc(8),Buffer.from([0,3]),deflateSync(predicted)]));
     assert.deepEqual([...(await sharp(await readPsdComposite(path)).raw().toBuffer())],[0,255,255,255,0,255,255,255,0,0,0,0]);
+    const mixedHeader = Buffer.from(header); mixedHeader.writeUInt32BE(3,18);
+    const mixed = [[200,150,100,220],[255,180,40,90],[123,231,45,200]];
+    const mixedPlanes = Buffer.from([0,1,2,3].flatMap(channel => mixed.map(pixel => pixel[channel])));
+    await writeFile(path,Buffer.concat([mixedHeader,Buffer.alloc(8),Buffer.from([0,0]),mixedPlanes]));
+    // Expected values independently checked with psd-tools and Pillow.
+    assert.deepEqual([...(await sharp(await readPsdComposite(path)).raw().toBuffer())],[173,129,86,90,64,14,96,181,35]);
     const header16 = Buffer.from(header); header16.writeUInt16BE(16,22);
     const words = Buffer.concat(planes.map(p => Buffer.from([...p].flatMap(v=>[v,v]))));
     await writeFile(path,Buffer.concat([header16,Buffer.alloc(8),Buffer.from([0,2]),deflateSync(words)]));
