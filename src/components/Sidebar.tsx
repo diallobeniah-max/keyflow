@@ -3,6 +3,7 @@ import {
   Books,
   ClipboardText,
   Desktop,
+  Eye,
   GearSix,
   Keyboard,
   NotePencil,
@@ -77,6 +78,7 @@ export function Sidebar() {
 
   const NAV_MANAGE: NavItem[] = [
     { page: "clipboard", label: "Clipboard", icon: ClipboardText },
+    { page: "quick-preview", label: "Quick Preview", icon: Eye },
     { page: "profiles", label: "Profiles", icon: UsersThree, badge: profiles.length },
     { page: "library", label: "Action Library", icon: Books },
     { page: "notes", label: "Notes", icon: NotePencil },

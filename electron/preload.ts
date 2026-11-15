@@ -298,4 +298,24 @@ contextBridge.exposeInMainWorld("electronAPI", {
     runNow: () => ipcRenderer.invoke("backup:run-now"),
     updateState: (state) => ipcRenderer.invoke("backup:update-state", state),
   },
+  quickPreview: {
+    getStatus: () => ipcRenderer.invoke("quick-preview:get-status"),
+    validateBinding: (shortcut: string, emergencyShortcut: string, activeShortcuts: string[]) => ipcRenderer.invoke("quick-preview:validate-binding", shortcut, emergencyShortcut, activeShortcuts),
+    configure: (settings: any) => ipcRenderer.invoke("quick-preview:configure", settings),
+    getExplorerSelection: () => ipcRenderer.invoke("quick-preview:get-selection"),
+    openWithDefaultApp: (path: string) => ipcRenderer.invoke("quick-preview:open-default", path),
+    openPreview: (path: string) => ipcRenderer.invoke("quick-preview:open", path),
+    closePreview: () => ipcRenderer.invoke("quick-preview:close"),
+    notifyReady: () => ipcRenderer.send("quick-preview:ready"),
+    onPreviewLoad: (callback: (info: any) => void) => {
+      const handler = (_event: any, info: any) => callback(info);
+      ipcRenderer.on("quick-preview:load", handler);
+      return () => ipcRenderer.removeListener("quick-preview:load", handler);
+    },
+    onPreviewClose: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on("quick-preview:close", handler);
+      return () => ipcRenderer.removeListener("quick-preview:close", handler);
+    },
+  },
 });

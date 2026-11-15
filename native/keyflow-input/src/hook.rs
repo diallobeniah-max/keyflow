@@ -500,15 +500,39 @@ unsafe fn hook_proc_inner(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT 
         return 1;
     }
 
-    let (behavior, bypass, owns_clipboard_shortcut) = {
+    let (behavior, bypass, paused, owns_clipboard_shortcut) = {
         let cfg = CONFIG.lock().unwrap_or_else(|p| p.into_inner());
         let active = app_scope::current();
         (
             cfg.behavior_of(kbd.vkCode, active.as_ref()),
             cfg.is_bypass(),
+            cfg.is_paused(),
             cfg.owns_clipboard_shortcut(kbd.vkCode, PRESSED.load(Ordering::SeqCst), active.as_ref()),
         )
     };
+
+    // The Explorer worker prepares a short-lived selection snapshot outside
+    // this hook. Only a matching foreground/focus and revision can own a key.
+    // Debug-only opt-in lets the isolated desktop fixture exercise the hook
+    // using SendInput. Release builds always ignore synthetic input here.
+    let preview_test_injected = cfg!(debug_assertions) && std::env::var_os("KEYFLOW_PREVIEW_TEST_INJECTED").is_some();
+    if !own && (!injected || preview_test_injected) {
+        let candidate = crate::quick_preview::is_candidate(kbd.vkCode);
+        let preview_mask = if is_f12(kbd.vkCode) {
+            let win = unsafe { windows_sys::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(0x5B) < 0 || windows_sys::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(0x5C) < 0 };
+            (mask & 0b0111) | if win { 0b1000 } else { 0 }
+        } else { mask & 0b1111 };
+        if candidate && crate::quick_preview::key_event(down, kbd.vkCode, preview_mask, !paused && !bypass && crate::raw_mouse::selection_invalidation_available()) {
+            if let Some(mask_vk) = crate::clipboard_shortcut::start_menu_mask_key(kbd.vkCode, down, true, preview_mask) {
+                send_vk(mask_vk, 0, false, true);
+                send_vk(mask_vk, 0, false, false);
+            }
+            return 1;
+        }
+        if down && modifier_bit(kbd.vkCode) == 0 {
+            crate::quick_preview::invalidate();
+        }
+    }
 
     // Step 6 — Hyper suppression & active chord check: quick ENGINE lock.
     let (is_hyper_suppressed, is_hyper_chord_active) = {

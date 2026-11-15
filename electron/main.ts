@@ -6,6 +6,7 @@ import {
   Menu,
   nativeImage,
   nativeTheme,
+  protocol,
   shell,
   Tray,
 } from "electron";
@@ -41,6 +42,14 @@ import { keyToVk } from "./win-vk.js";
 import { initInputDebug, inputDebug } from "./input/input-debug.js";
 import { getWindowsConflictStatus, setWindowsClipboardHistoryDisabled, setWindowsTouchpadThreeFingerDisabled } from "./windows-conflicts.js";
 
+import { QuickPreviewWindowManager, getExplorerSelection, getExplorerSelectionSnapshot, disposeExplorerSelection, warmExplorerSelection } from "./quick-preview-window.js";
+import { QuickPreviewController } from "./quick-preview-controller.js";
+import { QuickPreviewMonitor } from "./quick-preview-monitor.js";
+import { conflictsWithActiveShortcuts, conflictsWithEmergencyShortcut, parseQuickPreviewBinding } from "./quick-preview-binding.js";
+import { disposeShellThumbnail, warmShellThumbnail } from "./quick-preview-shell.js";
+
+protocol.registerSchemesAsPrivileged([{ scheme: "keyflow-preview", privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true, corsEnabled: true } }]);
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -62,6 +71,9 @@ let dimScreenManager: DimScreenManager | null = null;
 let clipboardWindowManager: ClipboardWindowManager | null = null;
 let clipboardCopyFeedbackManager: ClipboardCopyFeedbackWindowManager | null = null;
 let ahkManager: AhkSuppressionManager | null = null;
+let quickPreviewManager: QuickPreviewWindowManager | null = null;
+let quickPreviewController: QuickPreviewController | null = null;
+let quickPreviewMonitor: QuickPreviewMonitor | null = null;
 let nativeHelper: NativeInputHelper | null = null;
 let navigationModeController: NavigationModeController | null = null;
 let inputBackend: "native" | "legacy" = "native";
@@ -352,6 +364,9 @@ function createWindow(): void {
     dragSwitcherManager?.destroy();
     clipboardWindowManager?.destroy();
     clipboardCopyFeedbackManager?.destroy();
+    quickPreviewManager?.destroy();
+    quickPreviewController?.destroy();
+    quickPreviewMonitor?.destroy();
   });
 
   mainWindow.on("close", (event) => {
@@ -525,6 +540,34 @@ function registerIPC(): void {
   ipcMain.handle("dim-screen:set-enabled", (_event, enabled: boolean) => dimScreenManager?.setEnabled(enabled));
   ipcMain.handle("dim-screen:set-level", (_event, level: number) => dimScreenManager?.setLevel(level));
   ipcMain.handle("dim-screen:set-extra-dim", (_event, enabled: boolean, strength?: number) => dimScreenManager?.setExtraDim(enabled, strength));
+  // Quick Preview IPC handlers
+  ipcMain.handle("quick-preview:get-status", (event) => event.sender === mainWindow?.webContents ? quickPreviewMonitor?.getHealth() ?? "unavailable" : "unavailable");
+  ipcMain.handle("quick-preview:validate-binding", (event, shortcut: unknown, emergencyShortcut: unknown, activeShortcuts: unknown) => {
+    const binding = parseQuickPreviewBinding(shortcut);
+    return event.sender === mainWindow?.webContents && !!binding && !conflictsWithEmergencyShortcut(binding, emergencyShortcut) && !conflictsWithActiveShortcuts(binding, activeShortcuts);
+  });
+  ipcMain.handle("quick-preview:configure", (event, config: { enabled?: boolean; paused?: boolean; shortcut?: string; closeWithEscape?: boolean; emergencyShortcut?: string; activeShortcuts?: string[] }) => {
+    if (event.sender !== mainWindow?.webContents || !config || typeof config.shortcut !== "string" || config.shortcut.length > 100) return false;
+    const parsed = parseQuickPreviewBinding(config.shortcut);
+    const binding = parsed && !conflictsWithEmergencyShortcut(parsed, config.emergencyShortcut) && !conflictsWithActiveShortcuts(parsed, config.activeShortcuts) ? parsed : null;
+    quickPreviewController?.configure({ enabled: config.enabled === true, paused: config.paused === true, shortcut: config.shortcut, closeWithEscape: config.closeWithEscape !== false });
+    quickPreviewMonitor?.configure({ enabled: config.enabled === true && config.paused !== true && !!binding, key: binding?.vk ?? 0, modifiers: binding?.modifiers ?? 0 });
+    return !!binding;
+  });
+  ipcMain.handle("quick-preview:get-selection", async () => {
+    return await getExplorerSelection();
+  });
+  ipcMain.handle("quick-preview:open", async (_event, filePath: string) => {
+    return await quickPreviewManager?.openPreview(filePath) ?? false;
+  });
+  ipcMain.handle("quick-preview:close", () => {
+    quickPreviewController?.close();
+    return true;
+  });
+  ipcMain.handle("quick-preview:open-default", (_event, filePath: string) => {
+    quickPreviewManager?.openWithDefaultApp(filePath);
+    return true;
+  });
   ipcMain.handle("dim-screen:toggle", () => dimScreenManager?.toggle());
   ipcMain.handle("dim-screen:list-displays", () => dimScreenManager?.listDisplays() ?? []);
   ipcMain.handle("window:minimize", () => mainWindow?.minimize());
@@ -994,6 +1037,16 @@ app.whenReady().then(() => {
     isDev: process.env.NODE_ENV === "development" || process.argv.includes("--dev"),
     appPath: app.getAppPath(),
   });
+  quickPreviewManager = new QuickPreviewWindowManager(
+    process.env.NODE_ENV === "development" || process.argv.includes("--dev")
+  );
+  quickPreviewController = new QuickPreviewController(
+    quickPreviewManager,
+    getExplorerSelection,
+    () => { warmExplorerSelection(); warmShellThumbnail(); },
+    () => { disposeExplorerSelection(); disposeShellThumbnail(); },
+  );
+  quickPreviewMonitor = new QuickPreviewMonitor(getExplorerSelectionSnapshot);
   clipboardEngine.subscribeCaptures((item, settings) => {
     clipboardCopyFeedbackManager?.show(item, settings);
   });
@@ -1024,17 +1077,22 @@ app.whenReady().then(() => {
       (e) => {},
       (status) => {
         if (status === "failed") {
+          quickPreviewMonitor?.setPort(null);
           nativeEngineStatus = "failed";
           fallbackToLegacy("helper failed");
           return;
         }
         nativeEngineStatus = status;
+        if (status === "ready" && nativeHelper) quickPreviewMonitor?.setPort(nativeHelper);
         if (status === "ready" && navigationModeController?.isActive()) {
           nativeHelper?.setWasdNavigation(true);
         }
       },
     );
     nativeHelper.setOnTrigger((msg) => routeNativeTriggered(msg));
+    nativeHelper.setOnQuickPreviewRevision((revision, available) => quickPreviewMonitor?.onRevision(revision, available));
+    nativeHelper.setOnQuickPreviewTriggered(() => { void quickPreviewController?.toggle(); });
+    quickPreviewMonitor?.setPort(nativeHelper);
     nativeHelper.setOnWasdToggleRequested(() => {
       navigationModeController?.toggle();
     });
@@ -1099,6 +1157,9 @@ app.on("will-quit", () => {
   tray?.destroy();
   tray = null;
   restoreSystemCursor();
+  quickPreviewController?.destroy();
+  quickPreviewMonitor?.destroy();
+  quickPreviewManager?.destroy();
   inputService?.stop();
   ahkManager?.stop();
   nativeHelper?.shutdown();

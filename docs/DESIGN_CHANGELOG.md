@@ -20,6 +20,13 @@ This document is a historical record of KeyFlow's UI and interaction design evol
 
 ---
 
+## 2026-11-15 — Quick Preview shortcut and format improvements
+
+* The settings page uses the shared `PageHeader` and offers an Explorer-scoped shortcut, defaulting to Space. Existing active shortcut and emergency-binding conflicts are reported.
+* Preview renders supported Photoshop composites, PDFs, images, bounded text (including extracted DOCX text), ZIP/CBZ listings, and supported media. Other formats can use an installed Windows thumbnail provider; a thumbnail is labeled as such.
+* Large Photoshop composites are sampled to limit memory use. Unsupported Photoshop variants and unavailable providers can still require the default application.
+* Automated checks cover the renderer, native helper, shortcut settings, and representative files. Physical-key and user acceptance testing remain separate checks.
+
 ## 2026-09-09 — Mouse Chord, Notes Corrections & Clipboard Interaction Polish
 
 * **WASD mouse chord (`native/keyflow-input/src/mouse_chord.rs`, `raw_mouse.rs`)**:

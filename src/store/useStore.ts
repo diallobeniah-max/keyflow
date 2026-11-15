@@ -181,6 +181,12 @@ function mergeSettings(s: Partial<Settings> | undefined): Settings {
     screenTint: { ...defaultScreenTint, ...s.screenTint },
     dimScreen: { ...defaultDimScreen, ...s.dimScreen },
     mediaPlayer: { ...defaultMediaPlayer, ...s.mediaPlayer },
+    quickPreview: {
+      ...defaults.quickPreview!, ...s.quickPreview,
+      shortcut: s.quickPreview?.shortcutVersion === undefined && s.quickPreview?.shortcut === "Alt+Space"
+        ? "Space" : s.quickPreview?.shortcut ?? defaults.quickPreview!.shortcut,
+      shortcutVersion: 1,
+    },
   };
 }
 

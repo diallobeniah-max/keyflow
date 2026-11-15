@@ -64,6 +64,8 @@ pub enum OutMessage {
         shortcut_id: String,
         generation: u64,
     },
+    QuickPreviewRevision { version: u32, revision: u64, available: bool },
+    QuickPreviewTriggered { version: u32 },
     /// Left + Right mouse chord requested a WASD Navigation toggle.
     WasdToggleRequested {
         version: u32,
@@ -427,6 +429,18 @@ fn default_true() -> bool {
 #[serde(tag = "type", rename_all = "camelCase")]
 #[allow(dead_code)]
 pub enum InMessage {
+    ConfigureQuickPreview {
+        #[serde(default)] enabled: bool,
+        #[serde(default)] key: u32,
+        #[serde(default)] modifiers: u32,
+    },
+    QuickPreviewSnapshot {
+        #[serde(default)] revision: u64,
+        #[serde(default)] foreground: u64,
+        #[serde(default)] focus: u64,
+        #[serde(default)] valid: bool,
+    },
+    GetQuickPreviewRevision {},
     /// New canonical configuration: complete shortcut definitions. This is
     /// what the native trigger engine consumes.
     Configure {

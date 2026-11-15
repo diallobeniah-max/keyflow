@@ -8,8 +8,8 @@ export default defineConfig(({ mode }) => ({
       name: "csp",
       transformIndexHtml(html) {
         const csp = mode === "development"
-          ? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:1420 http://127.0.0.1:1420; img-src 'self' data:; font-src 'self' data:"
-          : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'";
+          ? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' keyflow-preview: ws://127.0.0.1:1420 http://127.0.0.1:1420; img-src 'self' data: keyflow-preview:; media-src 'self' keyflow-preview:; font-src 'self' data:"
+          : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: keyflow-preview:; media-src 'self' keyflow-preview:; font-src 'self' data:; connect-src 'self' keyflow-preview:";
         return html.replace("</title>", `</title>\n    <meta http-equiv="Content-Security-Policy" content="${csp}" />`);
       },
     },

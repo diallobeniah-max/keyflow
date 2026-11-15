@@ -11,10 +11,12 @@ import {
   SlidersHorizontal, Smiley, Sparkle, SpeakerHigh, SpeakerSlash, SquaresFour, Stack, Star, Sun,
   Table, Tag, Terminal, TextAlignCenter, TextAlignLeft, TextAlignRight, TextT, Trash,
   Tray, UploadSimple, UsersThree, VideoCamera, WifiHigh, Wrench, X,
+  Eye, FilePdf, FileText, FilmSlate, Image, Info, Warning,
   type Icon as PhosphorIcon,
 } from "@phosphor-icons/react";
 
 const PHOSPHOR_ICONS: Record<string, PhosphorIcon> = {
+  eye: Eye, filePdf: FilePdf, fileText: FileText, filmSlate: FilmSlate, image: Image, info: Info, speakerHigh: SpeakerHigh, warning: Warning,
   activity: Pulse,
   alignCenter: TextAlignCenter,
   alignLeft: TextAlignLeft,

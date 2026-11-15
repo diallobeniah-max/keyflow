@@ -9,7 +9,7 @@
 
 import { spawn, ChildProcess } from "child_process";
 import { existsSync } from "fs";
-import { join } from "path";
+import { join, resolve } from "path";
 import { inputDebug } from "./input/input-debug.js";
 import { keyNameToVk } from "./vk-catalog.js";
 import type { ShortcutEntry } from "./input/trigger-matcher.js";
@@ -190,13 +190,19 @@ export interface TouchpadStatusMessage {
 
 export function resolveNativeHelperPath(): string | null {
   const fromEnv = process.env.KEYFLOW_INPUT_HELPER;
-  if (fromEnv && existsSync(fromEnv)) return fromEnv;
+  if (fromEnv) return existsSync(fromEnv) ? fromEnv : null;
+  const targetDir = process.env.KEYFLOW_NATIVE_TARGET_DIR?.trim();
+  if (targetDir) {
+    const custom = resolve(process.cwd(), targetDir, "release", "keyflow-input.exe");
+    return existsSync(custom) ? custom : null;
+  }
+  // An installed app must use its bundled helper even when its working
+  // directory happens to be a source checkout with an older executable.
+  const packaged = join(process.resourcesPath ?? "", "keyflow-input", "keyflow-input.exe");
+  if (existsSync(packaged)) return packaged;
   // Dev: built by `npm run native:build` from the repo root.
   const dev = join(process.cwd(), "native", "keyflow-input", "target", "release", "keyflow-input.exe");
   if (existsSync(dev)) return dev;
-  // Packaged: extraResources -> resources/keyflow-input/keyflow-input.exe
-  const packaged = join(process.resourcesPath ?? "", "keyflow-input", "keyflow-input.exe");
-  if (existsSync(packaged)) return packaged;
   return null;
 }
 
@@ -252,6 +258,9 @@ export class NativeInputHelper {
   private onKey: (e: NativeKeyEventMessage) => void;
   private onStatus: (s: NativeHelperStatus) => void;
   private onTriggered: ((msg: NativeTriggeredMessage) => void) | null = null;
+  private onQuickPreviewRevision: ((revision: number, available: boolean) => void) | null = null;
+  private onQuickPreviewTriggered: (() => void) | null = null;
+  private pendingQuickPreview = { enabled: false, key: 0, modifiers: 0 };
   private onWasdToggleRequested: (() => void) | null = null;
   private onCapturedKey: ((msg: NativeCapturedKeyMessage) => void) | null = null;
   private onDragSwitcherShow: ((msg: DragSwitcherShowMessage) => void) | null = null;
@@ -303,6 +312,17 @@ export class NativeInputHelper {
   setOnTrigger(fn: (msg: NativeTriggeredMessage) => void): void {
     this.onTriggered = fn;
   }
+
+  setOnQuickPreviewRevision(fn: (revision: number, available: boolean) => void): void { this.onQuickPreviewRevision = fn; }
+  setOnQuickPreviewTriggered(fn: () => void): void { this.onQuickPreviewTriggered = fn; }
+  configureQuickPreview(config: { enabled: boolean; key: number; modifiers: number }): void {
+    this.pendingQuickPreview = config;
+    if (this.status === "ready") this.send({ type: "configureQuickPreview", ...config });
+  }
+  setQuickPreviewSnapshot(revision: number, foreground: number, focus: number, valid: boolean): void {
+    if (this.status === "ready") this.send({ type: "quickPreviewSnapshot", revision, foreground, focus, valid });
+  }
+  requestQuickPreviewRevision(): void { if (this.status === "ready") this.send({ type: "getQuickPreviewRevision" }); }
 
   setOnWasdToggleRequested(fn: () => void): void {
     this.onWasdToggleRequested = fn;
@@ -809,6 +829,7 @@ export class NativeInputHelper {
 
   private flushConfigure(): void {
     this.sendConfigure();
+    this.send({ type: "configureQuickPreview", ...this.pendingQuickPreview });
     this.sendDragSwitcher();
     this.sendSmoothScroll();
     this.send({ type: "setWasdMouseChord", version: NATIVE_PROTOCOL_VERSION, enabled: this.pendingWasdMouseChord });
@@ -913,6 +934,12 @@ export class NativeInputHelper {
           shortcutId: msg.shortcutId,
           generation: msg.generation,
         });
+        break;
+      case "quickPreviewRevision":
+        if (Number.isSafeInteger(msg.revision) && msg.revision >= 0) this.onQuickPreviewRevision?.(msg.revision, msg.available === true);
+        break;
+      case "quickPreviewTriggered":
+        this.onQuickPreviewTriggered?.();
         break;
       case "wasdToggleRequested":
         console.log("[mouse-chord] WASD toggle requested by native helper");

@@ -1,0 +1,285 @@
+/* =========================================================
+   Quick Preview — main app page (settings/info page)
+   Tokens: src/design/tokens.css
+   ========================================================= */
+
+.qp-page-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-5) var(--space-8);
+  max-width: 1100px;
+}
+
+/* ---- Page Header ---- */
+.qp-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.qp-page-header-badge-wrap {
+  flex-shrink: 0;
+}
+
+.qp-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.qp-status-badge--active {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
+}
+
+.qp-status-badge--off {
+  background: var(--color-bg-surface-elevated);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.qp-status-badge--paused {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+
+.qp-page-instruction {
+  font-size: var(--type-card-size);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.qp-kbd {
+  display: inline-block;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  font-size: var(--type-keycap-size);
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  vertical-align: baseline;
+}
+
+/* ---- Two-column body ---- */
+.qp-page-body {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .qp-page-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.qp-page-col-left,
+.qp-page-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ---- Shortcut display ---- */
+.qp-kbd-display {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  font-size: var(--type-card-size);
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* ---- Limitations list ---- */
+.qp-limitations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--space-2) 0;
+}
+
+.qp-limitation-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--type-small-size);
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.qp-limitation-item:last-child {
+  border-bottom: none;
+}
+
+.qp-limitation-icon {
+  color: var(--color-warning);
+  flex-shrink: 0;
+  margin-top: 0;
+}
+
+/* ---- Formats card ---- */
+.qp-formats-card {
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.qp-formats-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.qp-formats-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.qp-format-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.qp-format-item:last-child {
+  border-bottom: none;
+}
+
+.qp-format-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+}
+
+.qp-format-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+  min-width: 0;
+}
+
+.qp-format-label-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.qp-format-label {
+  font-size: var(--type-card-size);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.qp-format-badge {
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.qp-format-badge--unverified {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+
+.qp-format-desc {
+  font-size: var(--type-small-size);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.qp-formats-footnote {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--type-small-size);
+  color: var(--color-text-muted);
+  margin: 0;
+  border-top: 1px solid var(--color-border-subtle);
+  font-style: italic;
+}
+
+/* ---- How-to card ---- */
+.qp-howto-card {
+  background: var(--color-bg-surface-elevated);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.qp-howto-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.qp-howto-list {
+  margin: 0;
+  padding: var(--space-3) var(--space-4) var(--space-3) calc(var(--space-4) + var(--space-5));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--type-small-size);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.qp-howto-list li {
+  padding-left: 0;
+}
+
+.qp-howto-list strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}

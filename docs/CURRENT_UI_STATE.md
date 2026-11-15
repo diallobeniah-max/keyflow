@@ -6,6 +6,10 @@
 * **Commit:** `8d9470b` (with active working tree)
 * **Working tree status:** Verified against current renderer source files and Electron runtime integration.
 
+## Quick Preview
+
+Quick Preview is a workspace page with a configurable Explorer-only shortcut, a status indicator, and an Escape-to-close option. The floating window supports common images, TIFF, supported PSD/PSB composites, PDF pages, bounded text and extracted DOCX text, ZIP/CBZ listings, and runtime-supported audio and video. DOCX layout and images are not rendered. Other formats may show a labeled Windows thumbnail if a compatible provider is installed. Some Photoshop variants and media codecs still require an external application.
+
 ## Purpose
 
 This document summarizes the **CURRENT IMPLEMENTED** UI architecture and interaction behavior in the KeyFlow codebase as of today.

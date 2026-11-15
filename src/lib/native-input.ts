@@ -4,6 +4,7 @@ import { createDefaultPopupItems } from "./defaults";
 import { playFeedbackSound } from "./sound";
 import { SCREEN_TINT_DEFAULT_COLOR } from "./constants.ts";
 import { installClipboardShortcutBinding } from "./clipboard-shortcut";
+import { appliesToExplorer } from "./quick-preview-conflicts";
 
 let cleanupFns: (() => void)[] = [];
 
@@ -89,6 +90,15 @@ export function initNativeInput(): void {
       }
     }
     list = installClipboardShortcutBinding(list, settings, activeId);
+    const quickPreview = state.data.settings.quickPreview;
+    void eapi.quickPreview?.configure?.({
+      enabled: !!quickPreview?.enabled,
+      paused: state.paused || state.safeMode,
+      shortcut: quickPreview?.shortcut ?? "Space",
+      closeWithEscape: quickPreview?.closeWithEscape !== false,
+      emergencyShortcut: settings.emergencySafe,
+      activeShortcuts: [settings.globalPause, ...list.filter(s => s.key && !s.mouse && appliesToExplorer(s.appScope)).map(s => [...(s.modifiers ?? []), s.key].join("+"))].filter(Boolean),
+    }).catch((error: unknown) => console.warn("[quick-preview] configure failed", error));
     const advanced = state.data.settings.advanced;
     const hkCfg = settings.hyperKeyConfig;
     const ds = state.data.settings.dragSwitcher;
@@ -265,6 +275,7 @@ export function initNativeInput(): void {
       state.data.shortcuts !== previous.data.shortcuts ||
       state.activeProfileId !== previous.activeProfileId ||
       state.data.settings.shortcuts !== previous.data.settings.shortcuts ||
+      state.data.settings.quickPreview !== previous.data.settings.quickPreview ||
       state.data.settings.advanced.extendedAccess !== previous.data.settings.advanced.extendedAccess ||
       state.data.settings.dragSwitcher !== previous.data.settings.dragSwitcher ||
       state.data.settings.hotCorners !== previous.data.settings.hotCorners ||

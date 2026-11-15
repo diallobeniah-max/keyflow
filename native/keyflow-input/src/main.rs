@@ -17,6 +17,7 @@ mod mouse_chord;
 mod navigation_mode;
 mod parent_watch;
 mod protocol;
+mod quick_preview;
 mod raw_mouse;
 mod remap;
 mod smooth_scroll;
@@ -123,6 +124,9 @@ fn main() -> ExitCode {
                         continue;
                     }
                     match protocol::parse_line(line) {
+                        Some(InMessage::ConfigureQuickPreview { enabled, key, modifiers }) => quick_preview::configure(enabled, key, modifiers),
+                        Some(InMessage::QuickPreviewSnapshot { revision, foreground, focus, valid }) => quick_preview::update(revision, foreground as usize, focus as usize, valid),
+                        Some(InMessage::GetQuickPreviewRevision {}) => quick_preview::publish_current_revision(),
                         Some(InMessage::Configure { version: _, config_version, shortcuts, keys, typing_protection, typing_idle_ms, hyper_key }) => {
                             let mut rule_count = 0;
                             let mut active_rules = 0;

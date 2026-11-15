@@ -278,6 +278,43 @@ interface BackupAPI {
   updateState: (state: any) => Promise<void>;
 }
 
+// ---------------------------------------------------------------------------
+// Quick Preview API
+// ---------------------------------------------------------------------------
+
+interface QuickPreviewFileInfo {
+  path: string;
+  name: string;
+  ext: string;
+  sizeMb: number;
+  kind: "image" | "pdf" | "text" | "document" | "audio" | "video" | "archive" | "unsupported";
+  dataUrl?: string;
+  streamUrl?: string;
+  thumbnailSource?: "embedded" | "windows";
+  archive?: { entries: Array<{name:string;size:number;directory:boolean}>; total:number; truncated:boolean };
+  textContent?: string;
+}
+
+interface QuickPreviewAPI {
+  getStatus: () => Promise<"starting" | "ready" | "unavailable">;
+  validateBinding: (shortcut: string, emergencyShortcut: string, activeShortcuts: string[]) => Promise<boolean>;
+  configure: (settings: { enabled: boolean; paused: boolean; shortcut: string; closeWithEscape: boolean; emergencyShortcut?: string; activeShortcuts?: string[] }) => Promise<boolean>;
+  /** Get the currently selected file path in the foreground Explorer window */
+  getExplorerSelection: () => Promise<string | null>;
+  /** Open a file with its default application via Windows shell */
+  openWithDefaultApp: (path: string) => Promise<boolean>;
+  /** Open the floating preview window for a file path */
+  openPreview: (path: string) => Promise<boolean>;
+  /** Close the floating preview window */
+  closePreview: () => Promise<boolean>;
+  /** Notify main process that the preview overlay renderer is ready */
+  notifyReady?: () => void;
+  /** Listen for preview window open requests (in preview window renderer) */
+  onPreviewLoad: (callback: (info: QuickPreviewFileInfo) => void) => () => void;
+  /** Listen for close requests */
+  onPreviewClose: (callback: () => void) => () => void;
+}
+
 interface ElectronAPI {
   windowControls: WindowControls;
   appInfo: AppInfo;
@@ -293,6 +330,7 @@ interface ElectronAPI {
   dragSwitcher?: DragSwitcherAPI;
   notes?: NotesAPI;
   backup?: BackupAPI;
+  quickPreview?: QuickPreviewAPI;
 }
 
 interface Window {

@@ -507,6 +507,23 @@ export interface Settings {
   mediaPlayer?: MediaPlayerSettings;
   hyperGestures?: HyperGesturesSettings;
   touchpadDrag?: TouchpadDragSettings;
+  quickPreview?: QuickPreviewSettings;
+}
+
+/** Settings for the Quick Preview feature (Space-to-preview in File Explorer). */
+export interface QuickPreviewSettings {
+  /** Master enable/disable toggle */
+  enabled: boolean;
+  /** Explorer-scoped preview shortcut. */
+  shortcut: string;
+  /** Migration marker distinguishing a chosen binding from the old placeholder. */
+  shortcutVersion?: number;
+  /** Whether Escape closes the floating preview window */
+  closeWithEscape: boolean;
+  /** Whether the "Open with default app" action is shown in the preview toolbar */
+  openWithDefaultApp: boolean;
+  /** Max file size in MB before showing the fallback instead of content */
+  maxFileSizeMb: number;
 }
 
 export type MediaPlayerPosition = "top-center" | "top-right" | "bottom-center" | "bottom-right" | "custom";
@@ -587,7 +604,8 @@ export type AppPage =
   | "profiles"
   | "clipboard"
   | "settings"
-  | "notes";
+  | "notes"
+  | "quick-preview";
 
 export interface PopupRequest {
   items: PopupItem[];

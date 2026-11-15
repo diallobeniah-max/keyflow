@@ -29,6 +29,8 @@ import { ClipboardOverlay } from "./pages/ClipboardOverlay";
 import { ClipboardCopyFeedback } from "./components/ClipboardCopyFeedback";
 import { GestureTrailOverlay } from "./pages/GestureTrailOverlay";
 import { Clipboard } from "./pages/Clipboard";
+import { QuickPreviewPage } from "./pages/QuickPreviewPage";
+import { QuickPreviewOverlay } from "./pages/QuickPreviewOverlay";
 import { useStore } from "./store/useStore";
 import { useActiveApp } from "./lib/useActiveApp";
 import { useResolvedTheme } from "./lib/useResolvedTheme";
@@ -71,6 +73,10 @@ function isGestureTrailWindow(): boolean {
   return window.location.search.includes("window=gesture-trail");
 }
 
+function isQuickPreviewWindow(): boolean {
+  return window.location.search.includes("window=quick-preview");
+}
+
 function Router() {
   const page = useStore((s) => s.currentPage);
   return (
@@ -91,6 +97,8 @@ function Router() {
             return <Profiles />;
           case "clipboard":
             return <Clipboard />;
+          case "quick-preview":
+            return <QuickPreviewPage />;
           case "settings":
             return <Settings />;
           case "notes":
@@ -132,6 +140,7 @@ export default function App() {
   if (isClipboardPopupWindow()) return <><GlobalTooltip /><ClipboardOverlay /></>;
   if (isClipboardCopyFeedbackWindow()) return <ClipboardCopyFeedback />;
   if (isGestureTrailWindow()) return <><GlobalTooltip /><GestureTrailOverlay /></>;
+  if (isQuickPreviewWindow()) return <><GlobalTooltip /><QuickPreviewOverlay /></>;
 
   const onboardingDone = useStore((s) => s.data.onboardingDone);
   const drawerOpen = useStore((s) => s.drawerOpen);

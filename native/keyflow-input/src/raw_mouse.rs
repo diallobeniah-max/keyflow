@@ -51,6 +51,13 @@ fn observe_button(left: bool, down: bool, at: std::time::Duration) {
     if left {
         drag_switcher::on_raw_mouse_down(down, at);
     }
+    if !CHORD_OBSERVER_ACTIVE.load(Ordering::SeqCst) && mouse_chord::on_button(left, down, at) {
+        eprintln!("[mouse-chord] left+right toggle requested");
+        crate::hook::queue(OutMessage::WasdToggleRequested { version: PROTOCOL_VERSION }.to_json());
+    }
+}
+
+fn observe_chord(left: bool, down: bool, at: std::time::Duration) {
     if mouse_chord::on_button(left, down, at) {
         eprintln!("[mouse-chord] left+right toggle requested");
         crate::hook::queue(OutMessage::WasdToggleRequested { version: PROTOCOL_VERSION }.to_json());
@@ -63,6 +70,9 @@ static REGISTERED: AtomicBool = AtomicBool::new(false);
 static BACKEND: AtomicU32 = AtomicU32::new(0);
 /// Rate limiter for WM_INPUT forensic logs.
 static WM_INPUT_LOG_COUNT: AtomicU32 = AtomicU32::new(0);
+/// Passive low-level observer dedicated to the two-button gesture. It always
+/// chains immediately, so it cannot delay normal mouse or keyboard input.
+static CHORD_OBSERVER_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 pub fn is_registered() -> bool {
     REGISTERED.load(Ordering::SeqCst)
@@ -74,6 +84,11 @@ pub fn backend_is_raw() -> bool {
 
 pub fn backend_is_hook() -> bool {
     BACKEND.load(Ordering::SeqCst) == 2
+}
+
+/// Quick Preview must fail open if mouse clicks cannot invalidate selection.
+pub fn selection_invalidation_available() -> bool {
+    CHORD_OBSERVER_ACTIVE.load(Ordering::SeqCst) || BACKEND.load(Ordering::SeqCst) == 2
 }
 
 /// Create the hidden raw-input window on the hook thread and register for raw
@@ -125,6 +140,7 @@ pub fn init(hinstance: HINSTANCE) -> HWND {
         );
         return install_low_level_hook("createWindowFailed");
     }
+    install_chord_observer();
     eprintln!("[raw-mouse] threadStarted=true hwnd=0x{:x}", hwnd as usize);
     let dev = RAWINPUTDEVICE {
         usUsagePage: 0x01, // HID_USAGE_PAGE_GENERIC
@@ -210,6 +226,10 @@ fn last_error() -> u32 {
 fn install_low_level_hook(reason: &str) -> HWND {
     BACKEND.store(2, Ordering::SeqCst);
     REGISTERED.store(false, Ordering::SeqCst);
+    if CHORD_OBSERVER_ACTIVE.load(Ordering::SeqCst) {
+        eprintln!("[mouse-observer] backend=low-level-hook reason={reason} reuse=passive-observer");
+        return std::ptr::null_mut();
+    }
     let hook = unsafe { SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_ll_proc), std::ptr::null_mut(), 0) };
     if hook.is_null() {
         BACKEND.store(0, Ordering::SeqCst);
@@ -224,18 +244,67 @@ fn install_low_level_hook(reason: &str) -> HWND {
     std::ptr::null_mut()
 }
 
+/// Installs a separate passive observer when Raw Input is healthy. This gives
+/// the chord every physical button transition without changing which component
+/// owns drag observation or consuming normal Windows clicks.
+fn install_chord_observer() {
+    if CHORD_OBSERVER_ACTIVE.load(Ordering::SeqCst) {
+        return;
+    }
+    let hook = unsafe { SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_ll_proc), std::ptr::null_mut(), 0) };
+    if hook.is_null() {
+        eprintln!("[mouse-chord] passive observer unavailable error={}", last_error());
+        return;
+    }
+    CHORD_OBSERVER_ACTIVE.store(true, Ordering::SeqCst);
+    eprintln!("[mouse-chord] passive observer ready hook=0x{:x}", hook as usize);
+}
+
 unsafe extern "system" fn mouse_ll_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     // Observation only: never block or synthesize input. Always chain.
     if code >= 0 {
+        if matches!(wparam as u32, WM_LBUTTONDOWN | WM_LBUTTONUP | WM_RBUTTONDOWN | WM_RBUTTONUP) {
+            crate::quick_preview::invalidate();
+        }
         match wparam as u32 {
-            WM_LBUTTONDOWN => observe_button(true, true, now_at()),
-            WM_LBUTTONUP => observe_button(true, false, now_at()),
-            WM_RBUTTONDOWN => observe_button(false, true, now_at()),
-            WM_RBUTTONUP => observe_button(false, false, now_at()),
+            WM_LBUTTONDOWN => {
+                if CHORD_OBSERVER_ACTIVE.load(Ordering::SeqCst) {
+                    observe_chord(true, true, now_at());
+                }
+                if BACKEND.load(Ordering::SeqCst) == 2 {
+                    observe_button(true, true, now_at());
+                }
+            }
+            WM_LBUTTONUP => {
+                if CHORD_OBSERVER_ACTIVE.load(Ordering::SeqCst) {
+                    observe_chord(true, false, now_at());
+                }
+                if BACKEND.load(Ordering::SeqCst) == 2 {
+                    observe_button(true, false, now_at());
+                }
+            }
+            WM_RBUTTONDOWN => {
+                if CHORD_OBSERVER_ACTIVE.load(Ordering::SeqCst) {
+                    observe_chord(false, true, now_at());
+                }
+                if BACKEND.load(Ordering::SeqCst) == 2 {
+                    observe_button(false, true, now_at());
+                }
+            }
+            WM_RBUTTONUP => {
+                if CHORD_OBSERVER_ACTIVE.load(Ordering::SeqCst) {
+                    observe_chord(false, false, now_at());
+                }
+                if BACKEND.load(Ordering::SeqCst) == 2 {
+                    observe_button(false, false, now_at());
+                }
+            }
             WM_MOUSEMOVE => {
-                let mut pt = POINT { x: 0, y: 0 };
-                if GetCursorPos(&mut pt) != 0 {
-                    drag_switcher::on_raw_mouse_move(pt.x, pt.y, now_at());
+                if BACKEND.load(Ordering::SeqCst) == 2 {
+                    let mut pt = POINT { x: 0, y: 0 };
+                    if GetCursorPos(&mut pt) != 0 {
+                        drag_switcher::on_raw_mouse_move(pt.x, pt.y, now_at());
+                    }
                 }
             }
             // Wheel and other messages are ignored (observation only).

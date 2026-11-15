@@ -233,6 +233,14 @@ export function createDefaultSettings(): Settings {
       maxFingerDistance: 150,
       cursorAveraging: 1,
     },
+    quickPreview: {
+      enabled: false,
+      shortcut: "Space",
+      shortcutVersion: 1,
+      closeWithEscape: true,
+      openWithDefaultApp: true,
+      maxFileSizeMb: 50,
+    },
   };
 }
 
