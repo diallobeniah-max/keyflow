@@ -33,6 +33,24 @@ function cmykToRgb(pixels: Buffer): Buffer {
   return result;
 }
 
+// libvips can silently ignore malformed ICC data. Reject structurally invalid
+// profiles before passing them on, so they cannot masquerade as color-managed.
+function isPlausibleCmykProfile(profile: Buffer): boolean {
+  if (profile.length < 132 || profile.readUInt32BE(0) !== profile.length ||
+      profile.toString('ascii', 36, 40) !== 'acsp' || profile.toString('ascii', 16, 20) !== 'CMYK') return false;
+  const count = profile.readUInt32BE(128);
+  if (count > Math.floor((profile.length - 132) / 12)) return false;
+  let hasTransform = false;
+  for (let i = 0; i < count; i++) {
+    const entry = 132 + i * 12;
+    const offset = profile.readUInt32BE(entry + 4), length = profile.readUInt32BE(entry + 8);
+    if (length < 8 || offset < 132 + count * 12 || offset + length > profile.length) return false;
+    const tag = profile.toString('ascii', entry, entry + 4);
+    if (tag === 'A2B0' || tag === 'D2B0') hasTransform = true;
+  }
+  return hasTransform;
+}
+
 // Wrap the sampled composite as a CMYK TIFF so libvips can apply its ICC
 // profile. PSD stores inverted CMYK samples, while TIFF uses ordinary ink values.
 function profiledCmykTiff(pixels: Buffer, width: number, height: number, profile: Buffer): Buffer {
@@ -62,7 +80,7 @@ function profiledCmykTiff(pixels: Buffer, width: number, height: number, profile
 async function encodeComposite(pixels: Buffer, width: number, height: number, channels: number, mode: number, profile: Buffer | null): Promise<Buffer | null> {
   try {
     const image = mode === 4 && profile
-      ? sharp(profiledCmykTiff(pixels, width, height, profile)).toColourspace('srgb')
+      ? sharp(profiledCmykTiff(pixels, width, height, profile), { failOn: 'warning' }).toColourspace('srgb')
       : sharp(mode === 4 ? cmykToRgb(pixels) : pixels, { raw: { width, height, channels: (mode === 4 ? 3 : channels) as 1 | 2 | 3 | 4 } });
     return await image.resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
   } catch { return null; }
@@ -150,7 +168,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
         if (id === 1039) {
           if (profile || length < 128 || length > 4 * 1024 * 1024 || lengthOffset + 4 + length > end) return null;
           profile = await read(lengthOffset + 4, length);
-          if (!profile || profile.toString('ascii', 36, 40) !== 'acsp' || profile.toString('ascii', 16, 20) !== 'CMYK') return null;
+          if (!profile || !isPlausibleCmykProfile(profile)) return null;
         }
         cursor = lengthOffset + 4 + length + (length % 2);
         if (cursor > end) return null;

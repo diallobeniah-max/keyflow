@@ -215,5 +215,8 @@ test('applies a CMYK ICC profile to a flattened composite', async t => {
       const result = await readPsdComposite(path); assert.ok(result);
       assert.deepEqual([...(await sharp(result).raw().toBuffer())], [229,51,44,109,122,136,154,155,155]);
     }
+    const broken = Buffer.from(profile); broken.writeUInt32BE(broken.length + 1, 0);
+    await writeFile(path, Buffer.concat([header,length,record,broken,Buffer.alloc(profile.length % 2),Buffer.alloc(4),Buffer.from([0,0]),planes]));
+    assert.equal(await readPsdComposite(path), null, 'invalid profile must not silently use an unprofiled conversion');
   } finally { await rm(dir,{recursive:true,force:true}); }
 });
