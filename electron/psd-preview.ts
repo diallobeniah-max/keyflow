@@ -21,6 +21,12 @@ function removeWhiteMatte(pixels: Buffer, colorChannels: number): void {
   }
 }
 
+function readSample(row: Buffer, offset: number, depth: number): number {
+  if (depth !== 32) return row[offset];
+  const value = row.readFloatBE(offset);
+  return Number.isNaN(value) ? 0 : Math.max(0, Math.min(255, Math.floor(value * 256)));
+}
+
 // PSD CMYK samples are inverted. This approximate conversion is used only
 // when the document has no embedded color profile.
 function cmykToRgb(pixels: Buffer): Buffer {
@@ -162,7 +168,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
     const height = header.readUInt32BE(14), width = header.readUInt32BE(18);
     const depth = header.readUInt16BE(22), mode = header.readUInt16BE(24);
     const colorChannels = mode === 3 ? 3 : mode === 1 ? 1 : mode === 4 ? 4 : 0;
-    if (![1, 2].includes(version) || ![8, 16].includes(depth) || !colorChannels || channels < colorChannels || channels > 56 || !width || !height || width > 300000 || height > 300000 || signal?.aborted) return null;
+    if (![1, 2].includes(version) || ![8, 16, 32].includes(depth) || !colorChannels || channels < colorChannels || channels > 56 || !width || !height || width > 300000 || height > 300000 || signal?.aborted) return null;
     let pos = 30 + header.readUInt32BE(26);
     const resources = await read(pos, 4); if (!resources) return null;
     let profile: Buffer | null = null;
@@ -208,6 +214,9 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
     const compression = await read(pos, 2); if (!compression) return null;
     const compressionType = compression.readUInt16BE();
     if (compressionType > 3) return null;
+    // 32-bit ZIP prediction requires byte-plane reordering; fall back until
+    // that format is decoded rather than interpreting floating-point bytes as pixels.
+    if (depth === 32 && compressionType === 3) return null;
     pos += 2;
     const entrySize = version === 2 ? 4 : 2;
     const tableSize = compressionType === 1 ? channels * height * entrySize : 0;
@@ -236,6 +245,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
       input.on("error", error => inflater.destroy(error));
       input.pipe(inflater);
       let index = 0, previous = 0, highByte = 0;
+      const floatSample = Buffer.alloc(4);
       try {
         for await (const data of inflater) {
           const chunk = data as Buffer;
@@ -245,7 +255,11 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
             if (channel >= usedChannels) break;
             let sampleByte = byte;
             let sampleReady = inPlane % bytesPerSample === 0;
-            if (compressionType === 3 && depth === 16) {
+            if (depth === 32) {
+              floatSample[inPlane % 4] = byte;
+              sampleReady = inPlane % 4 === 3;
+              if (sampleReady) sampleByte = readSample(floatSample, 0, depth);
+            } else if (compressionType === 3 && depth === 16) {
               if (sampleReady) { highByte = byte; sampleReady = false; }
               else {
                 const encoded = (highByte << 8) | byte;
@@ -294,7 +308,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
         const packed = await read(pos, count); if (!packed) return null;
         pos += count;
         if (compressionType === 0) {
-          for (let x = 0; x < outWidth; x++) pixels[((outRow * outWidth + x) * usedChannels) + channel] = packed[sourceColumns[x] * (depth / 8)];
+          for (let x = 0; x < outWidth; x++) pixels[((outRow * outWidth + x) * usedChannels) + channel] = readSample(packed, sourceColumns[x] * (depth / 8), depth);
           continue;
         }
         const unpacked = Buffer.alloc(rowBytes);
@@ -311,7 +325,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
           }
         }
         if (x !== rowBytes) return null;
-        for (let x = 0; x < outWidth; x++) pixels[((outRow * outWidth + x) * usedChannels) + channel] = unpacked[sourceColumns[x] * (depth / 8)];
+        for (let x = 0; x < outWidth; x++) pixels[((outRow * outWidth + x) * usedChannels) + channel] = readSample(unpacked, sourceColumns[x] * (depth / 8), depth);
       }
     }
     if (hasAlpha && mode !== 4 && !profile) removeWhiteMatte(pixels, colorChannels);

@@ -82,6 +82,24 @@ test('reads big-endian 16-bit RGB composites in raw, RLE, and ZIP files', async 
   } finally { await rm(dir,{recursive:true,force:true}); }
 });
 
+test('reads 32-bit floating point RGB composite rows in raw, RLE and ZIP files', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'keyflow-float-psd-'));
+  try {
+    const header = Buffer.alloc(30); header.write('8BPS'); header.writeUInt16BE(1,4); header.writeUInt16BE(3,12);
+    header.writeUInt32BE(1,14); header.writeUInt32BE(2,18); header.writeUInt16BE(32,22); header.writeUInt16BE(3,24);
+    const planes = [[0,0.5],[0.25,1],[1.5,-0.5]].map(values => { const b = Buffer.alloc(8); values.forEach((v,i)=>b.writeFloatBE(v,i*4)); return b; });
+    const path = join(dir,'float.psd');
+    for (const compression of [0,1,2]) {
+      const data = compression === 2 ? deflateSync(Buffer.concat(planes)) : compression === 1 ? Buffer.concat([Buffer.from([0,9,0,9,0,9]),...planes.map(p=>Buffer.concat([Buffer.from([7]),p]))]) : Buffer.concat(planes);
+      await writeFile(path,Buffer.concat([header,Buffer.alloc(8),Buffer.from([0,compression]),data]));
+      const result = await readPsdComposite(path); assert.ok(result);
+      assert.deepEqual([...(await sharp(result).raw().toBuffer())], [0,64,255,128,255,0]);
+    }
+    await writeFile(path,Buffer.concat([header,Buffer.alloc(8),Buffer.from([0,3]),deflateSync(Buffer.concat(planes))]));
+    assert.equal(await readPsdComposite(path),null,'32-bit ZIP prediction must use the fallback until decoded');
+  } finally { await rm(dir,{recursive:true,force:true}); }
+});
+
 test('decodes 16-bit ZIP prediction as big-endian sample differences', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'keyflow-16bit-predict-'));
   try {
