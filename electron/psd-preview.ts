@@ -21,8 +21,8 @@ function removeWhiteMatte(pixels: Buffer, colorChannels: number): void {
   }
 }
 
-// PSD CMYK samples are inverted. This conversion assumes an unprofiled
-// document; profiled and transparent CMYK require a color-managed renderer.
+// PSD CMYK samples are inverted. This approximate conversion is used only
+// when the document has no embedded color profile.
 function cmykToRgb(pixels: Buffer): Buffer {
   const result = Buffer.alloc(pixels.length / 4 * 3);
   for (let i = 0, j = 0; i < pixels.length; i += 4, j += 3) {
@@ -31,6 +31,41 @@ function cmykToRgb(pixels: Buffer): Buffer {
     result[j + 2] = Math.round(pixels[i + 2] * pixels[i + 3] / 255);
   }
   return result;
+}
+
+// Wrap the sampled composite as a CMYK TIFF so libvips can apply its ICC
+// profile. PSD stores inverted CMYK samples, while TIFF uses ordinary ink values.
+function profiledCmykTiff(pixels: Buffer, width: number, height: number, profile: Buffer): Buffer {
+  const entries: Array<[number, number, number, number]> = [];
+  const directorySize = 2 + 12 * 11 + 4;
+  const bitsOffset = 8 + directorySize;
+  const profileOffset = bitsOffset + 8;
+  const imageOffset = profileOffset + profile.length + (profile.length % 2);
+  entries.push([256, 4, 1, width], [257, 4, 1, height], [258, 3, 4, bitsOffset],
+    [259, 3, 1, 1], [262, 3, 1, 5], [273, 4, 1, imageOffset],
+    [277, 3, 1, 4], [278, 4, 1, height], [279, 4, 1, pixels.length],
+    [284, 3, 1, 1], [34675, 7, profile.length, profileOffset]);
+  const output = Buffer.alloc(imageOffset + pixels.length);
+  output.write('II'); output.writeUInt16LE(42, 2); output.writeUInt32LE(8, 4);
+  output.writeUInt16LE(entries.length, 8);
+  entries.forEach(([tag, type, count, value], i) => {
+    const offset = 10 + i * 12;
+    output.writeUInt16LE(tag, offset); output.writeUInt16LE(type, offset + 2);
+    output.writeUInt32LE(count, offset + 4); output.writeUInt32LE(value, offset + 8);
+  });
+  for (let i = 0; i < 4; i++) output.writeUInt16LE(8, bitsOffset + i * 2);
+  profile.copy(output, profileOffset);
+  for (let i = 0; i < pixels.length; i++) output[imageOffset + i] = 255 - pixels[i];
+  return output;
+}
+
+async function encodeComposite(pixels: Buffer, width: number, height: number, channels: number, mode: number, profile: Buffer | null): Promise<Buffer | null> {
+  try {
+    const image = mode === 4 && profile
+      ? sharp(profiledCmykTiff(pixels, width, height, profile)).toColourspace('srgb')
+      : sharp(mode === 4 ? cmykToRgb(pixels) : pixels, { raw: { width, height, channels: (mode === 4 ? 3 : channels) as 1 | 2 | 3 | 4 } });
+    return await image.resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
+  } catch { return null; }
 }
 
 export async function readPsdThumbnail(path: string): Promise<Buffer | null> {
@@ -97,8 +132,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
     if (![1, 2].includes(version) || ![8, 16].includes(depth) || !colorChannels || channels < colorChannels || channels > 56 || !width || !height || width > 300000 || height > 300000 || signal?.aborted) return null;
     let pos = 30 + header.readUInt32BE(26);
     const resources = await read(pos, 4); if (!resources) return null;
-    // Parse resource headers without loading their contents. Refuse embedded
-    // ICC profiles until color-managed conversion is available.
+    let profile: Buffer | null = null;
     if (mode === 4) {
       let cursor = pos + 4;
       const end = cursor + resources.readUInt32BE(0);
@@ -107,12 +141,17 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
         if (records >= MAX_RECORDS || cursor + 12 > end) return null;
         const record = await read(cursor, 7);
         if (!record || record.toString("ascii", 0, 4) !== "8BIM") return null;
-        if (record.readUInt16BE(4) === 1039) return null;
+        const id = record.readUInt16BE(4);
         const nameLength = 1 + record[6];
         const lengthOffset = cursor + 6 + nameLength + (nameLength % 2);
         const recordLength = await read(lengthOffset, 4);
         if (!recordLength) return null;
         const length = recordLength.readUInt32BE(0);
+        if (id === 1039) {
+          if (profile || length < 128 || length > 4 * 1024 * 1024 || lengthOffset + 4 + length > end) return null;
+          profile = await read(lengthOffset + 4, length);
+          if (!profile || profile.toString('ascii', 36, 40) !== 'acsp' || profile.toString('ascii', 16, 20) !== 'CMYK') return null;
+        }
         cursor = lengthOffset + 4 + length + (length % 2);
         if (cursor > end) return null;
       }
@@ -145,7 +184,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
     pos += tableSize;
     // Large PSBs can have hundreds of millions of pixels. Sample rows and
     // columns directly instead of allocating a full-sized flattened image.
-    const scale = width * height > 60_000_000 ? Math.min(1, 2048 / width, 2048 / height) : 1;
+    const scale = width * height > (profile ? 4_000_000 : 60_000_000) ? Math.min(1, 2048 / width, 2048 / height) : 1;
     const outWidth = Math.max(1, Math.floor(width * scale));
     const outHeight = Math.max(1, Math.floor(height * scale));
     const sourceColumns = new Int32Array(outWidth);
@@ -208,8 +247,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
       }
       if (index !== required) return null;
       if (hasAlpha) removeWhiteMatte(pixels, colorChannels);
-      return await sharp(mode === 4 ? cmykToRgb(pixels) : pixels, { raw: { width: outWidth, height: outHeight, channels: (mode === 4 ? 3 : usedChannels) as 1 | 2 | 3 | 4 } })
-        .resize({ width: 2048, height: 2048, fit: "inside", withoutEnlargement: true }).png().toBuffer();
+      return await encodeComposite(pixels, outWidth, outHeight, usedChannels, mode, profile);
     }
     const rowBytes = width * (depth / 8);
     for (let channel = 0; channel < usedChannels; channel++) {
@@ -245,7 +283,6 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
       }
     }
     if (hasAlpha) removeWhiteMatte(pixels, colorChannels);
-    return await sharp(mode === 4 ? cmykToRgb(pixels) : pixels, { raw: { width: outWidth, height: outHeight, channels: (mode === 4 ? 3 : usedChannels) as 1 | 2 | 3 | 4 } })
-      .resize({ width: 2048, height: 2048, fit: "inside", withoutEnlargement: true }).png().toBuffer();
+    return await encodeComposite(pixels, outWidth, outHeight, usedChannels, mode, profile);
   } finally { await file.close(); }
 }

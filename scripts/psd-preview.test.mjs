@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, rm, open } from 'node:fs/promises';
+import { mkdtemp, writeFile, rm, open, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readPsdThumbnail, readPsdComposite } from '../electron/psd-preview.ts';
@@ -192,5 +192,28 @@ test('unprofiled CMYK composites decode primary colors across compression types'
     }));
     await writeFile(path,Buffer.concat([header16,Buffer.alloc(8),Buffer.from([0,3]),deflateSync(predicted16)]));
     assert.deepEqual([...(await sharp(await readPsdComposite(path)).raw().toBuffer())],[0,255,255,255,0,255,255,255,0,0,0,0]);
+  } finally { await rm(dir,{recursive:true,force:true}); }
+});
+
+test('applies a CMYK ICC profile to a flattened composite', async t => {
+  let profile;
+  try { profile = await readFile('C:/Windows/System32/spool/drivers/color/RSWOP.icm'); }
+  catch { return t.skip('Windows SWOP profile unavailable'); }
+  const dir = await mkdtemp(join(tmpdir(), 'keyflow-cmyk-profile-'));
+  try {
+    const header = Buffer.alloc(30);
+    header.write('8BPS'); header.writeUInt16BE(1,4); header.writeUInt16BE(4,12);
+    header.writeUInt32BE(1,14); header.writeUInt32BE(3,18); header.writeUInt16BE(8,22); header.writeUInt16BE(4,24);
+    const record = Buffer.alloc(12); record.write('8BIM'); record.writeUInt16BE(1039,4); record.writeUInt32BE(profile.length,8);
+    const length = Buffer.alloc(4); length.writeUInt32BE(record.length + profile.length + profile.length % 2);
+    // These ink values were converted independently with Pillow ImageCms and this Windows profile.
+    const samples = [[0,255,255,0],[128,64,32,80],[0,0,0,128]];
+    const planes = Buffer.from([0,1,2,3].flatMap(c => samples.map(p => 255-p[c])));
+    const path = join(dir,'profiled.psd');
+    for (const compression of [0,2]) {
+      await writeFile(path, Buffer.concat([header,length,record,profile,Buffer.alloc(profile.length % 2),Buffer.alloc(4),Buffer.from([0,compression]),compression ? deflateSync(planes) : planes]));
+      const result = await readPsdComposite(path); assert.ok(result);
+      assert.deepEqual([...(await sharp(result).raw().toBuffer())], [229,51,44,109,122,136,154,155,155]);
+    }
   } finally { await rm(dir,{recursive:true,force:true}); }
 });
