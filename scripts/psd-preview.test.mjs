@@ -121,6 +121,22 @@ test('renders indexed PSD palettes and their transparent index', async () => {
   } finally { await rm(dir,{recursive:true,force:true}); }
 });
 
+test('decodes padded 1-bit bitmap rows in raw, RLE and ZIP PSDs', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'keyflow-bitmap-psd-'));
+  try {
+    const header = Buffer.alloc(30); header.write('8BPS'); header.writeUInt16BE(1,4); header.writeUInt16BE(1,12);
+    header.writeUInt32BE(2,14); header.writeUInt32BE(5,18); header.writeUInt16BE(1,22); header.writeUInt16BE(0,24);
+    const path = join(dir,'bitmap.psd');
+    for (const compression of [0,1,2]) {
+      const data = compression === 0 ? Buffer.from([0xa8,0x50]) : compression === 1 ? Buffer.from([0,2,0,2,0,0xa8,0,0x50]) : deflateSync(Buffer.from([0xa8,0x50]));
+      await writeFile(path,Buffer.concat([header,Buffer.alloc(8),Buffer.from([0,compression]),data]));
+      const image = await readPsdComposite(path); assert.ok(image);
+      const raw = await sharp(image).greyscale().raw().toBuffer();
+      assert.deepEqual([...raw],[0,255,0,255,0,255,0,255,0,255]);
+    }
+  } finally { await rm(dir,{recursive:true,force:true}); }
+});
+
 test('decodes 16-bit ZIP prediction as big-endian sample differences', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'keyflow-16bit-predict-'));
   try {

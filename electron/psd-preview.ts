@@ -22,6 +22,7 @@ function removeWhiteMatte(pixels: Buffer, colorChannels: number): void {
 }
 
 function readSample(row: Buffer, offset: number, depth: number): number {
+  if (depth === 1) return row[Math.floor(offset / 8)] & (0x80 >>> (offset % 8)) ? 0 : 255;
   if (depth !== 32) return row[offset];
   const value = row.readFloatBE(offset);
   return Number.isNaN(value) ? 0 : Math.max(0, Math.min(255, Math.floor(value * 256)));
@@ -184,8 +185,8 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
     const version = header.readUInt16BE(4), channels = header.readUInt16BE(12);
     const height = header.readUInt32BE(14), width = header.readUInt32BE(18);
     const depth = header.readUInt16BE(22), mode = header.readUInt16BE(24);
-    const colorChannels = mode === 3 ? 3 : mode === 1 || mode === 2 ? 1 : mode === 4 ? 4 : 0;
-    if (![1, 2].includes(version) || ![8, 16, 32].includes(depth) || !colorChannels || channels < colorChannels || channels > 56 || !width || !height || width > 300000 || height > 300000 || signal?.aborted) return null;
+    const colorChannels = mode === 3 ? 3 : mode === 0 || mode === 1 || mode === 2 ? 1 : mode === 4 ? 4 : 0;
+    if (![1, 2].includes(version) || ![1, 8, 16, 32].includes(depth) || (depth === 1) !== (mode === 0) || !colorChannels || channels < colorChannels || channels > 56 || !width || !height || width > 300000 || height > 300000 || signal?.aborted) return null;
     const palette = mode === 2 && depth === 8 && header.readUInt32BE(26) === 768 ? await read(30, 768) : null;
     if (mode === 2 && !palette) return null;
     let pos = 30 + header.readUInt32BE(26);
@@ -241,6 +242,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
     const compression = await read(pos, 2); if (!compression) return null;
     const compressionType = compression.readUInt16BE();
     if (compressionType > 3) return null;
+    if (depth === 1 && compressionType === 3) return null;
     pos += 2;
     const entrySize = version === 2 ? 4 : 2;
     const tableSize = compressionType === 1 ? channels * height * entrySize : 0;
@@ -260,7 +262,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
     const pixels = Buffer.alloc(outWidth * outHeight * usedChannels);
     if (compressionType === 2 || compressionType === 3) {
       const bytesPerSample = depth / 8;
-      const bytesPerPlane = width * height * bytesPerSample;
+      const bytesPerPlane = depth === 1 ? Math.ceil(width / 8) * height : width * height * bytesPerSample;
       const required = bytesPerPlane * usedChannels;
       const input = createReadStream(path, { start: pos, highWaterMark: 64 * 1024 });
       const inflater = createInflate();
@@ -271,6 +273,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
       let index = 0, previous = 0, highByte = 0;
       const floatSample = Buffer.alloc(4);
       const predictedFloatRow = depth === 32 && compressionType === 3 ? Buffer.alloc(width * 4) : null;
+      const bitmapRow = depth === 1 ? Buffer.alloc(Math.ceil(width / 8)) : null;
       try {
         for await (const data of inflater) {
           const chunk = data as Buffer;
@@ -278,6 +281,16 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
             const inPlane = index % bytesPerPlane;
             const channel = Math.floor(index / bytesPerPlane);
             if (channel >= usedChannels) break;
+            if (bitmapRow) {
+              const rowOffset = inPlane % bitmapRow.length;
+              bitmapRow[rowOffset] = byte;
+              if (rowOffset === bitmapRow.length - 1) {
+                const y = outputRows[Math.floor(inPlane / bitmapRow.length)];
+                if (y >= 0) for (let x = 0; x < outWidth; x++) pixels[(y * outWidth + x) * usedChannels + channel] = readSample(bitmapRow, sourceColumns[x], 1);
+              }
+              index++;
+              continue;
+            }
             if (predictedFloatRow) {
               const rowOffset = inPlane % (width * 4);
               previous = rowOffset === 0 ? byte : (previous + byte) & 0xff;
@@ -336,7 +349,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
       if (hasAlpha && mode !== 4 && !profile) removeWhiteMatte(pixels, colorChannels);
       return await encodeComposite(pixels, outWidth, outHeight, usedChannels, mode, profile, hasAlpha);
     }
-    const rowBytes = width * (depth / 8);
+    const rowBytes = Math.ceil(width * depth / 8);
     for (let channel = 0; channel < usedChannels; channel++) {
       for (let row = 0; row < height; row++) {
         if (signal?.aborted) return null;
@@ -349,7 +362,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
         const packed = await read(pos, count); if (!packed) return null;
         pos += count;
         if (compressionType === 0) {
-          for (let x = 0; x < outWidth; x++) pixels[((outRow * outWidth + x) * usedChannels) + channel] = readSample(packed, sourceColumns[x] * (depth / 8), depth);
+          for (let x = 0; x < outWidth; x++) pixels[((outRow * outWidth + x) * usedChannels) + channel] = readSample(packed, sourceColumns[x] * (depth === 1 ? 1 : depth / 8), depth);
           continue;
         }
         const unpacked = Buffer.alloc(rowBytes);
@@ -366,7 +379,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
           }
         }
         if (x !== rowBytes) return null;
-        for (let x = 0; x < outWidth; x++) pixels[((outRow * outWidth + x) * usedChannels) + channel] = readSample(unpacked, sourceColumns[x] * (depth / 8), depth);
+        for (let x = 0; x < outWidth; x++) pixels[((outRow * outWidth + x) * usedChannels) + channel] = readSample(unpacked, sourceColumns[x] * (depth === 1 ? 1 : depth / 8), depth);
       }
     }
     if (palette) return await encodeIndexed(pixels, outWidth, outHeight, palette, profile, transparentIndex);
