@@ -7,6 +7,8 @@ import sharp from 'sharp';
 import { makeZip } from './quick-preview-zip-fixture.mjs';
 
 protocol.registerSchemesAsPrivileged([{scheme:'keyflow-preview',privileges:{standard:true,secure:true,stream:true,supportFetchAPI:true,corsEnabled:true}}]);
+// The fixture owns its exit code even when destroying the last window.
+app.on('window-all-closed', event => event.preventDefault());
 (async () => {
 const dir = await mkdtemp(join(tmpdir(), 'keyflow-media-test-'));
 app.setPath('userData', join(dir, 'profile'));
@@ -116,8 +118,8 @@ try {
   await until(`document.body.innerText.includes('This audio format could not be played')`);
   console.log('PASS: unreadable audio shows a useful error');
   console.log('PASS: WAV, PDF pages, ZIP contents, DOCX text, TIFF, and image larger than 20 MB rendered');
-  clearTimeout(timer); manager.destroy(); await rm(dir, {recursive:true,force:true}); app.exit(0);
+  clearTimeout(timer); manager.destroy(); try { await rm(dir, {recursive:true,force:true}); } catch {} app.exit(0);
 } catch (error) {
-  console.error(error); clearTimeout(timer); manager?.destroy(); await rm(dir, {recursive:true,force:true}); app.exit(1);
+  console.error(error); clearTimeout(timer); manager?.destroy(); try { await rm(dir, {recursive:true,force:true}); } catch {} app.exit(1);
 }
 })().catch(error => { console.error(error); app.exit(1); });
