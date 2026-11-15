@@ -103,6 +103,24 @@ test('reads 32-bit floating point RGB composite rows in raw, RLE and ZIP files',
   } finally { await rm(dir,{recursive:true,force:true}); }
 });
 
+test('renders indexed PSD palettes and their transparent index', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'keyflow-indexed-psd-'));
+  try {
+    const header = Buffer.alloc(30); header.write('8BPS'); header.writeUInt16BE(1,4); header.writeUInt16BE(1,12);
+    header.writeUInt32BE(1,14); header.writeUInt32BE(2,18); header.writeUInt16BE(8,22); header.writeUInt16BE(2,24); header.writeUInt32BE(768,26);
+    const palette = Buffer.alloc(768); palette[5]=255; palette[256+6]=128; palette[512+6]=255;
+    const resource = Buffer.alloc(14); resource.write('8BIM'); resource.writeUInt16BE(1047,4); resource.writeUInt32BE(2,8); resource.writeUInt16BE(5,12);
+    const size = Buffer.alloc(4); size.writeUInt32BE(resource.length);
+    const path = join(dir,'palette.psd');
+    for (const compression of [0,1,2,3]) {
+      const data = compression === 0 ? Buffer.from([5,6]) : compression === 1 ? Buffer.from([0,3,1,5,6]) : deflateSync(Buffer.from(compression === 2 ? [5,6] : [5,1]));
+      await writeFile(path,Buffer.concat([header,palette,size,resource,Buffer.alloc(4),Buffer.from([0,compression]),data]));
+      const result = await readPsdComposite(path); assert.ok(result);
+      assert.deepEqual([...(await sharp(result).raw().toBuffer())],[255,0,0,0,0,128,255,255]);
+    }
+  } finally { await rm(dir,{recursive:true,force:true}); }
+});
+
 test('decodes 16-bit ZIP prediction as big-endian sample differences', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'keyflow-16bit-predict-'));
   try {

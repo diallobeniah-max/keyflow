@@ -43,7 +43,7 @@ function cmykToRgb(pixels: Buffer): Buffer {
 // profiles before passing them on, so they cannot masquerade as color-managed.
 function isPlausibleProfile(profile: Buffer, mode: number): boolean {
   if (profile.length < 132 || profile.readUInt32BE(0) !== profile.length ||
-      profile.toString('ascii', 36, 40) !== 'acsp' || profile.toString('ascii', 16, 20) !== (mode === 4 ? 'CMYK' : mode === 3 ? 'RGB ' : 'GRAY')) return false;
+      profile.toString('ascii', 36, 40) !== 'acsp' || profile.toString('ascii', 16, 20) !== (mode === 4 ? 'CMYK' : mode === 3 || mode === 2 ? 'RGB ' : 'GRAY')) return false;
   const count = profile.readUInt32BE(128);
   if (count > Math.floor((profile.length - 132) / 12)) return false;
   const tags = new Set<string>();
@@ -54,7 +54,7 @@ function isPlausibleProfile(profile: Buffer, mode: number): boolean {
     const tag = profile.toString('ascii', entry, entry + 4);
     tags.add(tag);
   }
-  return tags.has('A2B0') || tags.has('D2B0') || (mode === 3 && ['rXYZ', 'gXYZ', 'bXYZ', 'rTRC', 'gTRC', 'bTRC'].every(tag => tags.has(tag))) || (mode === 1 && tags.has('kTRC'));
+  return tags.has('A2B0') || tags.has('D2B0') || ((mode === 3 || mode === 2) && ['rXYZ', 'gXYZ', 'bXYZ', 'rTRC', 'gTRC', 'bTRC'].every(tag => tags.has(tag))) || (mode === 1 && tags.has('kTRC'));
 }
 
 // Wrap sampled channels as TIFF so libvips can apply the embedded ICC profile.
@@ -104,6 +104,23 @@ async function encodeComposite(pixels: Buffer, width: number, height: number, ch
       ? sharp(profiledTiff(pixels, width, height, profile, mode === 4 ? 4 : mode === 3 ? 3 : 1), { failOn: 'warning' }).toColourspace('srgb')
       : sharp(mode === 4 ? cmykToRgb(pixels) : pixels, { raw: { width, height, channels: (mode === 4 ? 3 : channels) as 1 | 2 | 3 | 4 } });
     return await image.resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
+  } catch { return null; }
+}
+
+async function encodeIndexed(pixels: Buffer, width: number, height: number, palette: Buffer, profile: Buffer | null, transparentIndex: number | null): Promise<Buffer | null> {
+  try {
+    const rgb = Buffer.alloc(width * height * 3);
+    for (let i = 0; i < pixels.length; i++) {
+      const index = pixels[i]; rgb[i * 3] = palette[index]; rgb[i * 3 + 1] = palette[256 + index]; rgb[i * 3 + 2] = palette[512 + index];
+    }
+    const colors = profile ? await sharp(profiledTiff(rgb, width, height, profile, 3), { failOn: 'warning' }).toColourspace('srgb').removeAlpha().raw().toBuffer() : rgb;
+    if (colors.length !== rgb.length) return null;
+    if (transparentIndex === null) return await sharp(colors, { raw: { width, height, channels: 3 } }).resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
+    const rgba = Buffer.alloc(width * height * 4);
+    for (let i = 0; i < pixels.length; i++) {
+      rgba[i * 4] = colors[i * 3]; rgba[i * 4 + 1] = colors[i * 3 + 1]; rgba[i * 4 + 2] = colors[i * 3 + 2]; rgba[i * 4 + 3] = pixels[i] === transparentIndex ? 0 : 255;
+    }
+    return await sharp(rgba, { raw: { width, height, channels: 4 } }).resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
   } catch { return null; }
 }
 
@@ -167,11 +184,14 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
     const version = header.readUInt16BE(4), channels = header.readUInt16BE(12);
     const height = header.readUInt32BE(14), width = header.readUInt32BE(18);
     const depth = header.readUInt16BE(22), mode = header.readUInt16BE(24);
-    const colorChannels = mode === 3 ? 3 : mode === 1 ? 1 : mode === 4 ? 4 : 0;
+    const colorChannels = mode === 3 ? 3 : mode === 1 || mode === 2 ? 1 : mode === 4 ? 4 : 0;
     if (![1, 2].includes(version) || ![8, 16, 32].includes(depth) || !colorChannels || channels < colorChannels || channels > 56 || !width || !height || width > 300000 || height > 300000 || signal?.aborted) return null;
+    const palette = mode === 2 && depth === 8 && header.readUInt32BE(26) === 768 ? await read(30, 768) : null;
+    if (mode === 2 && !palette) return null;
     let pos = 30 + header.readUInt32BE(26);
     const resources = await read(pos, 4); if (!resources) return null;
     let profile: Buffer | null = null;
+    let transparentIndex: number | null = null;
     {
       let cursor = pos + 4;
       const end = cursor + resources.readUInt32BE(0);
@@ -191,6 +211,12 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
           profile = await read(lengthOffset + 4, length);
           if (!profile || !isPlausibleProfile(profile, mode)) return null;
         }
+        if (mode === 2 && id === 1047) {
+          if (transparentIndex !== null || length !== 2 || lengthOffset + 6 > end) return null;
+          const value = await read(lengthOffset + 4, 2);
+          if (!value || value.readUInt16BE() > 255) return null;
+          transparentIndex = value.readUInt16BE();
+        }
         cursor = lengthOffset + 4 + length + (length % 2);
         if (cursor > end) return null;
       }
@@ -209,6 +235,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
       hasAlpha = infoLength >= 2 && layerInfo.readInt16BE(layerSizeBytes) < 0;
     }
     if (hasAlpha && channels <= colorChannels) return null;
+    if (mode === 2 && hasAlpha) return null;
     const usedChannels = colorChannels + (hasAlpha ? 1 : 0);
     pos += layerSizeBytes + layerLength;
     const compression = await read(pos, 2); if (!compression) return null;
@@ -222,7 +249,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
     pos += tableSize;
     // Large PSBs can have hundreds of millions of pixels. Sample rows and
     // columns directly instead of allocating a full-sized flattened image.
-    const scale = width * height > (profile || (mode === 4 && hasAlpha) ? 4_000_000 : 60_000_000) ? Math.min(1, 2048 / width, 2048 / height) : 1;
+    const scale = width * height > (profile || mode === 2 || (mode === 4 && hasAlpha) ? 4_000_000 : 60_000_000) ? Math.min(1, 2048 / width, 2048 / height) : 1;
     const outWidth = Math.max(1, Math.floor(width * scale));
     const outHeight = Math.max(1, Math.floor(height * scale));
     const sourceColumns = new Int32Array(outWidth);
@@ -305,6 +332,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
         signal?.removeEventListener("abort", abort);
       }
       if (index !== required) return null;
+      if (palette) return await encodeIndexed(pixels, outWidth, outHeight, palette, profile, transparentIndex);
       if (hasAlpha && mode !== 4 && !profile) removeWhiteMatte(pixels, colorChannels);
       return await encodeComposite(pixels, outWidth, outHeight, usedChannels, mode, profile, hasAlpha);
     }
@@ -341,6 +369,7 @@ export async function readPsdComposite(path: string, signal?: AbortSignal): Prom
         for (let x = 0; x < outWidth; x++) pixels[((outRow * outWidth + x) * usedChannels) + channel] = readSample(unpacked, sourceColumns[x] * (depth / 8), depth);
       }
     }
+    if (palette) return await encodeIndexed(pixels, outWidth, outHeight, palette, profile, transparentIndex);
     if (hasAlpha && mode !== 4 && !profile) removeWhiteMatte(pixels, colorChannels);
     return await encodeComposite(pixels, outWidth, outHeight, usedChannels, mode, profile, hasAlpha);
   } finally { await file.close(); }
