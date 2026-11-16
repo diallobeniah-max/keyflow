@@ -21,6 +21,10 @@ try {
   await writeFile(first, 'First fixture contents');
   await writeFile(second, 'Second fixture contents');
   manager = new QuickPreviewWindowManager(false);
+  manager.warm();
+  manager.warm();
+  assert.equal(BrowserWindow.getAllWindows().length, 1, 'warming must create only one window');
+  assert.equal(BrowserWindow.getAllWindows()[0].isVisible(), false, 'warming must not show or focus the window');
   ipcMain.handle('quick-preview:close', () => { manager.closePreview(); return true; });
   console.log('Opening first fixture');
   assert.equal(await manager.openPreview(first), true);

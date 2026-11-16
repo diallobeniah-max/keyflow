@@ -1043,7 +1043,7 @@ app.whenReady().then(() => {
   quickPreviewController = new QuickPreviewController(
     quickPreviewManager,
     getExplorerSelection,
-    () => { warmExplorerSelection(); warmShellThumbnail(); },
+    () => { warmExplorerSelection(); warmShellThumbnail(); quickPreviewManager?.warm(); },
     () => { disposeExplorerSelection(); disposeShellThumbnail(); },
   );
   quickPreviewMonitor = new QuickPreviewMonitor(getExplorerSelectionSnapshot);

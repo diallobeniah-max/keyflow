@@ -367,6 +367,12 @@ export class QuickPreviewWindowManager {
     this.maxFileSizeMb = Math.max(1, Math.min(500, mb));
   }
 
+  /** Load the hidden renderer when Quick Preview is enabled, before the first keypress. */
+  warm(): void {
+    if (this.destroyed || this.creating || (this.window && !this.window.isDestroyed())) return;
+    this.creating = this.createWindow().finally(() => { this.creating = null; });
+  }
+
   async openPreview(filePath: string): Promise<boolean> {
     if (this.destroyed) return false;
     if (!isValidLocalPath(filePath)) {
@@ -392,10 +398,8 @@ export class QuickPreviewWindowManager {
 
     this.currentPath = filePath;
 
-    if (!this.window || this.window.isDestroyed()) {
-      this.creating ??= this.createWindow().finally(() => { this.creating = null; });
-      await this.creating;
-    }
+    if (!this.window || this.window.isDestroyed()) this.warm();
+    if (this.creating) await this.creating;
 
     const win = this.window;
     if (generation !== this.generation || !win || win.isDestroyed()) return false;
