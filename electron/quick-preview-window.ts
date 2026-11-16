@@ -12,6 +12,7 @@ import { readShellThumbnail } from "./quick-preview-shell.js";
 import { detectKind, type PreviewFileKind } from "./quick-preview-formats.js";
 import { readZipListing, type PreviewArchive } from "./quick-preview-archive.js";
 import { readDocxText } from "./quick-preview-docx.js";
+import { OfficePreviewProcess, type OfficeBounds, type OfficeKeys } from "./quick-preview-office.js";
 export type { PreviewFileKind } from "./quick-preview-formats.js";
 export { isValidLocalPath } from "./quick-preview-path.js";
 
@@ -357,10 +358,63 @@ export class QuickPreviewWindowManager {
   private previewSession = session.fromPartition(`quick-preview-${randomUUID()}`);
   private loadAbort: AbortController | null = null;
   private destroyed = false;
+  private office: OfficePreviewProcess | null = null;
+  private officeKeys: OfficeKeys | null = null;
+  private officeResizeRevision = 0;
 
-  constructor(isDev: boolean) {
+  constructor(isDev: boolean, private readonly officeIntegration?: { available: () => boolean; gate: (window: number, escape: boolean) => void; close: () => void }) {
     this.isDev = isDev;
     this.previewSession.protocol.handle("keyflow-preview", request => this.stream.serve(request));
+  }
+
+  setOfficeKeys(keys: OfficeKeys | null): void {
+    const old=this.officeKeys;
+    if (this.office && (!keys || !old || keys.key!==old.key || keys.modifiers!==old.modifiers || keys.escape!==old.escape)) this.stopOfficePreview();
+    this.officeKeys = keys;
+    if (!keys) this.stopOfficePreview();
+  }
+
+  stopOfficePreview(): void {
+    this.officeResizeRevision++;
+    this.officeIntegration?.gate(0, false);
+    const old = this.office; this.office = null;
+    old?.stop();
+  }
+
+  private async getOfficeBounds(win: BrowserWindow): Promise<OfficeBounds | null> {
+    try {
+      const rect = await win.webContents.executeJavaScript(`(() => { const e=document.querySelector('.qpo-content'); if(!e)return null; const r=e.getBoundingClientRect(); return {x:r.x,y:r.y,width:r.width,height:r.height,scale:window.devicePixelRatio}; })()`);
+      if (!rect || ![rect.x,rect.y,rect.width,rect.height,rect.scale].every(Number.isFinite) || rect.width <= 0 || rect.height <= 0 || rect.scale <= 0 || rect.scale > 8) return null;
+      const bounds = { x:Math.round(rect.x*rect.scale), y:Math.round(rect.y*rect.scale), width:Math.round(rect.width*rect.scale), height:Math.round(rect.height*rect.scale) };
+      return bounds.width > 0 && bounds.height > 0 && bounds.width <= 16000 && bounds.height <= 16000 ? bounds : null;
+    } catch { return null; }
+  }
+
+  private async resizeOfficePreview(win: BrowserWindow): Promise<void> {
+    const worker=this.office, revision=++this.officeResizeRevision;
+    if (!worker || win.isDestroyed()) return;
+    const bounds=await this.getOfficeBounds(win);
+    if (bounds && revision===this.officeResizeRevision && worker===this.office && !win.isDestroyed()) worker.resize(bounds);
+  }
+
+  private async startOfficePreview(win: BrowserWindow, path: string, generation: number): Promise<void> {
+    if (!this.officeIntegration?.available() || !this.officeKeys || !/\.(docx?|xlsx?|pptx?)$/i.test(path)) return;
+    const bounds=await this.getOfficeBounds(win);
+    if (!bounds || generation!==this.generation || win.isDestroyed() || !this.officeKeys || !this.officeIntegration.available()) return;
+    const handle=win.getNativeWindowHandle();
+    const hwnd=handle.length >= 8 ? Number(handle.readBigUInt64LE()) : handle.readUInt32LE();
+    if (!Number.isSafeInteger(hwnd) || hwnd <= 0) return;
+    let worker: OfficePreviewProcess;
+    worker=new OfficePreviewProcess(() => { if (this.office===worker) this.officeIntegration?.close(); }, () => {
+      if (this.office===worker) { this.office=null; this.officeIntegration?.gate(0,false); }
+    });
+    this.office=worker;
+    const keys=this.officeKeys;
+    const ready=await worker.start(hwnd,path,bounds,keys);
+    if (this.office!==worker || generation!==this.generation || win.isDestroyed() || !this.officeIntegration.available()) { if(this.office===worker)this.stopOfficePreview(); else worker.stop(); return; }
+    if (!ready) { this.stopOfficePreview(); return; }
+    this.officeIntegration.gate(hwnd,keys.escape);
+    void this.resizeOfficePreview(win);
   }
 
   setMaxFileSizeMb(mb: number): void {
@@ -380,6 +434,7 @@ export class QuickPreviewWindowManager {
       return false;
     }
     const generation = ++this.generation;
+    this.stopOfficePreview();
     this.loadAbort?.abort();
     this.loadAbort = new AbortController();
     const signal = this.loadAbort.signal;
@@ -405,6 +460,9 @@ export class QuickPreviewWindowManager {
     if (generation !== this.generation || !win || win.isDestroyed()) return false;
     win.webContents.send("quick-preview:close"); // Clear the previous file and show loading.
     this.showAndCenter(win);
+    // Start the native handler while the text or thumbnail fallback resolves.
+    // A slow fallback should not delay the richer document preview.
+    void this.startOfficePreview(win, filePath, generation);
     const resolving = resolveFileInfo(filePath, this.maxFileSizeMb, signal, fileSize);
     const ext = extname(filePath).toLowerCase();
     if (ext === ".psd" || ext === ".psb") {
@@ -434,6 +492,7 @@ export class QuickPreviewWindowManager {
 
   closePreview(): void {
     this.generation++;
+    this.stopOfficePreview();
     this.loadAbort?.abort();
     this.loadAbort = null;
     this.stream.clear();
@@ -458,6 +517,7 @@ export class QuickPreviewWindowManager {
     if (this.destroyed) return;
     this.destroyed = true;
     this.generation++;
+    this.stopOfficePreview();
     this.loadAbort?.abort();
     this.loadAbort = null;
     this.stream.destroy();
@@ -508,9 +568,12 @@ export class QuickPreviewWindowManager {
 
     this.window.setMenuBarVisibility(false);
     this.window.setAutoHideMenuBar(true);
+    this.window.on('resize', () => { if (this.window) void this.resizeOfficePreview(this.window); });
+    this.window.on('move', () => { if (this.window) void this.resizeOfficePreview(this.window); });
 
     this.window.on("closed", () => {
       this.generation++;
+      this.stopOfficePreview();
       this.loadAbort?.abort();
       this.loadAbort = null;
       this.stream.clear();

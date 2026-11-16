@@ -18,6 +18,8 @@ struct State {
     revision: u64,
     snapshot: Option<Snapshot>,
     owned_key: u32,
+    preview_window: usize,
+    preview_escape: bool,
 }
 
 impl State {
@@ -44,9 +46,22 @@ impl State {
         self.snapshot = None;
         (true, true)
     }
+
+    fn preview_key(&mut self, down: bool, vk: u32, mods: u32, foreground: usize, typing: bool, allow: bool) -> (bool, bool) {
+        if self.owned_key == vk {
+            if !down { self.owned_key = 0; }
+            return (true, false);
+        }
+        if !down || !allow || !self.enabled || self.preview_window == 0 || foreground != self.preview_window { return (false, false); }
+        let shortcut = !typing && vk == self.key && mods == self.modifiers;
+        let escape = self.preview_escape && vk == 0x1b && mods == 0;
+        if !shortcut && !escape { return (false, false); }
+        self.owned_key = vk;
+        (true, true)
+    }
 }
 
-static STATE: Mutex<State> = Mutex::new(State { enabled: false, key: 0, modifiers: 0, revision: 0, snapshot: None, owned_key: 0 });
+static STATE: Mutex<State> = Mutex::new(State { enabled: false, key: 0, modifiers: 0, revision: 0, snapshot: None, owned_key: 0, preview_window: 0, preview_escape: false });
 static OWNED_KEY: AtomicU32 = AtomicU32::new(0);
 static ENABLED: AtomicBool = AtomicBool::new(false);
 static REVISION: AtomicU64 = AtomicU64::new(0);
@@ -65,9 +80,16 @@ pub fn configure(enabled: bool, key: u32, modifiers: u32) {
         state.modifiers = modifiers;
         state.revision = revision;
         state.snapshot = None;
+        if !enabled { state.preview_window = 0; state.preview_escape = false; }
     }
     ENABLED.store(enabled && key != 0, Ordering::SeqCst);
     publish_revision(revision);
+}
+
+pub fn set_preview_window(hwnd: usize, escape: bool) {
+    let mut state = STATE.lock().unwrap_or_else(|p| p.into_inner());
+    state.preview_window = if state.enabled { hwnd } else { 0 };
+    state.preview_escape = state.preview_window != 0 && escape;
 }
 
 pub fn invalidate() {
@@ -91,7 +113,7 @@ pub fn update(revision: u64, foreground: usize, focus: usize, valid: bool) {
 }
 
 /// Returns whether the event is owned. A fresh trigger is emitted only once.
-pub fn key_event(down: bool, vk: u32, modifiers: u32, allow: bool) -> bool {
+pub fn key_event(down: bool, vk: u32, modifiers: u32, allow: bool, allow_preview: bool) -> bool {
     if OWNED_KEY.load(Ordering::SeqCst) == vk {
         if !down { OWNED_KEY.store(0, Ordering::SeqCst); }
         return true;
@@ -104,8 +126,9 @@ pub fn key_event(down: bool, vk: u32, modifiers: u32, allow: bool) -> bool {
     let typing = !ok || (info.flags & GUI_CARETBLINKING) != 0;
     let (owned, fired) = if let Ok(mut state) = STATE.try_lock() {
         if state.snapshot.map_or(false, |s| s.revision != REVISION.load(Ordering::SeqCst)) { state.snapshot = None; }
-        let mut result = state.key(down, vk, modifiers, foreground, focus, typing, allow, crate::hook::now_at());
-        if result.1 && state.revision != REVISION.load(Ordering::SeqCst) { state.owned_key = 0; result = (false, false); }
+        let preview_result = state.preview_key(down, vk, modifiers, foreground, typing, allow_preview);
+        let mut result = if preview_result.0 { preview_result } else { state.key(down, vk, modifiers, foreground, focus, typing, allow, crate::hook::now_at()) };
+        if result.1 && !preview_result.0 && state.revision != REVISION.load(Ordering::SeqCst) { state.owned_key = 0; result = (false, false); }
         if result.1 { state.owned_key = 0; OWNED_KEY.store(vk, Ordering::SeqCst); }
         result
     } else { (false, false) };
@@ -113,7 +136,7 @@ pub fn key_event(down: bool, vk: u32, modifiers: u32, allow: bool) -> bool {
     owned
 }
 
-pub fn is_candidate(vk: u32) -> bool { OWNED_KEY.load(Ordering::SeqCst) == vk || STATE.try_lock().map(|state| state.enabled && state.key == vk).unwrap_or(false) }
+pub fn is_candidate(vk: u32) -> bool { OWNED_KEY.load(Ordering::SeqCst) == vk || STATE.try_lock().map(|state| state.enabled && (state.key == vk || (state.preview_window != 0 && state.preview_escape && vk == 0x1b))).unwrap_or(false) }
 
 #[cfg(test)]
 mod tests {
@@ -140,5 +163,30 @@ mod tests {
         assert_eq!(s.key(true, 32, 0, 10, 20, false, true, ms(20)), (false, false));
         s.update(s.revision, 10, 20, true, ms(21));
         assert_eq!(s.key(true, 32, 0, 10, 20, false, true, ms(22)), (true, true));
+    }
+    #[test]
+    fn preview_keys_are_limited_to_registered_foreground_and_pair_releases() {
+        let mut s = State { enabled: true, key: 32, preview_window: 55, preview_escape: true, ..State::default() };
+        assert_eq!(s.preview_key(true, 32, 0, 56, false, true), (false, false));
+        assert_eq!(s.preview_key(true, 32, 1, 55, false, true), (false, false));
+        assert_eq!(s.preview_key(true, 32, 0, 55, true, true), (false, false));
+        assert_eq!(s.preview_key(true, 32, 0, 55, false, false), (false, false));
+        assert_eq!(s.preview_key(true, 0x1b, 2, 55, false, true), (false, false));
+        assert_eq!(s.preview_key(true, 32, 0, 55, false, true), (true, true));
+        assert_eq!(s.preview_key(false, 32, 0, 56, false, false), (true, false));
+        assert_eq!(s.preview_key(true, 0x1b, 0, 55, true, true), (true, true));
+        assert_eq!(s.preview_key(false, 0x1b, 0, 55, true, true), (true, false));
+        s.preview_escape = false;
+        assert_eq!(s.preview_key(true, 0x1b, 0, 55, false, true), (false, false));
+    }
+    #[test]
+    fn custom_preview_binding_requires_exact_key_and_modifiers() {
+        let mut s = State { enabled: true, key: 0x70, modifiers: 0b0011, preview_window: 55, preview_escape: false, ..State::default() };
+        assert_eq!(s.preview_key(true, 0x70, 0b0001, 55, false, true), (false, false));
+        assert_eq!(s.preview_key(true, 0x70, 0b0111, 55, false, true), (false, false));
+        assert_eq!(s.preview_key(true, 0x71, 0b0011, 55, false, true), (false, false));
+        assert_eq!(s.preview_key(true, 0x70, 0b0011, 55, true, true), (false, false));
+        assert_eq!(s.preview_key(true, 0x70, 0b0011, 55, false, true), (true, true));
+        assert_eq!(s.preview_key(false, 0x70, 0, 55, false, true), (true, false));
     }
 }

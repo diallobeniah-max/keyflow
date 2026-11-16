@@ -261,6 +261,7 @@ export class NativeInputHelper {
   private onQuickPreviewRevision: ((revision: number, available: boolean) => void) | null = null;
   private onQuickPreviewTriggered: (() => void) | null = null;
   private pendingQuickPreview = { enabled: false, key: 0, modifiers: 0 };
+  private pendingQuickPreviewWindow = { window: 0, escape: false };
   private onWasdToggleRequested: (() => void) | null = null;
   private onCapturedKey: ((msg: NativeCapturedKeyMessage) => void) | null = null;
   private onDragSwitcherShow: ((msg: DragSwitcherShowMessage) => void) | null = null;
@@ -321,6 +322,10 @@ export class NativeInputHelper {
   }
   setQuickPreviewSnapshot(revision: number, foreground: number, focus: number, valid: boolean): void {
     if (this.status === "ready") this.send({ type: "quickPreviewSnapshot", revision, foreground, focus, valid });
+  }
+  setQuickPreviewWindow(window: number, escape: boolean): void {
+    this.pendingQuickPreviewWindow = { window, escape };
+    if (this.status === "ready") this.send({ type: "setQuickPreviewWindow", window, escape });
   }
   requestQuickPreviewRevision(): void { if (this.status === "ready") this.send({ type: "getQuickPreviewRevision" }); }
 
@@ -830,6 +835,7 @@ export class NativeInputHelper {
   private flushConfigure(): void {
     this.sendConfigure();
     this.send({ type: "configureQuickPreview", ...this.pendingQuickPreview });
+    this.send({ type: "setQuickPreviewWindow", ...this.pendingQuickPreviewWindow });
     this.sendDragSwitcher();
     this.sendSmoothScroll();
     this.send({ type: "setWasdMouseChord", version: NATIVE_PROTOCOL_VERSION, enabled: this.pendingWasdMouseChord });

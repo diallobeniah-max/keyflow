@@ -22,6 +22,8 @@ extraResources:
     to: keyflow-input/keyflow-input.exe
   - from: native/keyflow-color/target/release/keyflow-color.exe
     to: keyflow-color/keyflow-color.exe
+  - from: electron/office-handler-worker.ps1
+    to: quick-preview/office-handler-worker.ps1
 asar: true
 win:
   target:

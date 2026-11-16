@@ -441,6 +441,10 @@ pub enum InMessage {
         #[serde(default)] valid: bool,
     },
     GetQuickPreviewRevision {},
+    SetQuickPreviewWindow {
+        #[serde(default)] window: u64,
+        #[serde(default)] escape: bool,
+    },
     /// New canonical configuration: complete shortcut definitions. This is
     /// what the native trigger engine consumes.
     Configure {
@@ -1042,6 +1046,18 @@ mod tests {
         assert!(json.contains(r#""type":"appList""#));
         assert!(json.contains(r#""executablePath""#));
         assert!(json.contains(r#""processName":"notepad""#));
+    }
+
+    #[test]
+    fn parses_scoped_preview_window_registration() {
+        match parse_line(r#"{"type":"setQuickPreviewWindow","window":1234,"escape":true}"#) {
+            Some(InMessage::SetQuickPreviewWindow { window, escape }) => { assert_eq!(window, 1234); assert!(escape); },
+            _ => panic!("expected preview window registration"),
+        }
+        match parse_line(r#"{"type":"setQuickPreviewWindow","window":0,"escape":false}"#) {
+            Some(InMessage::SetQuickPreviewWindow { window, escape }) => { assert_eq!(window, 0); assert!(!escape); },
+            _ => panic!("expected preview window clear"),
+        }
     }
 
     #[test]

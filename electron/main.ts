@@ -551,6 +551,7 @@ function registerIPC(): void {
     const parsed = parseQuickPreviewBinding(config.shortcut);
     const binding = parsed && !conflictsWithEmergencyShortcut(parsed, config.emergencyShortcut) && !conflictsWithActiveShortcuts(parsed, config.activeShortcuts) ? parsed : null;
     quickPreviewController?.configure({ enabled: config.enabled === true, paused: config.paused === true, shortcut: config.shortcut, closeWithEscape: config.closeWithEscape !== false });
+    quickPreviewManager?.setOfficeKeys(config.enabled === true && config.paused !== true && binding ? { key: binding.vk, modifiers: binding.modifiers, escape: config.closeWithEscape !== false } : null);
     quickPreviewMonitor?.configure({ enabled: config.enabled === true && config.paused !== true && !!binding, key: binding?.vk ?? 0, modifiers: binding?.modifiers ?? 0 });
     return !!binding;
   });
@@ -1038,7 +1039,8 @@ app.whenReady().then(() => {
     appPath: app.getAppPath(),
   });
   quickPreviewManager = new QuickPreviewWindowManager(
-    process.env.NODE_ENV === "development" || process.argv.includes("--dev")
+    process.env.NODE_ENV === "development" || process.argv.includes("--dev"),
+    { available: () => inputBackend === "native" && nativeHelper?.getStatus() === "ready", gate: (window, escape) => nativeHelper?.setQuickPreviewWindow(window, escape), close: () => quickPreviewController?.close() },
   );
   quickPreviewController = new QuickPreviewController(
     quickPreviewManager,
@@ -1078,12 +1080,14 @@ app.whenReady().then(() => {
       (status) => {
         if (status === "failed") {
           quickPreviewMonitor?.setPort(null);
+          quickPreviewManager?.stopOfficePreview();
           nativeEngineStatus = "failed";
           fallbackToLegacy("helper failed");
           return;
         }
         nativeEngineStatus = status;
         if (status === "ready" && nativeHelper) quickPreviewMonitor?.setPort(nativeHelper);
+        if (status !== "ready") quickPreviewManager?.stopOfficePreview();
         if (status === "ready" && navigationModeController?.isActive()) {
           nativeHelper?.setWasdNavigation(true);
         }

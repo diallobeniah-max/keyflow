@@ -522,7 +522,7 @@ unsafe fn hook_proc_inner(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT 
             let win = unsafe { windows_sys::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(0x5B) < 0 || windows_sys::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(0x5C) < 0 };
             (mask & 0b0111) | if win { 0b1000 } else { 0 }
         } else { mask & 0b1111 };
-        if candidate && crate::quick_preview::key_event(down, kbd.vkCode, preview_mask, !paused && !bypass && crate::raw_mouse::selection_invalidation_available()) {
+        if candidate && crate::quick_preview::key_event(down, kbd.vkCode, preview_mask, !paused && !bypass && crate::raw_mouse::selection_invalidation_available(), !paused && !bypass) {
             if let Some(mask_vk) = crate::clipboard_shortcut::start_menu_mask_key(kbd.vkCode, down, true, preview_mask) {
                 send_vk(mask_vk, 0, false, true);
                 send_vk(mask_vk, 0, false, false);
