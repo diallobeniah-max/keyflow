@@ -30,7 +30,7 @@ const FORMAT_LIST = [
   {
     icon: "fileText" as const,
     label: "Word documents",
-    desc: "DOCX text preview; document layout and images are not shown.",
+    desc: "Uses an installed Windows preview handler when available; otherwise DOCX text or a thumbnail is shown.",
     verified: true,
   },
   {
@@ -58,7 +58,7 @@ const LIMITATION_LIST = [
   "Only the focused File Explorer view is supported. The desktop and virtual shell items are not supported in this version.",
   "Preview one file or folder at a time. Multiple selections and no-selection cases leave Space behavior untouched. Folder listings show up to 500 items.",
   "PSD/PSB previews support common RGB, grayscale, CMYK, Lab, indexed-color and bitmap composites. Unprofiled CMYK colors are approximate; unsupported variants may show a thumbnail.",
-  "Other Office documents, RAW images, and unsupported formats may show a Windows thumbnail when a compatible provider is installed; otherwise they show a fallback.",
+  "Office previews depend on an installed Windows preview handler. RAW images and other formats may show a Windows thumbnail when a compatible provider is installed; otherwise they show a fallback.",
   "Audio and video codec support depends on the bundled Electron runtime version. If a file does not play, use 'Open with default app'.",
   "Some file types have size limits. PSD/PSB composites have dimension and format limits even when the file itself is large.",
 ];

@@ -260,12 +260,13 @@ export function QuickPreviewOverlay() {
         <div className="qpo-titlebar-actions" role="toolbar" aria-label="Preview actions">
           <button
             type="button"
-            className="qpo-toolbar-btn"
+            className="qpo-toolbar-btn qpo-open-btn"
             onClick={handleOpenDefault}
             title={info?.kind==='folder'?'Open in File Explorer':'Open with default app'}
             aria-label={info?.kind==='folder'?'Open in File Explorer':'Open with default app'}
           >
             <ArrowSquareOut size={16} aria-hidden="true" />
+            <span className="qpo-open-label">{info?.kind==='folder'?'Open in Explorer':'Open in default app'}</span>
           </button>
 
           <button
