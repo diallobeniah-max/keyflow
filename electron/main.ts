@@ -569,6 +569,26 @@ function registerIPC(): void {
     quickPreviewManager?.openWithDefaultApp(filePath);
     return true;
   });
+  ipcMain.handle("quick-preview:folder-open-entry", (event, name: unknown) => {
+    if (!quickPreviewManager?.ownsSender(event.sender.id)) return false;
+    return quickPreviewManager.openFolderEntry(name);
+  });
+  ipcMain.handle("quick-preview:folder-thumbnail", (event, name: unknown) => {
+    if (!quickPreviewManager?.ownsSender(event.sender.id)) return null;
+    return quickPreviewManager.folderEntryThumbnail(name);
+  });
+  ipcMain.handle("quick-preview:folder-back", event => {
+    if (!quickPreviewManager?.ownsSender(event.sender.id)) return false;
+    return quickPreviewManager.folderBack();
+  });
+  ipcMain.handle("quick-preview:folder-expand", (event, name: unknown) => {
+    if (!quickPreviewManager?.ownsSender(event.sender.id)) return null;
+    return quickPreviewManager.expandFolderEntry(name);
+  });
+  ipcMain.handle("quick-preview:folder-open-expanded", (event, parent: unknown, name: unknown) => {
+    if (!quickPreviewManager?.ownsSender(event.sender.id)) return false;
+    return quickPreviewManager.openExpandedFolderEntry(parent,name);
+  });
   ipcMain.handle("dim-screen:toggle", () => dimScreenManager?.toggle());
   ipcMain.handle("dim-screen:list-displays", () => dimScreenManager?.listDisplays() ?? []);
   ipcMain.handle("window:minimize", () => mainWindow?.minimize());

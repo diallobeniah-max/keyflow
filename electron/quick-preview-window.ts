@@ -2,7 +2,7 @@ import { BrowserWindow, ipcMain, screen, session, shell } from "electron";
 import { randomUUID } from "node:crypto";
 import { join, dirname, extname, basename } from "path";
 import { fileURLToPath } from "url";
-import { stat as statFile, readFile, open as openFile } from "node:fs/promises";
+import { stat as statFile, lstat, readFile, open as openFile } from "node:fs/promises";
 import { spawn, type ChildProcessWithoutNullStreams } from "child_process";
 import { readPsdThumbnail, readPsdComposite } from "./psd-preview.js";
 import sharp from "sharp";
@@ -12,6 +12,7 @@ import { readShellThumbnail } from "./quick-preview-shell.js";
 import { detectKind, type PreviewFileKind } from "./quick-preview-formats.js";
 import { readZipListing, type PreviewArchive } from "./quick-preview-archive.js";
 import { readDocxText } from "./quick-preview-docx.js";
+import { readPreviewFolder, type PreviewFolderListing } from "./quick-preview-folder.js";
 import { OfficePreviewProcess, type OfficeBounds, type OfficeKeys } from "./quick-preview-office.js";
 export type { PreviewFileKind } from "./quick-preview-formats.js";
 export { isValidLocalPath } from "./quick-preview-path.js";
@@ -40,6 +41,8 @@ export interface PreviewFileInfo {
   thumbnailSource?: "embedded" | "windows";
   archive?: PreviewArchive;
   textContent?: string;  // bounded text content
+  folder?: PreviewFolderListing;
+  folderCanGoBack?: boolean;
 }
 
 function mimeForExt(ext: string): string {
@@ -272,7 +275,7 @@ public static class KeyFlowForeground {
       "    if(-not $typing -and $browser -ne 0 -and [KeyFlowForeground]::IsFocusWithin($focus,$browser) -and ($activeTab -eq [IntPtr]::Zero -or $browser -eq $activeTab.ToInt64())){$candidates+=@($w)}",
       "  }",
       "}",
-      "if($candidates.Count -eq 1){$d=$candidates[0].Document.SelectedItems();if($d.Count -eq 1){$item=$d.Item(0);if(-not $item.IsFolder){$sel=$item.Path}}}",
+      "if($candidates.Count -eq 1){$d=$candidates[0].Document.SelectedItems();if($d.Count -eq 1){$item=$d.Item(0);if($item.IsFileSystem){$sel=$item.Path}}}",
       "if(-not ($sel -and [KeyFlowForeground]::GetForegroundWindow().ToInt64() -eq $foreground -and [KeyFlowForeground]::FocusWindow() -eq $focus -and -not [KeyFlowForeground]::IsTyping())){$sel=$null}",
       "[Console]::WriteLine((@{id=$request;path=$sel;foreground=([string]$foreground);focus=([string]$focus)}|ConvertTo-Json -Compress))",
       "}",
@@ -350,6 +353,9 @@ export async function getExplorerSelection(): Promise<string | null> {
 export class QuickPreviewWindowManager {
   private window: BrowserWindow | null = null;
   private currentPath: string | null = null;
+  private folderEntries = new Set<string>();
+  private expandedFolderEntries = new Map<string, Set<string>>();
+  private folderHistory: string[] = [];
   private maxFileSizeMb = 50;
   private isDev: boolean;
   private generation = 0;
@@ -427,26 +433,31 @@ export class QuickPreviewWindowManager {
     this.creating = this.createWindow().finally(() => { this.creating = null; });
   }
 
-  async openPreview(filePath: string): Promise<boolean> {
+  async openPreview(filePath: string, keepFolderHistory = false): Promise<boolean> {
     if (this.destroyed) return false;
     if (!isValidLocalPath(filePath)) {
       console.warn("[quick-preview] rejected invalid path");
       return false;
     }
     const generation = ++this.generation;
+    if (!keepFolderHistory) this.folderHistory = [];
     this.stopOfficePreview();
     this.loadAbort?.abort();
     this.loadAbort = new AbortController();
     const signal = this.loadAbort.signal;
     this.currentPath = null;
+    this.folderEntries.clear();
+    this.expandedFolderEntries.clear();
     this.stream.clear();
     let fileSize: number;
+    let isFolder = false;
     // Filesystem checks can be slow on removable or network drives. Never
     // block Electron's main thread while checking the selected path.
     try {
       const stat = await statFile(filePath);
-      if (generation !== this.generation || this.destroyed || !stat.isFile()) return false;
+      if (generation !== this.generation || this.destroyed || (!stat.isFile() && !stat.isDirectory())) return false;
       fileSize = stat.size;
+      isFolder = stat.isDirectory();
     } catch {
       return false;
     }
@@ -460,6 +471,23 @@ export class QuickPreviewWindowManager {
     if (generation !== this.generation || !win || win.isDestroyed()) return false;
     win.webContents.send("quick-preview:close"); // Clear the previous file and show loading.
     this.showAndCenter(win);
+    if (isFolder) {
+      try {
+        const folder = await readPreviewFolder(filePath, signal, initial => {
+          if (generation !== this.generation || win.isDestroyed()) return;
+          this.folderEntries = new Set(initial.entries.map(entry => entry.name));
+          win.webContents.send("quick-preview:load", {path:filePath,name:basename(filePath),ext:"",sizeMb:0,kind:"folder",folder:initial,folderCanGoBack:this.folderHistory.length>0});
+        });
+        if (generation !== this.generation || win.isDestroyed()) return false;
+        this.folderEntries = new Set(folder.entries.map(entry => entry.name));
+        win.webContents.send("quick-preview:load", {path:filePath,name:basename(filePath),ext:"",sizeMb:0,kind:"folder",folder,folderCanGoBack:this.folderHistory.length>0});
+        return true;
+      } catch {
+        if (generation !== this.generation || win.isDestroyed()) return false;
+        win.webContents.send("quick-preview:load", {path:filePath,name:basename(filePath),ext:"",sizeMb:0,kind:"folder",folder:null,folderCanGoBack:this.folderHistory.length>0});
+        return true;
+      }
+    }
     // Start the native handler while the text or thumbnail fallback resolves.
     // A slow fallback should not delay the richer document preview.
     void this.startOfficePreview(win, filePath, generation);
@@ -485,6 +513,7 @@ export class QuickPreviewWindowManager {
       info.streamUrl = (await this.stream.select(filePath, mimeForExt(info.ext))) ?? undefined;
       if (generation !== this.generation || win.isDestroyed()) return false;
     }
+    info.folderCanGoBack = this.folderHistory.length > 0;
     win.webContents.send("quick-preview:load", info);
 
     return true;
@@ -501,6 +530,71 @@ export class QuickPreviewWindowManager {
       this.window.hide();
     }
     this.currentPath = null;
+    this.folderEntries.clear();
+    this.expandedFolderEntries.clear();
+    this.folderHistory = [];
+  }
+
+  ownsSender(senderId: number): boolean {
+    return !!this.window && !this.window.isDestroyed() && this.window.webContents.id === senderId;
+  }
+
+  private async checkedFolderEntry(name: unknown): Promise<string | null> {
+    const base = this.currentPath, generation = this.generation;
+    if (!base || typeof name !== 'string' || !this.folderEntries.has(name) || name === '.' || name === '..' || /[\\/]/.test(name)) return null;
+    const child = join(base, name);
+    try {
+      const stat = await lstat(child);
+      if (stat.isSymbolicLink() || generation !== this.generation || base !== this.currentPath) return null;
+      return stat.isFile() || stat.isDirectory() ? child : null;
+    } catch { return null; }
+  }
+
+  async openFolderEntry(name: unknown): Promise<boolean> {
+    const parent = this.currentPath;
+    const child = await this.checkedFolderEntry(name);
+    if (!child || !parent) return false;
+    this.folderHistory.push(parent);
+    return this.openPreview(child, true);
+  }
+
+  async folderBack(): Promise<boolean> {
+    const parent = this.folderHistory.pop();
+    return parent ? this.openPreview(parent, true) : false;
+  }
+
+  async folderEntryThumbnail(name: unknown): Promise<string | null> {
+    const generation = this.generation;
+    const child = await this.checkedFolderEntry(name);
+    if (!child) return null;
+    const thumbnail = await readShellThumbnail(child, this.loadAbort?.signal);
+    return generation === this.generation && thumbnail ? `data:image/png;base64,${thumbnail.toString('base64')}` : null;
+  }
+
+  async expandFolderEntry(name: unknown): Promise<PreviewFolderListing | null> {
+    const generation=this.generation;
+    const child=await this.checkedFolderEntry(name);
+    if (!child || typeof name !== 'string') return null;
+    try {
+      if (!(await lstat(child)).isDirectory()) return null;
+      const listing=await readPreviewFolder(child,this.loadAbort?.signal);
+      if (generation!==this.generation) return null;
+      this.expandedFolderEntries.set(name,new Set(listing.entries.map(entry=>entry.name)));
+      return listing;
+    } catch { return null; }
+  }
+
+  async openExpandedFolderEntry(parentName: unknown, name: unknown): Promise<boolean> {
+    const generation=this.generation, root=this.currentPath;
+    if(typeof parentName!=='string'||typeof name!=='string'||!this.expandedFolderEntries.get(parentName)?.has(name)||name==='.'||name==='..'||/[\\/]/.test(name)) return false;
+    const parent=await this.checkedFolderEntry(parentName);
+    if(!parent||!root||generation!==this.generation) return false;
+    try {
+      const parentStat=await lstat(parent), child=join(parent,name), childStat=await lstat(child);
+      if(!parentStat.isDirectory()||parentStat.isSymbolicLink()||childStat.isSymbolicLink()||(!childStat.isDirectory()&&!childStat.isFile())||generation!==this.generation) return false;
+      this.folderHistory.push(root,parent);
+      return this.openPreview(child,true);
+    } catch { return false; }
   }
 
   openWithDefaultApp(filePath: string): void {

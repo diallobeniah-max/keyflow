@@ -305,6 +305,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getExplorerSelection: () => ipcRenderer.invoke("quick-preview:get-selection"),
     openWithDefaultApp: (path: string) => ipcRenderer.invoke("quick-preview:open-default", path),
     openPreview: (path: string) => ipcRenderer.invoke("quick-preview:open", path),
+    openFolderEntry: (name: string) => ipcRenderer.invoke("quick-preview:folder-open-entry", name),
+    folderEntryThumbnail: (name: string) => ipcRenderer.invoke("quick-preview:folder-thumbnail", name),
+    folderBack: () => ipcRenderer.invoke("quick-preview:folder-back"),
+    expandFolderEntry: (name: string) => ipcRenderer.invoke("quick-preview:folder-expand", name),
+    openExpandedFolderEntry: (parent: string, name: string) => ipcRenderer.invoke("quick-preview:folder-open-expanded", parent, name),
     closePreview: () => ipcRenderer.invoke("quick-preview:close"),
     notifyReady: () => ipcRenderer.send("quick-preview:ready"),
     onPreviewLoad: (callback: (info: any) => void) => {

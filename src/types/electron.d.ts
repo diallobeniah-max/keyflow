@@ -287,7 +287,9 @@ interface QuickPreviewFileInfo {
   name: string;
   ext: string;
   sizeMb: number;
-  kind: "image" | "pdf" | "text" | "document" | "audio" | "video" | "archive" | "unsupported";
+  kind: "image" | "pdf" | "text" | "document" | "audio" | "video" | "archive" | "folder" | "unsupported";
+  folder?: { entries:Array<{name:string;directory:boolean;size:number|null;modified:number|null}>; truncated:boolean } | null;
+  folderCanGoBack?: boolean;
   dataUrl?: string;
   streamUrl?: string;
   thumbnailSource?: "embedded" | "windows";
@@ -305,6 +307,11 @@ interface QuickPreviewAPI {
   openWithDefaultApp: (path: string) => Promise<boolean>;
   /** Open the floating preview window for a file path */
   openPreview: (path: string) => Promise<boolean>;
+  openFolderEntry: (name: string) => Promise<boolean>;
+  folderEntryThumbnail: (name: string) => Promise<string | null>;
+  folderBack: () => Promise<boolean>;
+  expandFolderEntry: (name: string) => Promise<{entries:Array<{name:string;directory:boolean;size:number|null;modified:number|null}>;truncated:boolean}|null>;
+  openExpandedFolderEntry: (parent: string, name: string) => Promise<boolean>;
   /** Close the floating preview window */
   closePreview: () => Promise<boolean>;
   /** Notify main process that the preview overlay renderer is ready */

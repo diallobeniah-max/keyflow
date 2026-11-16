@@ -56,7 +56,7 @@ const FORMAT_LIST = [
 const LIMITATION_LIST = [
   "The shortcut is active only for a single selected file in the focused File Explorer view. Text entry remains available.",
   "Only the focused File Explorer view is supported. The desktop and virtual shell items are not supported in this version.",
-  "Only single-file selection is previewed. Multiple files, folders, and no-selection cases leave Space behavior untouched.",
+  "Preview one file or folder at a time. Multiple selections and no-selection cases leave Space behavior untouched. Folder listings show up to 500 items.",
   "PSD/PSB previews support common RGB, grayscale, CMYK, Lab, indexed-color and bitmap composites. Unprofiled CMYK colors are approximate; unsupported variants may show a thumbnail.",
   "Other Office documents, RAW images, and unsupported formats may show a Windows thumbnail when a compatible provider is installed; otherwise they show a fallback.",
   "Audio and video codec support depends on the bundled Electron runtime version. If a file does not play, use 'Open with default app'.",
@@ -174,7 +174,7 @@ export function QuickPreviewPage({ onBack: _onBack }: QuickPreviewPageProps) {
         </PageHeader>
 
         <p className="qp-page-instruction">
-          Select a single file in <strong>File Explorer</strong>, then press{" "}
+          Select a single file or folder in <strong>File Explorer</strong>, then press{" "}
           <kbd className="qp-kbd">{qp.shortcut}</kbd> to open a floating preview.{" "}
           {qp.closeWithEscape
             ? <>Press <kbd className="qp-kbd">Esc</kbd> or click <kbd className="qp-kbd">✕</kbd> to close.</>
@@ -291,7 +291,7 @@ export function QuickPreviewPage({ onBack: _onBack }: QuickPreviewPageProps) {
             <ol className="qp-howto-list">
               <li>Enable Quick Preview using the toggle above.</li>
               <li>Use <strong>Change</strong> above if you prefer another shortcut.</li>
-              <li>Open File Explorer and click a single file to select it.</li>
+              <li>Open File Explorer and select a single file or folder.</li>
               <li>
                 Press <kbd className="qp-kbd">{qp.shortcut}</kbd> — a preview window opens immediately.
               </li>

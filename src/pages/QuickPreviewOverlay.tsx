@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { X, ArrowSquareOut, MagnifyingGlassPlus, MagnifyingGlassMinus, ArrowCounterClockwise } from "@phosphor-icons/react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { X, ArrowLeft, ArrowSquareOut, MagnifyingGlassPlus, MagnifyingGlassMinus, ArrowCounterClockwise, ArrowClockwise } from "@phosphor-icons/react";
 import "../design/quick-preview-overlay.css";
 import { useStore } from "../store/useStore";
 import { QuickPreviewPdf } from "../components/QuickPreviewPdf";
+import { QuickPreviewFolder, type FolderListing } from "../components/QuickPreviewFolder";
 import { matchesPreviewKey } from "../lib/quick-preview-key";
 
 interface PreviewFileInfo {
@@ -10,7 +11,9 @@ interface PreviewFileInfo {
   name: string;
   ext: string;
   sizeMb: number;
-  kind: "image" | "pdf" | "text" | "document" | "audio" | "video" | "archive" | "unsupported";
+  kind: "image" | "pdf" | "text" | "document" | "audio" | "video" | "archive" | "folder" | "unsupported";
+  folder?: FolderListing | null;
+  folderCanGoBack?: boolean;
   dataUrl?: string;
   streamUrl?: string;
   thumbnailSource?: "embedded" | "windows";
@@ -25,6 +28,11 @@ function KbdKey({ children }: { children: React.ReactNode }) {
 export function QuickPreviewOverlay() {
   const [info, setInfo] = useState<PreviewFileInfo | null>(null);
   const [imageZoom, setImageZoom] = useState(1);
+  const [imageRotation, setImageRotation] = useState(0);
+  const [rotationFit, setRotationFit] = useState(1);
+  const [imageDimensions, setImageDimensions] = useState<{width:number;height:number}|null>(null);
+  const imageContainer = useRef<HTMLDivElement>(null);
+  const imageElement = useRef<HTMLImageElement>(null);
   const [loading, setLoading] = useState(true);
   const [contentError, setContentError] = useState(false);
   const previewSettings = useStore(s => s.data.settings.quickPreview);
@@ -35,6 +43,8 @@ export function QuickPreviewOverlay() {
       setLoading(false);
       setContentError(false);
       setImageZoom(1);
+      setImageRotation(0);
+      setImageDimensions(null);
     });
     const unsubClose = window.electronAPI?.quickPreview?.onPreviewClose?.(() => {
       setInfo(null);
@@ -60,11 +70,16 @@ export function QuickPreviewOverlay() {
       if (editing || e.repeat) return;
       if (matchesPreviewKey(previewSettings?.shortcut ?? "Space", e)) {
         e.preventDefault(); handleClose();
+      } else if (info?.kind === 'image' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        if (e.key.toLowerCase() === 'f') { e.preventDefault(); setImageZoom(1); }
+        else if (e.key.toLowerCase() === 'r') { e.preventDefault(); setImageRotation(value=>value+90); }
+        else if (e.key === '+' || e.key === '=') { e.preventDefault(); setImageZoom(value=>Math.min(value+0.25,5)); }
+        else if (e.key === '-') { e.preventDefault(); setImageZoom(value=>Math.max(value-0.25,0.1)); }
       }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [previewSettings?.shortcut, previewSettings?.closeWithEscape]);
+  }, [previewSettings?.shortcut, previewSettings?.closeWithEscape, info?.kind]);
 
   const handleClose = useCallback(() => {
     void window.electronAPI?.quickPreview?.closePreview?.();
@@ -79,6 +94,18 @@ export function QuickPreviewOverlay() {
   const zoomIn = () => setImageZoom((z) => Math.min(z + 0.25, 5));
   const zoomOut = () => setImageZoom((z) => Math.max(z - 0.25, 0.1));
   const zoomReset = () => setImageZoom(1);
+  useEffect(()=>{
+    const container=imageContainer.current, image=imageElement.current;
+    if (!container || !image || !imageDimensions) return;
+    const update=()=>{
+      const rotated=Math.abs(imageRotation/90)%2===1;
+      const w=image.clientWidth, h=image.clientHeight;
+      if(!rotated || !w || !h) {setRotationFit(1);return;}
+      setRotationFit(Math.min(1,Math.max(1,container.clientWidth-32)/h,Math.max(1,container.clientHeight-32)/w));
+    };
+    const observer=new ResizeObserver(update);observer.observe(container);observer.observe(image);update();
+    return()=>observer.disconnect();
+  },[imageRotation,imageDimensions]);
 
   const renderContent = () => {
     if (loading || !info) {
@@ -91,18 +118,22 @@ export function QuickPreviewOverlay() {
     }
 
     switch (info.kind) {
+      case "folder":
+        return <QuickPreviewFolder key={info.path} listing={info.folder ?? null} />;
       case "image":
         return (info.dataUrl || info.streamUrl) && !contentError ? (
-          <div className="qpo-image-scroll-wrap">
+          <div className="qpo-image-scroll-wrap" ref={imageContainer}>
             <div
               className="qpo-image-inner"
-              style={{ transform: `scale(${imageZoom})`, transformOrigin: "center center" }}
+              style={{ transform: `scale(${imageZoom*rotationFit}) rotate(${imageRotation}deg)`, transformOrigin: "center center" }}
             >
               <img
+                ref={imageElement}
                 src={info.dataUrl ?? info.streamUrl}
                 alt={info.name}
                 className="qpo-image"
                 draggable={false}
+                onLoad={event=>setImageDimensions({width:event.currentTarget.naturalWidth,height:event.currentTarget.naturalHeight})}
                 onError={() => setContentError(true)}
               />
               {info.thumbnailSource && <span className="qpo-thumbnail-notice">{info.thumbnailSource === "windows" ? "Windows thumbnail preview" : "Embedded thumbnail preview"}</span>}
@@ -209,10 +240,12 @@ export function QuickPreviewOverlay() {
       {/* Title bar — draggable */}
       <div className="qpo-titlebar" aria-label="Preview title bar">
         <div className="qpo-titlebar-left" aria-live="polite" aria-atomic="true">
+          {info?.folderCanGoBack && <button type="button" className="qpo-toolbar-btn" aria-label="Back to folder" onClick={()=>void window.electronAPI?.quickPreview?.folderBack()}><ArrowLeft size={16}/></button>}
           {info ? (
             <>
-              <span className="qpo-file-ext-badge" aria-label="File type">{info.ext || "FILE"}</span>
+              <span className="qpo-file-ext-badge" aria-label="File type">{info.kind==='folder'?'FOLDER':info.ext || "FILE"}</span>
               <span className="qpo-file-name">{info.name}</span>
+              {info.kind === 'image' && imageDimensions && <span className="qpo-file-size">Preview: {imageDimensions.width} × {imageDimensions.height}</span>}
               {info.sizeMb > 0 && (
                 <span className="qpo-file-size" aria-label={`${info.sizeMb.toFixed(1)} megabytes`}>
                   {info.sizeMb.toFixed(1)} MB
@@ -225,50 +258,12 @@ export function QuickPreviewOverlay() {
         </div>
 
         <div className="qpo-titlebar-actions" role="toolbar" aria-label="Preview actions">
-          {info?.kind === "image" && (info.dataUrl || info.streamUrl) && (
-            <>
-              <button
-                type="button"
-                className="qpo-toolbar-btn"
-                onClick={zoomOut}
-                title="Zoom out"
-                aria-label="Zoom out"
-                disabled={imageZoom <= 0.1}
-              >
-                <MagnifyingGlassMinus size={16} aria-hidden="true" />
-              </button>
-              <span className="qpo-zoom-label" aria-live="polite" aria-atomic="true">
-                {Math.round(imageZoom * 100)}%
-              </span>
-              <button
-                type="button"
-                className="qpo-toolbar-btn"
-                onClick={zoomIn}
-                title="Zoom in"
-                aria-label="Zoom in"
-                disabled={imageZoom >= 5}
-              >
-                <MagnifyingGlassPlus size={16} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className="qpo-toolbar-btn"
-                onClick={zoomReset}
-                title="Reset zoom"
-                aria-label="Reset zoom to fit"
-              >
-                <ArrowCounterClockwise size={16} aria-hidden="true" />
-              </button>
-              <div className="qpo-toolbar-divider" aria-hidden="true" />
-            </>
-          )}
-
           <button
             type="button"
             className="qpo-toolbar-btn"
             onClick={handleOpenDefault}
-            title="Open with default app"
-            aria-label="Open with default app"
+            title={info?.kind==='folder'?'Open in File Explorer':'Open with default app'}
+            aria-label={info?.kind==='folder'?'Open in File Explorer':'Open with default app'}
           >
             <ArrowSquareOut size={16} aria-hidden="true" />
           </button>
@@ -290,6 +285,16 @@ export function QuickPreviewOverlay() {
       <div className="qpo-content">
         {renderContent()}
       </div>
+      {info?.kind === 'image' && (info.dataUrl || info.streamUrl) && <div className="qpo-image-controls" role="toolbar" aria-label="Image controls">
+        <span className="qpo-file-size">{info.sizeMb > 0 ? `${info.sizeMb.toFixed(1)} MB` : ''}</span>
+        <button type="button" className="qpo-toolbar-btn" onClick={zoomOut} aria-label="Zoom out" disabled={imageZoom<=0.1}><MagnifyingGlassMinus size={16}/></button>
+        <span className="qpo-zoom-label" aria-live="polite">{Math.round(imageZoom*100)}%</span>
+        <button type="button" className="qpo-toolbar-btn" onClick={zoomIn} aria-label="Zoom in" disabled={imageZoom>=5}><MagnifyingGlassPlus size={16}/></button>
+        <button type="button" className="qpo-image-fit" onClick={zoomReset}>Fit</button>
+        <button type="button" className="qpo-toolbar-btn" onClick={()=>setImageRotation(value=>value-90)} aria-label="Rotate left"><ArrowCounterClockwise size={16}/></button>
+        <button type="button" className="qpo-toolbar-btn" onClick={()=>setImageRotation(value=>value+90)} aria-label="Rotate right"><ArrowClockwise size={16}/></button>
+        <span className="qpo-image-hints">+ / − Zoom · F Fit · R Rotate</span>
+      </div>}
     </div>
   );
 }

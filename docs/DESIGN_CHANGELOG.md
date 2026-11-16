@@ -20,6 +20,12 @@ This document is a historical record of KeyFlow's UI and interaction design evol
 
 ---
 
+## 2026-11-16 — Quick Preview folder and viewer layouts
+
+* Folder previews offer a list with item details, an image thumbnail grid, and an expandable one-level list. Nested folders can be opened for further navigation. Listings are bounded to 500 entries per folder.
+* PDF previews add a page sidebar, page navigation, zoom, and fit-to-width. Image previews add a bottom toolbar with fit and rotation controls.
+* Explorer-scoped folder activation was exercised with an injected Space key and an isolated native helper. Physical-key acceptance remains a separate check.
+
 ## 2026-11-15 — Quick Preview shortcut and format improvements
 
 * The settings page uses the shared `PageHeader` and offers an Explorer-scoped shortcut, defaulting to Space. Existing active shortcut and emergency-binding conflicts are reported.
